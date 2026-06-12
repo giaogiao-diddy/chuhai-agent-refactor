@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.so
+.env
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# FastAPI / Uvicorn
+*.log
+*.pid
+
+# MySQL / Data
+*.sql.gz
+*.sql
+
+# AI API Keys / Secrets
+.env.local
+.env.production
+*.key
+
+# WeChat Mini Program
+miniprogram/node_modules/
+miniprogram/dist/
+miniprogram/.tea/
+
+# 开发文档（设计稿已确认后可以忽略原始文件）
+*.docx
+参考.png
+
+# 不忽略 CLAUDE.md 和 spec.md（项目核心规范）
+!CLAUDE.md
+!spec.md
+
+# 编译产物
+*.pyc
+*.pyo
