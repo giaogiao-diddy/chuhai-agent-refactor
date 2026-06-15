@@ -288,3 +288,165 @@ class TestAdmin:
         resp = client.get("/api/admin/leads", headers=headers)
         # MVP 阶段不校验 admin 角色，只校验 JWT
         assert resp.status_code == 200
+
+
+class TestShareRecord:
+    """转发权益接口"""
+
+    def test_share_record_updates_benefit(self, client, sample_answers):
+        """转发后 benefit_minutes 从 45 升级到 55"""
+        # seed questions + login + complete assessment
+        import json
+        from pathlib import Path
+        from app.core.database import SessionLocal
+        from app.models.question import Question, QuestionOption
+
+        db = SessionLocal()
+        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
+        with open(path, encoding="utf-8") as f:
+            fixture = json.load(f)
+        for q_data in fixture["questions"]:
+            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
+                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
+            db.add(q)
+            for opt in q_data["options"]:
+                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
+                                       score=opt["score"], sort_order=opt["sort_order"]))
+        db.commit()
+        db.close()
+
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        create_resp = client.post("/api/assessments", headers=headers)
+        assessment_id = create_resp.json()["id"]
+
+        for ans in sample_answers:
+            client.post(
+                f"/api/assessments/{assessment_id}/answers",
+                json={"question_id": ans["question_id"], "option_id": ans["option_id"]},
+                headers=headers,
+            )
+        client.post(f"/api/assessments/{assessment_id}/complete", headers=headers)
+
+        import time
+        for _ in range(10):
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            if status_resp.json()["status"] == "success":
+                break
+            time.sleep(0.5)
+
+        # 转发
+        share_resp = client.post(
+            "/api/share-records",
+            json={"assessment_id": assessment_id, "share_scene": "moment"},
+            headers=headers,
+        )
+        assert share_resp.status_code == 200
+        data = share_resp.json()
+        assert data["reward_minutes"] == 10
+        assert data["total_benefit_minutes"] == 55
+
+    def test_share_record_wrong_user_fails(self, client):
+        """转发他人测评返回 403"""
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "user_a"})
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        # 用另一个用户登录创建测评
+        login2 = client.post("/api/auth/wechat-login", json={"code": "user_b"})
+        token2 = login2.json()["token"]
+        headers2 = {"Authorization": f"Bearer {token2}", "Content-Type": "application/json"}
+        create_resp = client.post("/api/assessments", headers=headers2)
+        other_id = create_resp.json()["id"]
+
+        # user_a 试图转发 user_b 的测评
+        resp = client.post(
+            "/api/share-records",
+            json={"assessment_id": other_id, "share_scene": "moment"},
+            headers=headers,
+        )
+        assert resp.status_code == 403
+
+    def test_share_uncompleted_assessment_fails(self, client):
+        """转发未完成的测评返回 400"""
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        create_resp = client.post("/api/assessments", headers=headers)
+        assessment_id = create_resp.json()["id"]
+
+        # 不答题、不完成，直接转发
+        resp = client.post(
+            "/api/share-records",
+            json={"assessment_id": assessment_id, "share_scene": "moment"},
+            headers=headers,
+        )
+        assert resp.status_code == 400
+
+
+class TestMyReport:
+    """我的报告接口"""
+
+    def test_my_report_returns_latest(self, client, sample_answers):
+        """我的报告返回最近一次已完成测评的报告卡片"""
+        import json
+        from pathlib import Path
+        from app.core.database import SessionLocal
+        from app.models.question import Question, QuestionOption
+
+        db = SessionLocal()
+        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
+        with open(path, encoding="utf-8") as f:
+            fixture = json.load(f)
+        for q_data in fixture["questions"]:
+            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
+                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
+            db.add(q)
+            for opt in q_data["options"]:
+                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
+                                       score=opt["score"], sort_order=opt["sort_order"]))
+        db.commit()
+        db.close()
+
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+        create_resp = client.post("/api/assessments", headers=headers)
+        assessment_id = create_resp.json()["id"]
+
+        for ans in sample_answers:
+            client.post(
+                f"/api/assessments/{assessment_id}/answers",
+                json={"question_id": ans["question_id"], "option_id": ans["option_id"]},
+                headers=headers,
+            )
+        client.post(f"/api/assessments/{assessment_id}/complete", headers=headers)
+
+        import time
+        for _ in range(10):
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            if status_resp.json()["status"] == "success":
+                break
+            time.sleep(0.5)
+
+        resp = client.get("/api/reports/my", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["assessment_id"] == assessment_id
+        assert data["total_score"] > 0
+        assert len(data["tag"]) > 0
+        assert data["display_score"] == data["total_score"] + 45
+        assert data["summary"] is not None
+
+    def test_my_report_no_completed_assessment(self, client):
+        """没有已完成测评时返回 404"""
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp = client.get("/api/reports/my", headers=headers)
+        assert resp.status_code == 404

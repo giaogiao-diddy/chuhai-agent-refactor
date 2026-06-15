@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.assessment import Assessment
+from app.models.share_record import ShareRecord
 from app.schemas.lead import LeadCreate, LeadResponse
 from app.schemas.admin import ShareRecordCreate, ShareRecordResponse
 from app.services.lead_service import create_lead
@@ -48,6 +49,30 @@ def record_share(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """记录转发行为，增加顾问解读分钟数"""
-    # TODO: 写入 share_records 表，更新 assessment.benefit_minutes
-    return ShareRecordResponse(reward_minutes=10, total_benefit_minutes=55)
+    """记录转发行为 — 奖励 10 分钟，增加顾问解读权益"""
+    # 校验测评存在且属于当前用户
+    assessment = db.query(Assessment).filter_by(id=body.assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="测评不存在")
+    if assessment.user_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="无权操作此测评")
+    if assessment.status != "completed":
+        raise HTTPException(status_code=400, detail="测评尚未完成，无法转发")
+
+    # 写入转发记录
+    share = ShareRecord(
+        user_id=current_user["user_id"],
+        assessment_id=body.assessment_id,
+        share_scene=body.share_scene,
+        reward_minutes=10,
+    )
+    db.add(share)
+
+    # 更新权益分钟数
+    assessment.benefit_minutes = (assessment.benefit_minutes or 45) + 10
+    db.commit()
+
+    return ShareRecordResponse(
+        reward_minutes=10,
+        total_benefit_minutes=assessment.benefit_minutes,
+    )

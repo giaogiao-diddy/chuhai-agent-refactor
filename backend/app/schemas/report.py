@@ -29,3 +29,13 @@ class AIReportOutput(BaseModel):
     """AI 返回的严格 JSON 结构"""
     summary_report: dict
     full_report: dict
+
+
+class MyReportResponse(BaseModel):
+    """我的报告 — 报告卡片"""
+    assessment_id: int
+    total_score: int
+    tag: str
+    display_score: int
+    completed_at: str | None = None
+    summary: dict | None = None
