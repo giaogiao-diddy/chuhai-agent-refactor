@@ -124,10 +124,17 @@ def complete_assessment(
 
 
 @router.get("/assessments/{assessment_id}/report-status", response_model=ReportStatusResponse)
-def get_report_status(assessment_id: int, db: Session = Depends(get_db)):
-    """轮询报告生成状态"""
+def get_report_status(
+    assessment_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """轮询报告生成状态 — 需登录 + 归属校验"""
     import datetime
-    assessment = db.query(Assessment).filter_by(id=assessment_id).first()
+    assessment = db.query(Assessment).filter_by(
+        id=assessment_id,
+        user_id=current_user["user_id"],
+    ).first()
     if not assessment:
         raise HTTPException(status_code=404, detail="测评不存在")
 

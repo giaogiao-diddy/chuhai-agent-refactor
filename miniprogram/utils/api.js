@@ -8,12 +8,8 @@
  * - 统一错误处理，返回 { data, error } 结构
  */
 
-const { getToken } = require("./auth");
-
-// ═══════════════════════════════════════════════
-// 环境切换 — 联调时改这里
-// ═══════════════════════════════════════════════
-const BASE_URL = "http://127.0.0.1:8000";
+const { getToken, clearAuth, login } = require("./auth");
+const { BASE_URL } = require("./config");
 
 /**
  * 通用请求方法
@@ -22,7 +18,22 @@ const BASE_URL = "http://127.0.0.1:8000";
  * @param {object} [data]  — 请求体（POST/PUT 时）
  * @returns {Promise<{data: any, error: string|null}>}
  */
-function request(path, method, data) {
+async function request(path, method, data, retryOnUnauthorized = true) {
+  const result = await sendRequest(path, method, data);
+  if (result.statusCode !== 401 || !retryOnUnauthorized) {
+    return result.payload;
+  }
+
+  try {
+    clearAuth();
+    await login();
+    return request(path, method, data, false);
+  } catch (err) {
+    return { data: null, error: "登录已失效，请重试" };
+  }
+}
+
+function sendRequest(path, method, data) {
   return new Promise((resolve) => {
     const token = getToken();
     const header = {
@@ -41,18 +52,33 @@ function request(path, method, data) {
       timeout: 30000,
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve({ data: res.data, error: null });
+          resolve({ statusCode: res.statusCode, payload: { data: res.data, error: null } });
         } else {
-          const msg = (res.data && res.data.error) || `请求失败 (${res.statusCode})`;
-          resolve({ data: null, error: msg });
+          const msg = formatErrorMessage(res.data, res.statusCode);
+          resolve({ statusCode: res.statusCode, payload: { data: null, error: msg } });
         }
       },
       fail(err) {
         console.error("[API] 网络错误:", err);
-        resolve({ data: null, error: "网络连接失败，请检查网络" });
+        resolve({ statusCode: 0, payload: { data: null, error: "网络连接失败，请检查网络" } });
       }
     });
   });
+}
+
+function formatErrorMessage(data, statusCode) {
+  if (!data) {
+    return `请求失败 (${statusCode})`;
+  }
+
+  if (Array.isArray(data.detail)) {
+    return data.detail.map((item) => {
+      const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : "";
+      return field ? `${field}: ${item.msg}` : item.msg;
+    }).join("；");
+  }
+
+  return data.detail || data.error || `请求失败 (${statusCode})`;
 }
 
 /* ── 对外方法 ────────────────────────────────── */

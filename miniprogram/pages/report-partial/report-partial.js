@@ -5,6 +5,7 @@ const { get } = require("../../utils/api");
 
 Page({
   data: {
+    assessmentId: null,
     score: 0,
     tag: "",
     report: null,
@@ -12,7 +13,10 @@ Page({
   },
 
   async onLoad(options) {
+    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+
     this.setData({
+      assessmentId: assessmentId,
       score: Number(options.score) || 0,
       tag: decodeURIComponent(options.tag || "")
     });
@@ -21,7 +25,13 @@ Page({
   },
 
   async loadSummary() {
-    const assessmentId = app.globalData.assessmentId;
+    const assessmentId = this.data.assessmentId;
+
+    if (!assessmentId) {
+      wx.showToast({ title: "参数错误", icon: "none" });
+      this.setData({ loading: false });
+      return;
+    }
 
     const { data, error } = await get(`/api/reports/${assessmentId}/summary`);
 
@@ -37,8 +47,9 @@ Page({
     });
   },
 
-  /** 跳转留资页 */
+  /** 跳转留资页 — 显式传 assessment_id */
   goToLead() {
-    wx.navigateTo({ url: "/pages/lead/lead" });
+    const id = this.data.assessmentId;
+    wx.navigateTo({ url: `/pages/lead/lead?assessment_id=${id}` });
   }
 });

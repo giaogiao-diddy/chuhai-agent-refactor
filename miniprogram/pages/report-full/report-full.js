@@ -5,17 +5,26 @@ const { get, post } = require("../../utils/api");
 
 Page({
   data: {
+    assessmentId: null,
     report: null,
     loading: true,
     benefitMinutes: 45
   },
 
-  async onLoad() {
-    await this.loadFullReport();
+  onLoad(options) {
+    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+    this.setData({ assessmentId: assessmentId });
+    this.loadFullReport();
   },
 
   async loadFullReport() {
-    const assessmentId = app.globalData.assessmentId;
+    const assessmentId = this.data.assessmentId;
+
+    if (!assessmentId) {
+      wx.showToast({ title: "参数错误", icon: "none" });
+      this.setData({ loading: false });
+      return;
+    }
 
     const { data, error } = await get(`/api/reports/${assessmentId}/full`);
 
@@ -33,14 +42,12 @@ Page({
 
   /** 转发 — 升级权益 */
   onShareAppMessage() {
-    // 先记录转发到后端
-    const assessmentId = app.globalData.assessmentId;
+    const assessmentId = this.data.assessmentId;
     post("/api/share-records", {
       assessment_id: assessmentId,
       share_scene: "moment"
     }).catch(err => console.error("分享记录失败:", err));
 
-    // 本地更新权益
     this.setData({
       benefitMinutes: this.data.benefitMinutes + 10
     });

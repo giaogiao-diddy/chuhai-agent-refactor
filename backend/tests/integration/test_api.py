@@ -337,7 +337,7 @@ class TestShareRecord:
 
         import time
         for _ in range(10):
-            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
             if status_resp.json()["status"] == "success":
                 break
             time.sleep(0.5)
@@ -433,7 +433,7 @@ class TestMyReport:
 
         import time
         for _ in range(10):
-            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
             if status_resp.json()["status"] == "success":
                 break
             time.sleep(0.5)

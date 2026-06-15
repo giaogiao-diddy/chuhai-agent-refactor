@@ -23,7 +23,7 @@
         data-option-id="{{item.id}}"
         bindtap="selectOption"
       >
-        {{item.option_text}}
+        {{item.text}}
       </view>
     </view>
   </view>

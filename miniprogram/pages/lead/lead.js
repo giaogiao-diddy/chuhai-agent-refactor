@@ -5,11 +5,17 @@ const { post } = require("../../utils/api");
 
 Page({
   data: {
+    assessmentId: null,
     name: "",
     contact: "",
     company: "",
     role: "",
     submitting: false
+  },
+
+  onLoad(options) {
+    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+    this.setData({ assessmentId: assessmentId });
   },
 
   /** 表单字段双向绑定 */
@@ -46,7 +52,7 @@ Page({
 
     this.setData({ submitting: true });
 
-    const assessmentId = app.globalData.assessmentId;
+    const assessmentId = this.data.assessmentId;
 
     const { data, error } = await post("/api/leads", {
       assessment_id: assessmentId,
@@ -63,7 +69,7 @@ Page({
       return;
     }
 
-    // 跳转完整报告
-    wx.redirectTo({ url: "/pages/report-full/report-full" });
+    // 跳转完整报告 — 显式传 assessment_id
+    wx.redirectTo({ url: `/pages/report-full/report-full?assessment_id=${this.data.assessmentId}` });
   }
 });

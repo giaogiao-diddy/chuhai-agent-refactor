@@ -116,12 +116,29 @@
   margin-bottom: 24rpx;
 }
 
-.qr-image {
+.qr-placeholder {
   width: 320rpx;
   height: 320rpx;
   border-radius: 12rpx;
   border: 2rpx solid #f0f0f0;
   background: #f8f8f8;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-placeholder-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 12rpx;
+}
+
+.qr-placeholder-text {
+  font-size: 24rpx;
+  color: #999;
 }
 
 .consultant-text {

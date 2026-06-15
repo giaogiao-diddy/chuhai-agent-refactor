@@ -61,7 +61,7 @@ Page({
         this.timer = null;
 
         wx.redirectTo({
-          url: `/pages/report-partial/report-partial?score=${this.data.score}&tag=${encodeURIComponent(this.data.tag)}`
+          url: `/pages/report-partial/report-partial?assessment_id=${assessmentId}&score=${this.data.score}&tag=${encodeURIComponent(this.data.tag)}`
         });
       } else if (data.status === "failed") {
         clearInterval(this.timer);

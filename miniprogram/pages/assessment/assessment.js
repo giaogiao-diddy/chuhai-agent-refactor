@@ -159,7 +159,7 @@ Page({
 
     // 跳转到报告生成中页面
     wx.redirectTo({
-      url: `/pages/report-generating/report-generating?score=${data.total_score || 0}&tag=${encodeURIComponent(data.tag || "")}`
+      url: `/pages/report-generating/report-generating?assessment_id=${assessmentId}&score=${data.total_score || 0}&tag=${encodeURIComponent(data.tag || "")}`
     });
   }
 });

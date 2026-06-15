@@ -57,12 +57,10 @@
     <!-- 顾问引导 -->
     <view class="consultant-box">
       <view class="consultant-qr">
-        <!-- 企微二维码占位 — 替换为真实图片 -->
-        <image
-          class="qr-image"
-          src="/images/qrcode-placeholder.png"
-          mode="aspectFit"
-        />
+        <view class="qr-placeholder">
+          <view class="qr-placeholder-title">企微二维码</view>
+          <view class="qr-placeholder-text">请替换为顾问二维码</view>
+        </view>
       </view>
       <view class="consultant-text">
         {{report.consultant_guide}}

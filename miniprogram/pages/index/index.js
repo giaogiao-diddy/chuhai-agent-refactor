@@ -7,7 +7,8 @@ const { post } = require("../../utils/api");
 Page({
   data: {
     loading: true,
-    loggedIn: false
+    loggedIn: false,
+    submitting: false
   },
 
   async onLoad() {
@@ -33,15 +34,25 @@ Page({
   /** 点击"开始测评" — 创建测评并跳转 */
   async startAssessment() {
     if (!app.globalData.token) {
-      wx.showToast({ title: "请先登录", icon: "none" });
-      return;
+      try {
+        const result = await login();
+        app.globalData.token = result.token;
+        app.globalData.userId = result.user_id;
+        app.globalData.openid = result.openid;
+        this.setData({ loggedIn: true });
+      } catch (err) {
+        wx.showToast({ title: "登录失败，请重试", icon: "none" });
+        return;
+      }
     }
 
+    this.setData({ submitting: true });
     wx.showLoading({ title: "准备中", mask: true });
 
     const { data, error } = await post("/api/assessments", {});
 
     wx.hideLoading();
+    this.setData({ submitting: false });
 
     if (error) {
       wx.showToast({ title: error, icon: "none" });

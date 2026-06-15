@@ -30,7 +30,7 @@
     </view>
 
     <!-- 开始按钮 -->
-    <button class="btn-primary start-btn" bindtap="startAssessment">
+    <button class="btn-primary start-btn" bindtap="startAssessment" loading="{{submitting}}" disabled="{{submitting}}">
       开始测评
     </button>
 

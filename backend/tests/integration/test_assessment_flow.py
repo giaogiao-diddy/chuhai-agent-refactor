@@ -160,7 +160,7 @@ class TestAssessmentFlow:
         import time
         timeout = 5
         for _ in range(timeout * 2):
-            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
             status_data = status_resp.json()
             if status_data["status"] == "success":
                 break
@@ -190,7 +190,7 @@ class TestAssessmentFlow:
 
         import time
         for _ in range(10):
-            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
             status_data = status_resp.json()
             if status_data["status"] == "success":
                 break
@@ -223,14 +223,14 @@ class TestAssessmentFlow:
             )
 
         # 完成前轮询 → pending
-        status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+        status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
         assert status_resp.status_code == 200
 
         client.post(f"/api/assessments/{assessment_id}/complete", headers=headers)
 
         import time
         for _ in range(10):
-            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
             status_data = status_resp.json()
             if status_data["status"] == "success":
                 break
@@ -259,7 +259,7 @@ class TestAssessmentFlow:
 
         import time
         for _ in range(10):
-            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status")
+            status_resp = client.get(f"/api/assessments/{assessment_id}/report-status", headers=headers)
             if status_resp.json()["status"] == "success":
                 break
             time.sleep(0.5)
