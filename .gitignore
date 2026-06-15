@@ -35,6 +35,7 @@ Thumbs.db
 .env.local
 .env.production
 *.key
+cloudbaserc.json
 
 # WeChat Mini Program
 miniprogram/node_modules/
