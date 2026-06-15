@@ -1,14 +1,14 @@
 from __future__ import annotations
 """留资请求/响应模型"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LeadCreate(BaseModel):
-    name: str
-    contact: str
-    company: str
-    role: str
+    name: str = Field(..., min_length=1, max_length=32)
+    contact: str = Field(..., min_length=2)
+    company: str = Field(..., min_length=1)
+    role: str = Field(..., min_length=1)
 
 
 class LeadResponse(BaseModel):

@@ -1,12 +1,12 @@
 from __future__ import annotations
 """测评请求/响应模型"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AnswerSubmit(BaseModel):
-    question_id: int
-    option_id: int
+    question_id: int = Field(..., gt=0, strict=True)
+    option_id: int = Field(..., gt=0, strict=True)
 
 
 class AssessmentComplete(BaseModel):
