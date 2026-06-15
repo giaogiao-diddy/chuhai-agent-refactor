@@ -13,15 +13,19 @@ from app.core.middleware import RequestLoggingMiddleware
 from app.core.database import init_db
 
 logger = logging.getLogger("luobin")
+_db_ok: bool = False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期 — 尝试建表，失败不阻塞启动"""
+    """应用生命周期 — 启动建表，状态记录到 _db_ok"""
+    global _db_ok
     try:
         init_db()
+        _db_ok = True
         logger.info("数据库表初始化完成")
     except Exception as e:
+        _db_ok = False
         logger.warning("数据库表初始化失败（可能 MySQL 未就绪）: %s", e)
     yield
 
@@ -56,5 +60,14 @@ app.include_router(admin.router, prefix="/api")
 
 @app.get("/health")
 def health_check():
-    """健康检查端点"""
-    return {"status": "ok"}
+    """基础健康检查 — 进程存活"""
+    return {"status": "ok", "database": "ok" if _db_ok else "unavailable"}
+
+
+@app.get("/health/db")
+def health_db():
+    """数据库健康检查 — 200 表示 DB 已就绪，503 表示未就绪"""
+    from fastapi.responses import JSONResponse
+    if _db_ok:
+        return {"status": "ok"}
+    return JSONResponse(status_code=503, content={"status": "unavailable", "detail": "数据库连接失败，请检查 MySQL 或设置 LB_DATABASE_URL"})

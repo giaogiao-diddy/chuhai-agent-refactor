@@ -1,7 +1,7 @@
-"""开发环境种子数据脚本 — SQLite 模式下使用"""
+"""开发环境种子数据 — 幂等（重复执行安全）"""
 import json
 import os
-os.environ["LB_DATABASE_URL"] = "sqlite:///./dev.db"
+os.environ["LB_DATABASE_URL"] = os.environ.get("LB_DATABASE_URL", "sqlite:///./dev.db")
 
 from app.core.database import SessionLocal, init_db
 from app.models.question import Question, QuestionOption
@@ -9,6 +9,12 @@ from app.models.question import Question, QuestionOption
 init_db()
 
 db = SessionLocal()
+
+# 幂等：先清空旧数据
+db.query(QuestionOption).delete()
+db.query(Question).delete()
+db.commit()
+
 with open("tests/fixtures/sample_questions.json", encoding="utf-8") as f:
     fixture = json.load(f)
 
@@ -26,4 +32,4 @@ for q_data in fixture["questions"]:
         ))
 db.commit()
 db.close()
-print(f"✅ Seeded {len(fixture['questions'])} questions")
+print(f"✅ Seeded {len(fixture['questions'])} questions (idempotent)")
