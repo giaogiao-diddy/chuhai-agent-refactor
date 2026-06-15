@@ -1,0 +1,57 @@
+{
+  "assessment": {
+    "id": 1,
+    "user_id": 1,
+    "total_score": 30,
+    "tag": "轻量试探型",
+    "status": "completed",
+    "benefit_minutes": 45,
+    "created_at": "2026-06-12T10:00:00",
+    "completed_at": "2026-06-12T10:03:00"
+  },
+  "answers": [
+    { "question_id": 1, "option_id": 2, "score": 2 },
+    { "question_id": 2, "option_id": 2, "score": 2 },
+    { "question_id": 3, "option_id": 2, "score": 2 },
+    { "question_id": 4, "option_id": 2, "score": 2 },
+    { "question_id": 5, "option_id": 2, "score": 2 },
+    { "question_id": 6, "option_id": 2, "score": 2 },
+    { "question_id": 7, "option_id": 2, "score": 2 },
+    { "question_id": 8, "option_id": 2, "score": 2 },
+    { "question_id": 9, "option_id": 2, "score": 2 },
+    { "question_id": 10, "option_id": 2, "score": 2 },
+    { "question_id": 11, "option_id": 2, "score": 2 },
+    { "question_id": 12, "option_id": 2, "score": 2 },
+    { "question_id": 13, "option_id": 2, "score": 2 },
+    { "question_id": 14, "option_id": 2, "score": 2 },
+    { "question_id": 15, "option_id": 2, "score": 2 }
+  ],
+  "dimension_summary": {
+    "company": { "total": 8, "max": 16, "questions": 4 },
+    "business": { "total": 22, "max": 44, "questions": 11 }
+  },
+  "report": {
+    "summary": {
+      "total_score": 30,
+      "tag": "轻量试探型",
+      "tag_explanation": "已具备部分条件，但关键能力尚未完整，适合小预算、轻渠道测试。",
+      "preliminary_judgment": "您的企业在出海方面已有一定基础，尤其在产品和市场认知方面表现不错。",
+      "strengths": ["产品具备一定的标准化基础", "对目标市场有初步了解"],
+      "risks": ["团队和供应链能力需要加强", "品牌资料和本地化准备不足"],
+      "unlock_hint": "提交信息后解锁完整报告，并领取45分钟1对1免费解读。"
+    },
+    "full": {
+      "summary_conclusion": "综合来看，您的企业具备出海的基本条件，建议优先选择东南亚市场进行小规模测试。",
+      "dimension_scores": { "公司实力": 22, "业务准备": 18, "市场认知": 20, "执行能力": 18 },
+      "recommended_path": "建议优先选择东南亚市场，采用轻量渠道测试策略。",
+      "risk_reminder": "需注意供应链交付稳定性和品牌本地化准备。",
+      "action_plan_30days": [
+        "完成产品出海版本的功能裁剪和定价策略制定",
+        "注册目标国家商标和域名",
+        "搭建基础的英文/本地化产品页面",
+        "选择1-2个轻量渠道开始小规模测试"
+      ],
+      "consultant_guide": "以上建议供初步参考，具体出海方案请联系企业微信顾问获得1对1解读。"
+    }
+  }
+}

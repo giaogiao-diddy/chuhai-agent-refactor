@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(python3 -c ' *)",
+      "Bash(gh --version)",
+      "Bash(cat ~/.claude/settings.json 2>/dev/null || echo \"NO_SETTINGS\")",
+      "Read(//Users/lkh/.claude/**)",
+      "Bash(brew install *)",
+      "Bash(npm --version)",
+      "Bash(curl -sL \"https://github.com/cli/cli/releases/download/v2.63.1/gh_2.63.1_macOS_arm64.tar.gz\" -o /tmp/gh.tar.gz)",
+      "Bash(tar xzf *)",
+      "Bash(sudo cp /tmp/gh_2.63.1_macOS_arm64/bin/gh /usr/local/bin/)",
+      "Read(//private/tmp/**)",
+      "Bash(xxd)",
+      "Bash(curl -sL \"https://github.com/cli/cli/releases/latest\" -o /dev/null -w \"%{redirect_url}\")",
+      "Bash(curl -s \"https://api.github.com/repos/cli/cli/releases/latest\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('tag_name',''\\)\\)\")",
+      "Bash(gh auth *)"
+    ]
+  }
+}

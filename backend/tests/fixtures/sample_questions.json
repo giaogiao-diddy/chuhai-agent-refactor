@@ -1,0 +1,205 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "title": "企业业务类型",
+      "description": "",
+      "dimension": "company",
+      "sort_order": 1,
+      "options": [
+        { "id": 1, "text": "本地服务/强线下", "score": 1, "sort_order": 1 },
+        { "id": 2, "text": "传统贸易/批发", "score": 2, "sort_order": 2 },
+        { "id": 3, "text": "消费品/电商/轻制造", "score": 3, "sort_order": 3 },
+        { "id": 4, "text": "品牌产品/高复购/标准化产品", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "团队规模",
+      "description": "目前参与出海业务或可调动的团队人数规模",
+      "dimension": "company",
+      "sort_order": 2,
+      "options": [
+        { "id": 5, "text": "1-5 人", "score": 1, "sort_order": 1 },
+        { "id": 6, "text": "6-20 人", "score": 2, "sort_order": 2 },
+        { "id": 7, "text": "21-100 人", "score": 3, "sort_order": 3 },
+        { "id": 8, "text": "100 人以上", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "年营收",
+      "description": "企业最近一年的营业收入范围",
+      "dimension": "company",
+      "sort_order": 3,
+      "options": [
+        { "id": 9, "text": "100 万以内", "score": 1, "sort_order": 1 },
+        { "id": 10, "text": "100-500 万", "score": 2, "sort_order": 2 },
+        { "id": 11, "text": "500-3000 万", "score": 3, "sort_order": 3 },
+        { "id": 12, "text": "3000 万以上", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "出海测试预算",
+      "description": "企业愿意为出海测试投入的资金预算范围",
+      "dimension": "company",
+      "sort_order": 4,
+      "options": [
+        { "id": 13, "text": "1 万以内", "score": 1, "sort_order": 1 },
+        { "id": 14, "text": "1-5 万", "score": 2, "sort_order": 2 },
+        { "id": 15, "text": "5-20 万", "score": 3, "sort_order": 3 },
+        { "id": 16, "text": "20 万以上", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "产品标准化",
+      "description": "当前产品的标准化程度",
+      "dimension": "business",
+      "sort_order": 5,
+      "options": [
+        { "id": 17, "text": "高度依赖定制", "score": 1, "sort_order": 1 },
+        { "id": 18, "text": "部分标准化", "score": 2, "sort_order": 2 },
+        { "id": 19, "text": "大部分可标准化销售", "score": 3, "sort_order": 3 },
+        { "id": 20, "text": "完全标准化可批量销售", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "供应链交付",
+      "description": "当前供应链的稳定性和交付能力",
+      "dimension": "business",
+      "sort_order": 6,
+      "options": [
+        { "id": 21, "text": "不太稳定", "score": 1, "sort_order": 1 },
+        { "id": 22, "text": "基本可保障", "score": 2, "sort_order": 2 },
+        { "id": 23, "text": "较稳定有固定合作方", "score": 3, "sort_order": 3 },
+        { "id": 24, "text": "稳定且有成本/效率优势", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "跨境经验",
+      "description": "企业目前的跨境电商或跨境业务经验",
+      "dimension": "business",
+      "sort_order": 7,
+      "options": [
+        { "id": 25, "text": "完全没有", "score": 1, "sort_order": 1 },
+        { "id": 26, "text": "了解过未开始", "score": 2, "sort_order": 2 },
+        { "id": 27, "text": "做过小规模测试", "score": 3, "sort_order": 3 },
+        { "id": 28, "text": "已有海外订单或客户", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "英文/本地化",
+      "description": "企业英文或目标市场本地化能力的准备情况",
+      "dimension": "business",
+      "sort_order": 8,
+      "options": [
+        { "id": 29, "text": "暂时没有", "score": 1, "sort_order": 1 },
+        { "id": 30, "text": "依赖翻译工具", "score": 2, "sort_order": 2 },
+        { "id": 31, "text": "有外包或兼职支持", "score": 3, "sort_order": 3 },
+        { "id": 32, "text": "有内部人员或成熟服务商", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "线上获客基础",
+      "description": "企业在线上获客方面的经验和渠道情况",
+      "dimension": "business",
+      "sort_order": 9,
+      "options": [
+        { "id": 33, "text": "几乎没有", "score": 1, "sort_order": 1 },
+        { "id": 34, "text": "有国内线上渠道", "score": 2, "sort_order": 2 },
+        { "id": 35, "text": "做过海外内容或广告测试", "score": 3, "sort_order": 3 },
+        { "id": 36, "text": "已有稳定线上获客渠道", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "品牌资料",
+      "description": "企业目前拥有的品牌相关素材和资料",
+      "dimension": "business",
+      "sort_order": 10,
+      "options": [
+        { "id": 37, "text": "资料较少", "score": 1, "sort_order": 1 },
+        { "id": 38, "text": "基础图片和介绍", "score": 2, "sort_order": 2 },
+        { "id": 39, "text": "较完整图片/视频/卖点", "score": 3, "sort_order": 3 },
+        { "id": 40, "text": "官网/案例/视频/品牌资料", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "海外履约",
+      "description": "企业将产品交付到海外客户的能力准备",
+      "dimension": "business",
+      "sort_order": 11,
+      "options": [
+        { "id": 41, "text": "暂未考虑", "score": 1, "sort_order": 1 },
+        { "id": 42, "text": "可国内直发", "score": 2, "sort_order": 2 },
+        { "id": 43, "text": "有合作物流商", "score": 3, "sort_order": 3 },
+        { "id": 44, "text": "有海外仓或成熟履约方案", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "目标市场",
+      "description": "对出海目标市场的了解和明确程度",
+      "dimension": "business",
+      "sort_order": 12,
+      "options": [
+        { "id": 45, "text": "还不明确", "score": 1, "sort_order": 1 },
+        { "id": 46, "text": "有几个感兴趣市场", "score": 2, "sort_order": 2 },
+        { "id": 47, "text": "研究过目标市场", "score": 3, "sort_order": 3 },
+        { "id": 48, "text": "明确国家和客户画像", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "合规了解",
+      "description": "对目标市场合规要求的了解程度",
+      "dimension": "business",
+      "sort_order": 13,
+      "options": [
+        { "id": 49, "text": "基本不了解", "score": 1, "sort_order": 1 },
+        { "id": 50, "text": "知道需要但未准备", "score": 2, "sort_order": 2 },
+        { "id": 51, "text": "了解部分基础要求", "score": 3, "sort_order": 3 },
+        { "id": 52, "text": "已有认证/资质/专业支持", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "团队推进",
+      "description": "目前团队中负责出海推进的人员配置",
+      "dimension": "business",
+      "sort_order": 14,
+      "options": [
+        { "id": 53, "text": "暂时没人负责", "score": 1, "sort_order": 1 },
+        { "id": 54, "text": "现有人员兼职推进", "score": 2, "sort_order": 2 },
+        { "id": 55, "text": "有专人负责", "score": 3, "sort_order": 3 },
+        { "id": 56, "text": "有小团队持续推进", "score": 4, "sort_order": 4 }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "出海目标",
+      "description": "企业对出海的目标和规划清晰程度",
+      "dimension": "business",
+      "sort_order": 15,
+      "options": [
+        { "id": 57, "text": "只是了解机会", "score": 1, "sort_order": 1 },
+        { "id": 58, "text": "有想法但方向不清", "score": 2, "sort_order": 2 },
+        { "id": 59, "text": "有大致目标和预算", "score": 3, "sort_order": 3 },
+        { "id": 60, "text": "明确市场/预算/时间表", "score": 4, "sort_order": 4 }
+      ]
+    }
+  ],
+  "tags": [
+    { "min_score": 60, "max_score": 70, "name": "观察准备型", "description": "当前仍处于准备阶段，适合先完成调研、产品梳理和低成本验证。" },
+    { "min_score": 71, "max_score": 80, "name": "轻量试探型", "description": "已具备部分条件，但关键能力尚未完整，适合小预算、轻渠道测试。" },
+    { "min_score": 81, "max_score": 90, "name": "基础具备型", "description": "具备一定出海基础，可以进入系统化测试阶段。" },
+    { "min_score": 91, "max_score": 100, "name": "优先布局型", "description": "整体条件较成熟，具备较高海外市场开拓潜力。" }
+  ]
+}
