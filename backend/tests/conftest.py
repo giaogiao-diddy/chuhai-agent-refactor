@@ -4,10 +4,63 @@ import json
 import os
 from pathlib import Path
 
+# ── 必须在 import app 模块之前设置 ──
+TEST_DATABASE_URL = "sqlite:///./test.db"
+os.environ["LB_DATABASE_URL"] = TEST_DATABASE_URL
+
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.core.database import Base, get_db
+from config import settings
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
+
+@pytest.fixture(scope="function")
+def db():
+    """每个测试独立 SQLite — 自动建表，结束后拆表"""
+    test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestingSessionLocal = sessionmaker(bind=test_engine, autoflush=False, autocommit=False)
+
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=test_engine)
+
+
+@pytest.fixture(scope="function")
+def client(db):
+    """FastAPI TestClient — 依赖注入重定向到测试 SQLite"""
+    from main import app
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as tc:
+        yield tc
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def auth_headers(client):
+    """通过微信登录获取 JWT Header"""
+    resp = client.post("/api/auth/wechat-login", json={"code": "test_code"})
+    data = resp.json()
+    token = data.get("token", "")
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+
+# ── 原单元测试 fixtures ──────────────────────────────────────────
 
 @pytest.fixture
 def sample_questions() -> list[dict]:
@@ -89,11 +142,9 @@ def mock_ai_response_missing_fields() -> dict:
     return {
         "summary_report": {
             "preliminary_judgment": "测试判断",
-            # 缺少 strengths 和 risks
         },
         "full_report": {
             "summary_conclusion": "测试结论",
-            # 缺少其他字段
         },
     }
 
@@ -102,9 +153,3 @@ def mock_ai_response_missing_fields() -> dict:
 def mock_ai_response_invalid_json() -> str:
     """模拟 AI 返回非法 JSON 字符串"""
     return "这不是 JSON 格式的响应"
-
-
-@pytest.fixture
-def db_session():
-    """测试用数据库会话（需先实现 core.database 后才能使用）"""
-    pytest.skip("需要先实现 core.database 模块")

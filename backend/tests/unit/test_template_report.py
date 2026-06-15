@@ -25,7 +25,7 @@ class TestBuildSummary:
     def test_score_and_tag_match(self, sample_answers):
         """分数和标签正确传递"""
         result = build_summary(30, "轻量试探型", {})
-        assert result["total_score"] == 78
+        assert result["total_score"] == 30
         assert result["tag"] == "轻量试探型"
 
     def test_strengths_and_risks_are_lists(self):
@@ -60,7 +60,7 @@ class TestBuildSummary:
             "product_type": "标准化产品",
             "team_size": "10-20 人",
         }
-        result = build_summary(78, "轻量试探型", answer_summary)
+        result = build_summary(30, "轻量试探型", answer_summary)
         # 模板包含变量插值，验证结果不为空
         assert isinstance(result["preliminary_judgment"], str)
 

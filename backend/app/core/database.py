@@ -26,3 +26,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def init_db(engine_override=None):
+    """创建全部 ORM 表 — 测试用（传入 SQLite engine）"""
+    import app.models.user  # noqa: F401
+    import app.models.question  # noqa: F401
+    import app.models.assessment  # noqa: F401
+    import app.models.answer  # noqa: F401
+    import app.models.report  # noqa: F401
+    import app.models.lead  # noqa: F401
+    import app.models.share_record  # noqa: F401
+    import app.models.follow_note  # noqa: F401
+    import app.models.admin_user  # noqa: F401
+    import app.models.ai_report_log  # noqa: F401
+    target = engine_override or engine
+    Base.metadata.create_all(bind=target)
