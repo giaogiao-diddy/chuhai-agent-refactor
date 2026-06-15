@@ -6,15 +6,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import logging
+
 from app.api import auth, questions, assessments, reports, leads, admin
 from app.core.middleware import RequestLoggingMiddleware
 from app.core.database import init_db
 
+logger = logging.getLogger("luobin")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期 — 启动时建表，关闭时无操作"""
-    init_db()
+    """应用生命周期 — 尝试建表，失败不阻塞启动"""
+    try:
+        init_db()
+        logger.info("数据库表初始化完成")
+    except Exception as e:
+        logger.warning("数据库表初始化失败（可能 MySQL 未就绪）: %s", e)
     yield
 
 
