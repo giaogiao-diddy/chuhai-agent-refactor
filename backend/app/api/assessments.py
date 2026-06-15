@@ -158,12 +158,25 @@ def get_report_status(
 # ── 后台任务 ──────────────────────────────────────────────────────
 
 def _generate_report_bg(assessment_id: int):
-    """后台异步生成报告 — 独立 DB session，AI 失败走模板兜底"""
+    """后台异步生成报告 — AI 失败走模板兜底，异常时回写 failed 状态"""
     from app.core.database import SessionLocal
     from app.services.report_service import generate_report
+    from app.models.report import Report
 
     db = SessionLocal()
     try:
         generate_report(db, assessment_id)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("luobin")
+        logger.exception("后台报告生成异常 assessment_id=%s: %s", assessment_id, e)
+        try:
+            report = db.query(Report).filter_by(assessment_id=assessment_id).first()
+            if report:
+                report.generation_status = "failed"
+                report.generation_error = str(e)[:512]
+                db.commit()
+        except Exception:
+            db.rollback()
     finally:
         db.close()

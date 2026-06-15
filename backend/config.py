@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_hours: int = 72
 
+    # ── CORS ───────────────────────────────────────────────
+    cors_origins: str = "*"  # 逗号分隔的允许域名，* 表示全部
+
     # ── Server ─────────────────────────────────────────────
     server_host: str = "0.0.0.0"
     server_port: int = 8000

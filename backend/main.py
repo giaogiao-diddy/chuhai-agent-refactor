@@ -11,6 +11,7 @@ import logging
 from app.api import auth, questions, assessments, reports, leads, admin
 from app.core.middleware import RequestLoggingMiddleware
 from app.core.database import init_db
+from config import settings
 
 logger = logging.getLogger("luobin")
 _db_ok: bool = False
@@ -38,9 +39,11 @@ app = FastAPI(
 )
 
 # ── CORS ──────────────────────────────────────────────────
+cors_origins = settings.cors_origins.split(",") if settings.cors_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
