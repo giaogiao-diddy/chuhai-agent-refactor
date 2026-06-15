@@ -8,11 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, questions, assessments, reports, leads, admin
 from app.core.middleware import RequestLoggingMiddleware
+from app.core.database import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期 — 启动/关闭钩子"""
+    """应用生命周期 — 启动时建表，关闭时无操作"""
+    init_db()
     yield
 
 
