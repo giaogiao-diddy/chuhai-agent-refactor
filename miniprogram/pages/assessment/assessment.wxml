@@ -1,0 +1,44 @@
+<view class="page">
+  <!-- 进度条 -->
+  <view class="progress-bar">
+    <view class="progress-fill" style="width: {{(currentIndex + 1) / totalQuestions * 100}}%"></view>
+  </view>
+  <view class="progress-text">{{currentIndex + 1}} / {{totalQuestions}}</view>
+
+  <!-- 题目卡片 -->
+  <view class="container" wx:if="{{questions[currentIndex]}}">
+    <view class="card question-card">
+      <view class="question-title">{{questions[currentIndex].title}}</view>
+      <view class="question-desc" wx:if="{{questions[currentIndex].description}}">
+        {{questions[currentIndex].description}}
+      </view>
+    </view>
+
+    <!-- 选项列表 -->
+    <view class="options-list">
+      <view
+        wx:for="{{questions[currentIndex].options}}"
+        wx:key="id"
+        class="option-item {{selectedOptionId === item.id ? 'option-selected' : ''}}"
+        data-option-id="{{item.id}}"
+        bindtap="selectOption"
+      >
+        {{item.option_text}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部导航按钮 -->
+  <view class="nav-buttons">
+    <button
+      class="nav-btn nav-btn-prev"
+      bindtap="goPrev"
+      disabled="{{currentIndex === 0}}"
+    >
+      上一题
+    </button>
+    <view class="nav-hint">
+      点击选项自动提交并跳转
+    </view>
+  </view>
+</view>

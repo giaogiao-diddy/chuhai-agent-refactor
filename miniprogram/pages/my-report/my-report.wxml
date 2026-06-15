@@ -1,0 +1,27 @@
+<view class="page">
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="loading-box">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 空态 -->
+  <view wx:elif="{{empty}}" class="empty-box">
+    <view class="empty-icon">📋</view>
+    <view class="empty-text">暂无测评报告</view>
+    <view class="empty-hint">完成一次出海测评后，报告将在这里展示</view>
+  </view>
+
+  <!-- 报告卡片 -->
+  <view wx:else class="container">
+    <view class="card report-card" bindtap="goToReport">
+      <view class="card-header">
+        <view class="card-score">{{report.total_score || report.display_score}}</view>
+        <view class="card-tag">{{report.tag}}</view>
+      </view>
+      <view class="card-time" wx:if="{{report.created_at}}">
+        测评时间：{{report.created_at}}
+      </view>
+      <view class="card-arrow">查看详情 →</view>
+    </view>
+  </view>
+</view>

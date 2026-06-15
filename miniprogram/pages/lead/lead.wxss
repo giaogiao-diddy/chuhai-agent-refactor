@@ -1,0 +1,72 @@
+.page {
+  min-height: 100vh;
+}
+
+/* ── 头部引导 ─────────────────────────────────── */
+.lead-header {
+  text-align: center;
+  padding: 48rpx 0 32rpx;
+}
+
+.lead-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 20rpx;
+}
+
+.lead-subtitle {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+}
+
+.highlight {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+/* ── 表单卡片 ─────────────────────────────────── */
+.form-card {
+  margin-top: 32rpx;
+}
+
+.form-item {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.form-item:last-child {
+  border-bottom: none;
+}
+
+.form-label {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+.form-input {
+  width: 100%;
+  height: 72rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  box-sizing: border-box;
+}
+
+/* ── 按钮 ─────────────────────────────────────── */
+.btn-primary {
+  margin-top: 48rpx;
+}
+
+/* ── 隐私提示 ─────────────────────────────────── */
+.privacy-note {
+  text-align: center;
+  font-size: 22rpx;
+  color: #bbb;
+  margin-top: 24rpx;
+}

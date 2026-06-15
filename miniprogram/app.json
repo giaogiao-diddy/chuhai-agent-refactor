@@ -1,0 +1,19 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/assessment/assessment",
+    "pages/report-generating/report-generating",
+    "pages/report-partial/report-partial",
+    "pages/lead/lead",
+    "pages/report-full/report-full",
+    "pages/my-report/my-report"
+  ],
+  "window": {
+    "navigationBarTitleText": "罗宾出海分析",
+    "navigationBarBackgroundColor": "#1a1a2e",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f5f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,58 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading-box">
+    <text>加载报告...</text>
+  </view>
+
+  <view wx:else class="container">
+    <!-- 分数 + 标签 -->
+    <view class="score-card">
+      <view class="score-number">{{report.total_score || score}}</view>
+      <view class="score-label">出海准备度评分</view>
+      <view class="tag-badge">{{report.tag || tag}}</view>
+    </view>
+
+    <!-- 标签说明 -->
+    <view class="card">
+      <view class="section-title">评估概要</view>
+      <view class="section-text">{{report.tag_explanation}}</view>
+    </view>
+
+    <!-- 初步判断 -->
+    <view class="card">
+      <view class="section-title">初步判断</view>
+      <view class="section-text">{{report.preliminary_judgment}}</view>
+    </view>
+
+    <!-- 优势 -->
+    <view class="card">
+      <view class="section-title">你的优势</view>
+      <view
+        wx:for="{{report.strengths}}"
+        wx:key="*this"
+        class="list-item list-item-good"
+      >
+        ✓ {{item}}
+      </view>
+    </view>
+
+    <!-- 风险 -->
+    <view class="card">
+      <view class="section-title">需要注意</view>
+      <view
+        wx:for="{{report.risks}}"
+        wx:key="*this"
+        class="list-item list-item-risk"
+      >
+        ! {{item}}
+      </view>
+    </view>
+
+    <!-- 解锁入口 -->
+    <view class="unlock-box">
+      <view class="unlock-hint">{{report.unlock_hint}}</view>
+      <button class="btn-primary" bindtap="goToLead">
+        解锁完整报告
+      </button>
+    </view>
+  </view>
+</view>

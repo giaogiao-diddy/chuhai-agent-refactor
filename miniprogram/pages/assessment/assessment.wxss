@@ -1,0 +1,108 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: 120rpx;
+}
+
+/* ── 进度条 ───────────────────────────────────── */
+.progress-bar {
+  height: 6rpx;
+  background: #e8e8e8;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1a1a2e, #16213e);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+  padding: 16rpx 0;
+}
+
+/* ── 题目卡片 ─────────────────────────────────── */
+.question-card {
+  margin-top: 24rpx;
+}
+
+.question-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.6;
+}
+
+.question-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 12rpx;
+}
+
+/* ── 选项列表 ─────────────────────────────────── */
+.options-list {
+  margin-top: 40rpx;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 32rpx;
+  margin-bottom: 20rpx;
+  background: #fff;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #333;
+  transition: all 0.15s ease;
+}
+
+.option-item:active {
+  transform: scale(0.98);
+}
+
+.option-selected {
+  border-color: #1a1a2e;
+  background: #f0f0fa;
+  color: #1a1a2e;
+  font-weight: 500;
+}
+
+/* ── 底部导航 ─────────────────────────────────── */
+.nav-buttons {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nav-btn {
+  width: 200rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  text-align: center;
+  font-size: 26rpx;
+  border-radius: 36rpx;
+  border: 2rpx solid #1a1a2e;
+  background: #fff;
+  color: #1a1a2e;
+}
+
+.nav-btn[disabled] {
+  border-color: #ddd;
+  color: #ccc;
+}
+
+.nav-hint {
+  font-size: 22rpx;
+  color: #bbb;
+  margin-top: 12rpx;
+}

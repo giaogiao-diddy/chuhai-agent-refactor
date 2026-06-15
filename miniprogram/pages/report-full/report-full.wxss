@@ -1,0 +1,148 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: 60rpx;
+}
+
+.loading-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* ── 内容卡片 ─────────────────────────────────── */
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 16rpx;
+  padding-bottom: 12rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.section-text {
+  font-size: 28rpx;
+  color: #555;
+  line-height: 1.8;
+}
+
+/* ── 维度评分 ─────────────────────────────────── */
+.dimension-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f8f8f8;
+}
+
+.dimension-row:last-child {
+  border-bottom: none;
+}
+
+.dim-name {
+  width: 140rpx;
+  font-size: 26rpx;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.dim-bar-wrap {
+  flex: 1;
+  height: 12rpx;
+  background: #eee;
+  border-radius: 6rpx;
+  margin: 0 20rpx;
+}
+
+.dim-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1a1a2e, #16213e);
+  border-radius: 6rpx;
+  min-width: 12rpx;
+}
+
+.dim-score {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  width: 60rpx;
+  text-align: right;
+}
+
+/* ── 行动步骤 ─────────────────────────────────── */
+.action-step {
+  display: flex;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f8f8f8;
+}
+
+.action-step:last-child {
+  border-bottom: none;
+}
+
+.step-num {
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  text-align: center;
+  background: #1a1a2e;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 22rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-right: 16rpx;
+}
+
+.step-text {
+  font-size: 28rpx;
+  color: #555;
+  line-height: 1.6;
+  flex: 1;
+}
+
+/* ── 顾问区域 ─────────────────────────────────── */
+.consultant-box {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 48rpx 32rpx;
+  margin-top: 32rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.consultant-qr {
+  margin-bottom: 24rpx;
+}
+
+.qr-image {
+  width: 320rpx;
+  height: 320rpx;
+  border-radius: 12rpx;
+  border: 2rpx solid #f0f0f0;
+  background: #f8f8f8;
+}
+
+.consultant-text {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 16rpx;
+  line-height: 1.6;
+}
+
+.consultant-benefit {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.benefit-highlight {
+  color: #1a1a2e;
+  font-weight: 700;
+  font-size: 36rpx;
+}
+
+/* ── 转发按钮 ─────────────────────────────────── */
+.share-btn {
+  margin-top: 32rpx;
+}

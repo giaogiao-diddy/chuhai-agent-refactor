@@ -1,0 +1,80 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="loading-box">
+    <text>加载报告...</text>
+  </view>
+
+  <view wx:else class="container">
+    <!-- 综合结论 -->
+    <view class="card">
+      <view class="section-title">综合结论</view>
+      <view class="section-text">{{report.summary_conclusion}}</view>
+    </view>
+
+    <!-- 维度评分 -->
+    <view class="card">
+      <view class="section-title">维度评分</view>
+      <view
+        wx:for="{{report.dimension_scores}}"
+        wx:key="key"
+        wx:for-item="score"
+        wx:for-index="dim"
+        class="dimension-row"
+      >
+        <view class="dim-name">{{dim}}</view>
+        <view class="dim-bar-wrap">
+          <view class="dim-bar" style="width: {{score / 100 * 100}}%"></view>
+        </view>
+        <view class="dim-score">{{score}}</view>
+      </view>
+    </view>
+
+    <!-- 推荐路径 -->
+    <view class="card">
+      <view class="section-title">推荐出海路径</view>
+      <view class="section-text">{{report.recommended_path}}</view>
+    </view>
+
+    <!-- 风险提醒 -->
+    <view class="card">
+      <view class="section-title">风险提醒</view>
+      <view class="section-text">{{report.risk_reminder}}</view>
+    </view>
+
+    <!-- 30 天行动建议 -->
+    <view class="card">
+      <view class="section-title">30 天行动建议</view>
+      <view
+        wx:for="{{report.action_plan_30days}}"
+        wx:key="*this"
+        wx:for-item="step"
+        class="action-step"
+      >
+        <view class="step-num">{{index + 1}}</view>
+        <view class="step-text">{{step}}</view>
+      </view>
+    </view>
+
+    <!-- 顾问引导 -->
+    <view class="consultant-box">
+      <view class="consultant-qr">
+        <!-- 企微二维码占位 — 替换为真实图片 -->
+        <image
+          class="qr-image"
+          src="/images/qrcode-placeholder.png"
+          mode="aspectFit"
+        />
+      </view>
+      <view class="consultant-text">
+        {{report.consultant_guide}}
+      </view>
+      <view class="consultant-benefit">
+        当前解读权益：<text class="benefit-highlight">{{benefitMinutes}} 分钟</text>
+      </view>
+    </view>
+
+    <!-- 转发按钮 -->
+    <button class="btn-primary share-btn" open-type="share">
+      转发好友，升级为 {{benefitMinutes + 10}} 分钟解读
+    </button>
+  </view>
+</view>

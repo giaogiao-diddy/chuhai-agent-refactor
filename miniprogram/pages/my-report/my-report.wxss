@@ -1,0 +1,79 @@
+.page {
+  min-height: 100vh;
+}
+
+.loading-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* ── 空态 ─────────────────────────────────────── */
+.empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 60rpx;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  margin-bottom: 32rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+}
+
+.empty-hint {
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ── 报告卡片 ─────────────────────────────────── */
+.report-card {
+  margin-top: 32rpx;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.card-score {
+  font-size: 64rpx;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-right: 24rpx;
+}
+
+.card-tag {
+  padding: 8rpx 24rpx;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #fff;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+}
+
+.card-time {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 16rpx;
+}
+
+.card-arrow {
+  text-align: right;
+  font-size: 26rpx;
+  color: #1a1a2e;
+}
