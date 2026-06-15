@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class LeadCreate(BaseModel):
+    assessment_id: int = Field(..., gt=0)
     name: str = Field(..., min_length=1, max_length=32)
     contact: str = Field(..., min_length=2)
     company: str = Field(..., min_length=1)

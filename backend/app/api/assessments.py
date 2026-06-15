@@ -50,9 +50,12 @@ def submit_answer(
     if assessment.status != "in_progress":
         raise HTTPException(status_code=400, detail="测评已完成，不可继续答题")
 
-    option = db.query(QuestionOption).filter_by(id=body.option_id).first()
+    option = db.query(QuestionOption).filter_by(
+        id=body.option_id,
+        question_id=body.question_id,
+    ).first()
     if not option:
-        raise HTTPException(status_code=400, detail="选项不存在")
+        raise HTTPException(status_code=400, detail="选项与题目不匹配")
 
     # upsert: 同一测评同一题反复提交 = 覆盖
     answer = (

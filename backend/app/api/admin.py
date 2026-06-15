@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import require_admin
 from app.models.lead import Lead
 from app.models.assessment import Assessment
 from app.models.answer import Answer
@@ -28,7 +28,7 @@ def list_leads(
     tag: str | None = None,
     is_unlocked: bool | None = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
 ):
     """后台线索列表 — 支持按标签、留资状态筛选"""
     query = db.query(Lead)
@@ -63,7 +63,7 @@ def list_leads(
 def get_assessment_detail(
     assessment_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
 ):
     """后台测评详情 — 查看 15 题答案和报告"""
     assessment = db.query(Assessment).filter_by(id=assessment_id).first()
@@ -92,7 +92,7 @@ def list_ai_report_logs(
     size: int = 20,
     status: str | None = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
 ):
     """AI 调用日志列表"""
     query = db.query(AIReportLog)
@@ -118,7 +118,7 @@ def list_ai_report_logs(
 def create_follow_note(
     body: FollowNoteCreate,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_admin),
 ):
     """创建跟进备注"""
     from app.models.follow_note import FollowNote

@@ -268,10 +268,10 @@ class TestAssessmentFlow:
         full_resp_before = client.get(f"/api/reports/{assessment_id}/full", headers=headers)
         assert full_resp_before.status_code == 403
 
-        # 留资
+        # 留资（带 assessment_id）
         client.post(
             "/api/leads",
-            json={"name": "张三", "contact": "13800138000", "company": "某公司", "role": "创始人"},
+            json={"assessment_id": assessment_id, "name": "张三", "contact": "13800138000", "company": "某公司", "role": "创始人"},
             headers=headers,
         )
 

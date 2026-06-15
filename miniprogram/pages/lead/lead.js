@@ -31,6 +31,10 @@ Page({
       wx.showToast({ title: "请填写电话/微信", icon: "none" });
       return;
     }
+    if (contact.trim().length < 2) {
+      wx.showToast({ title: "联系方式至少 2 个字符", icon: "none" });
+      return;
+    }
     if (!company.trim()) {
       wx.showToast({ title: "请填写公司名称", icon: "none" });
       return;
@@ -45,6 +49,7 @@ Page({
     const assessmentId = app.globalData.assessmentId;
 
     const { data, error } = await post("/api/leads", {
+      assessment_id: assessmentId,
       name: name.trim(),
       contact: contact.trim(),
       company: company.trim(),

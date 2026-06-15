@@ -55,7 +55,15 @@ def get_full_report(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """获取完整报告 — 需先留资解锁，否则返回 403"""
+    """获取完整报告 — 需留资解锁 + 归属校验，否则返回 403"""
+    # 先校验测评属于当前用户
+    assessment = db.query(Assessment).filter_by(
+        id=assessment_id,
+        user_id=current_user["user_id"],
+    ).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="报告不存在")
+
     report = db.query(Report).filter_by(assessment_id=assessment_id).first()
     if not report or not report.full_report_json:
         raise HTTPException(status_code=404, detail="报告不存在或尚未生成")

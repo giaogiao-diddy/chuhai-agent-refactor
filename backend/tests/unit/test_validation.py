@@ -15,7 +15,7 @@ class TestLeadValidation:
 
     def test_valid_lead_passes(self):
         """有效留资通过校验"""
-        lead = LeadCreate(
+        lead = LeadCreate(assessment_id=1, 
             name="张三",
             contact="13800138000",
             company="某贸易有限公司",
@@ -27,7 +27,7 @@ class TestLeadValidation:
     def test_empty_name_fails(self):
         """姓名不能为空"""
         with pytest.raises(ValidationError):
-            LeadCreate(
+            LeadCreate(assessment_id=1, 
                 name="",
                 contact="13800138000",
                 company="某公司",
@@ -37,7 +37,7 @@ class TestLeadValidation:
     def test_empty_contact_fails(self):
         """联系方式不能为空"""
         with pytest.raises(ValidationError):
-            LeadCreate(
+            LeadCreate(assessment_id=1, 
                 name="张三",
                 contact="",
                 company="某公司",
@@ -47,7 +47,7 @@ class TestLeadValidation:
     def test_empty_company_fails(self):
         """公司不能为空"""
         with pytest.raises(ValidationError):
-            LeadCreate(
+            LeadCreate(assessment_id=1, 
                 name="张三",
                 contact="13800138000",
                 company="",
@@ -57,7 +57,7 @@ class TestLeadValidation:
     def test_empty_role_fails(self):
         """身份不能为空"""
         with pytest.raises(ValidationError):
-            LeadCreate(
+            LeadCreate(assessment_id=1, 
                 name="张三",
                 contact="13800138000",
                 company="某公司",
@@ -67,7 +67,7 @@ class TestLeadValidation:
     def test_contact_min_length(self):
         """联系方式至少 2 个字符"""
         with pytest.raises(ValidationError):
-            LeadCreate(
+            LeadCreate(assessment_id=1, 
                 name="张三",
                 contact="1",
                 company="某公司",
@@ -76,14 +76,14 @@ class TestLeadValidation:
 
     def test_name_max_length(self):
         """姓名不超过 32 字符"""
-        LeadCreate(
+        LeadCreate(assessment_id=1, 
             name="阿" * 32,
             contact="13800138000",
             company="某公司",
             role="创始人",
         )
         with pytest.raises(ValidationError):
-            LeadCreate(
+            LeadCreate(assessment_id=1, 
                 name="阿" * 33,
                 contact="13800138000",
                 company="某公司",

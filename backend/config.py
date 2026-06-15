@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
 
+    # ── Admin ──────────────────────────────────────────────
+    admin_user_ids: str = ""  # 逗号分隔的 user_id，为空时跳过管理员校验
+
     # ── WeChat ─────────────────────────────────────────────
     wx_appid: str = ""
     wx_secret: str = ""

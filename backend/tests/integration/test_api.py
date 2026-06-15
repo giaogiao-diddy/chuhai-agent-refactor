@@ -194,18 +194,22 @@ class TestLeads:
         assert create_resp.status_code == 200
         assessment_id = create_resp.json()["id"]
 
-        # 添加预存的 report 以便留资解锁
+        # 添加预存的 report + 标记测评已完成以便留资解锁
         db = SessionLocal()
+        from app.models.assessment import Assessment as AssessmentModel
+        assessment = db.query(AssessmentModel).filter_by(id=assessment_id).first()
+        if assessment:
+            assessment.status = "completed"
         report = Report(assessment_id=assessment_id, summary_report_json={"total_score": 30},
                         full_report_json={"summary_conclusion": "test"}, generation_status="success")
         db.add(report)
         db.commit()
         db.close()
 
-        # 留资
+        # 留资（带 assessment_id）
         lead_resp = client.post(
             "/api/leads",
-            json={"name": "张三", "contact": "13800138000", "company": "某公司", "role": "创始人"},
+            json={"assessment_id": assessment_id, "name": "张三", "contact": "13800138000", "company": "某公司", "role": "创始人"},
             headers=headers,
         )
         assert lead_resp.status_code == 200
@@ -227,27 +231,28 @@ class TestLeads:
         assert resp.status_code == 422
 
     def test_full_report_requires_lead(self, client):
-        """未留资时完整报告返回 403"""
+        """未留资时完整报告返回 403（同一用户有报告但未解锁）"""
         login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
         token = login_resp.json()["token"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        # 确保有报告但未解锁
+        # 先创建测评 → 完成 → 生成报告（未解锁）
+        create_resp = client.post("/api/assessments", headers=headers)
+        assessment_id = create_resp.json()["id"]
+
         from app.core.database import SessionLocal
         from app.models.report import Report
+        from app.models.assessment import Assessment as AssessmentModel
         db = SessionLocal()
-        existing = db.query(Report).filter_by(assessment_id=1).first()
-        if not existing:
-            report = Report(assessment_id=1, full_report_json={"summary_conclusion": "test"},
-                            is_unlocked=False, generation_status="success")
-            db.add(report)
-            db.commit()
-        else:
-            existing.is_unlocked = False
-            db.commit()
+        assessment = db.query(AssessmentModel).filter_by(id=assessment_id).first()
+        assessment.status = "completed"
+        report = Report(assessment_id=assessment_id, full_report_json={"summary_conclusion": "test"},
+                        is_unlocked=False, generation_status="success")
+        db.add(report)
+        db.commit()
         db.close()
 
-        resp = client.get("/api/reports/1/full", headers=headers)
+        resp = client.get(f"/api/reports/{assessment_id}/full", headers=headers)
         assert resp.status_code == 403
 
 

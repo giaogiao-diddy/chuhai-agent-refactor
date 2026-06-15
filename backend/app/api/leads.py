@@ -21,20 +21,20 @@ def submit_lead(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """提交留资信息，解锁最近一次完成的测评报告"""
-    # 查找该用户最近完成的测评
-    assessment = (
-        db.query(Assessment)
-        .filter_by(user_id=current_user["user_id"])
-        .order_by(Assessment.id.desc())
-        .first()
-    )
-    assessment_id = assessment.id if assessment else 1
+    """提交留资信息 — 校验归属 + 完成状态，解锁对应测评报告"""
+    assessment = db.query(Assessment).filter_by(
+        id=body.assessment_id,
+        user_id=current_user["user_id"],
+    ).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="测评不存在")
+    if assessment.status != "completed":
+        raise HTTPException(status_code=400, detail="测评尚未完成，无法留资")
 
     result = create_lead(
         db,
         user_id=current_user["user_id"],
-        assessment_id=assessment_id,
+        assessment_id=body.assessment_id,
         name=body.name,
         contact=body.contact,
         company=body.company,
