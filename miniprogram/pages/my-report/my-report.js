@@ -42,7 +42,7 @@ Page({
     app.globalData.assessmentId = assessmentId;
 
     wx.navigateTo({
-      url: `/pages/report-partial/report-partial?score=${this.data.report.total_score || 0}&tag=${encodeURIComponent(this.data.report.tag || "")}`
+      url: `/pages/report-partial/report-partial?score=${this.data.report.display_score || this.data.report.total_score || 0}&tag=${encodeURIComponent(this.data.report.tag || "")}`
     });
   }
 });

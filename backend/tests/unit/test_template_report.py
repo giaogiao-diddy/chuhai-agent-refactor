@@ -15,9 +15,13 @@ class TestBuildSummary:
         """返回的字典包含所有必需字段"""
         result = build_summary(30, "轻量试探型", {})
         assert "total_score" in result
+        assert "display_score" in result
         assert "tag" in result
         assert "tag_explanation" in result
         assert "preliminary_judgment" in result
+        assert "positioning_assessment" in result
+        assert "content_assessment" in result
+        assert "conversion_assessment" in result
         assert "strengths" in result
         assert "risks" in result
         assert "unlock_hint" in result
@@ -26,6 +30,7 @@ class TestBuildSummary:
         """分数和标签正确传递"""
         result = build_summary(30, "轻量试探型", {})
         assert result["total_score"] == 30
+        assert result["display_score"] == 73
         assert result["tag"] == "轻量试探型"
 
     def test_strengths_and_risks_are_lists(self):
@@ -72,6 +77,9 @@ class TestBuildFull:
         """返回的字典包含所有必需字段"""
         result = build_full(30, "轻量试探型", {})
         assert "summary_conclusion" in result
+        assert "positioning_assessment" in result
+        assert "content_assessment" in result
+        assert "conversion_assessment" in result
         assert "dimension_scores" in result
         assert "recommended_path" in result
         assert "risk_reminder" in result
@@ -82,6 +90,14 @@ class TestBuildFull:
         """维度评分是字典"""
         result = build_full(30, "轻量试探型", {})
         assert isinstance(result["dimension_scores"], dict)
+        for key in [
+            "enterprise_capacity",
+            "overseas_foundation",
+            "product_trust_asset",
+            "content_acquisition",
+            "conversion_system",
+        ]:
+            assert key in result["dimension_scores"]
 
     def test_action_plan_is_list(self):
         """行动计划是列表"""
@@ -104,3 +120,15 @@ class TestBuildFull:
         """顾问引导包含企业微信提示"""
         result = build_full(30, "轻量试探型", {})
         assert "企业微信" in result["consultant_guide"]
+
+    def test_three_assessments_use_strong_persona_language(self):
+        """三段式报告融合强成交人设方法论"""
+        result = build_full(44, "基础具备型", {})
+        combined = "\n".join([
+            result["positioning_assessment"],
+            result["content_assessment"],
+            result["conversion_assessment"],
+        ])
+        assert "定位" in combined
+        assert "内容" in combined
+        assert "SOP" in combined

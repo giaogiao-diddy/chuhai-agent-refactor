@@ -7,24 +7,40 @@
     <!-- 综合结论 -->
     <view class="card">
       <view class="section-title">综合结论</view>
-      <view class="section-text">{{report.summary_conclusion}}</view>
+      <view class="summary-grid" wx:if="{{summaryItems.length}}">
+        <view
+          wx:for="{{summaryItems}}"
+          wx:key="title"
+          wx:for-item="summary"
+          class="summary-item"
+        >
+          <view class="summary-label">{{summary.title}}</view>
+          <view class="summary-content">{{summary.content}}</view>
+        </view>
+      </view>
+      <view wx:else class="section-text">{{report.summary_conclusion}}</view>
     </view>
 
     <!-- 维度评分 -->
     <view class="card">
       <view class="section-title">维度评分</view>
       <view
-        wx:for="{{report.dimension_scores}}"
+        wx:for="{{dimensionRows}}"
         wx:key="key"
-        wx:for-item="score"
-        wx:for-index="dim"
+        wx:for-item="dim"
         class="dimension-row"
       >
-        <view class="dim-name">{{dim}}</view>
-        <view class="dim-bar-wrap">
-          <view class="dim-bar" style="width: {{score / 100 * 100}}%"></view>
+        <view class="dim-header">
+          <view class="dim-name">{{dim.name}}</view>
+          <view class="dim-score">{{dim.scoreText}}</view>
         </view>
-        <view class="dim-score">{{score}}</view>
+        <view class="dim-bar-wrap">
+          <view class="dim-bar" style="width: {{dim.percent}}%"></view>
+        </view>
+        <view class="dim-meta">
+          <text>{{dim.percentText}}</text>
+          <text wx:if="{{dim.comment}}">{{dim.comment}}</text>
+        </view>
       </view>
     </view>
 

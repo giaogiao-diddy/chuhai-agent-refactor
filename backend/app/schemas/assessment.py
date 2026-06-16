@@ -6,11 +6,12 @@ from pydantic import BaseModel, Field
 
 class AnswerSubmit(BaseModel):
     question_id: int = Field(..., gt=0, strict=True)
-    option_id: int = Field(..., gt=0, strict=True)
+    option_id: int | None = Field(default=None, gt=0)
+    answer_text: str | None = Field(default=None, max_length=200)
 
 
 class AssessmentComplete(BaseModel):
-    """完成测评请求 — 15 题答案已在 answers 表中，完成时只需校验数量"""
+    """完成测评请求 — 答案已在 answers 表中，完成时只需校验数量"""
     pass
 
 
@@ -34,7 +35,9 @@ class AssessmentResponse(BaseModel):
 class CompleteResponse(BaseModel):
     assessment_id: int
     total_score: int
+    display_score: int
     tag: str
+    tag_explanation: str
     status: str
 
 

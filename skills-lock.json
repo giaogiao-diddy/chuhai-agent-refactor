@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "andrej-karpathy": {
+      "source": "local",
+      "sourceType": "local",
+      "skillPath": "skills/andrej-karpathy/SKILL.md",
+      "computedHash": "cb9301f0d5f6499d11bbf38d2e5184ed6cded25db0cadda3a858b16b4ccfc8a0"
+    },
     "brainstorming": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "8df9b47092524833138b58682d03f2e153a242e550d1693657afdbee0cc9cdb0"
+    },
+    "cloudbase": {
+      "source": "tencentcloudbase/cloudbase-skills",
+      "sourceType": "github",
+      "skillPath": "skills/cloudbase/SKILL.md",
+      "computedHash": "3a93ca16d0f7f7fb2bc19ef5f8964f686b3333d060b23daf771fd5c9ae71c48c"
     },
     "dispatching-parallel-agents": {
       "source": "obra/superpowers",
@@ -126,12 +138,6 @@
       "sourceType": "github",
       "skillPath": "skills/writing-skills/SKILL.md",
       "computedHash": "c0a92e629e39ea91b1f54da67a6aa92723008a8ef5b500c6de078f55485937c7"
-    },
-    "andrej-karpathy": {
-      "source": "local",
-      "sourceType": "local",
-      "skillPath": "skills/andrej-karpathy/SKILL.md",
-      "computedHash": "cb9301f0d5f6499d11bbf38d2e5184ed6cded25db0cadda3a858b16b4ccfc8a0"
     }
   }
 }

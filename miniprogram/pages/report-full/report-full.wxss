@@ -28,11 +28,44 @@
   line-height: 1.8;
 }
 
+/* ── 综合结论 ─────────────────────────────────── */
+.summary-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-item {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f4f4f4;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.summary-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: 0 16rpx;
+  margin-bottom: 12rpx;
+  border-radius: 20rpx;
+  background: #f2f4f8;
+  color: #1a1a2e;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.summary-content {
+  font-size: 28rpx;
+  color: #4f5663;
+  line-height: 1.75;
+}
+
 /* ── 维度评分 ─────────────────────────────────── */
 .dimension-row {
-  display: flex;
-  align-items: center;
-  padding: 16rpx 0;
+  padding: 20rpx 0;
   border-bottom: 1rpx solid #f8f8f8;
 }
 
@@ -40,19 +73,24 @@
   border-bottom: none;
 }
 
+.dim-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
 .dim-name {
-  width: 140rpx;
   font-size: 26rpx;
+  font-weight: 600;
   color: #333;
-  flex-shrink: 0;
 }
 
 .dim-bar-wrap {
-  flex: 1;
   height: 12rpx;
   background: #eee;
   border-radius: 6rpx;
-  margin: 0 20rpx;
+  overflow: hidden;
 }
 
 .dim-bar {
@@ -66,8 +104,16 @@
   font-size: 26rpx;
   font-weight: 600;
   color: #1a1a2e;
-  width: 60rpx;
   text-align: right;
+}
+
+.dim-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8a8f99;
 }
 
 /* ── 行动步骤 ─────────────────────────────────── */

@@ -14,6 +14,7 @@ class Question(Base):
     dimension = Column(String(64), nullable=False)  # company / business
     sort_order = Column(Integer, nullable=False)
     is_active = Column(Boolean, default=True)
+    is_scored = Column(Boolean, default=True, nullable=False)
 
     options = relationship("QuestionOption", order_by="QuestionOption.sort_order")
 

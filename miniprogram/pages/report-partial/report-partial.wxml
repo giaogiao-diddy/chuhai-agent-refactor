@@ -6,7 +6,7 @@
   <view wx:else class="container">
     <!-- 分数 + 标签 -->
     <view class="score-card">
-      <view class="score-number">{{report.total_score || score}}</view>
+      <view class="score-number">{{report.display_score || score || report.total_score}}</view>
       <view class="score-label">出海准备度评分</view>
       <view class="tag-badge">{{report.tag || tag}}</view>
     </view>

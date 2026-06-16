@@ -65,7 +65,7 @@ def get_assessment_detail(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_admin),
 ):
-    """后台测评详情 — 查看 15 题答案和报告"""
+    """后台测评详情 — 查看测评答案和报告"""
     assessment = db.query(Assessment).filter_by(id=assessment_id).first()
     if not assessment:
         raise HTTPException(status_code=404, detail="测评不存在")

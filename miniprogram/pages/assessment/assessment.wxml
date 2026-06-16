@@ -14,8 +14,29 @@
       </view>
     </view>
 
+    <!-- 文本输入题 -->
+    <view class="text-answer-box" wx:if="{{questions[currentIndex].is_scored === false}}">
+      <input
+        class="text-answer-input"
+        placeholder="请输入您的行业，例如：智能硬件制造"
+        value="{{textAnswer}}"
+        bindinput="onTextInput"
+        maxlength="200"
+        confirm-type="next"
+        bindconfirm="submitTextAnswer"
+      />
+      <button
+        class="submit-text-btn"
+        bindtap="submitTextAnswer"
+        loading="{{submittingText}}"
+        disabled="{{submittingText}}"
+      >
+        下一题
+      </button>
+    </view>
+
     <!-- 选项列表 -->
-    <view class="options-list">
+    <view class="options-list" wx:else>
       <view
         wx:for="{{questions[currentIndex].options}}"
         wx:key="id"
@@ -38,7 +59,7 @@
       上一题
     </button>
     <view class="nav-hint">
-      点击选项自动提交并跳转
+      {{questions[currentIndex].is_scored === false ? '输入后点击下一题' : '点击选项自动提交并跳转'}}
     </view>
   </view>
 </view>

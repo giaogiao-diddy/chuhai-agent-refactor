@@ -20,6 +20,7 @@ class QuestionResponse(BaseModel):
     description: str = ""
     dimension: str
     sort_order: int
+    is_scored: bool = True
     options: list[OptionResponse] = []
 
     class Config:

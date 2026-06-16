@@ -69,6 +69,44 @@
   font-weight: 500;
 }
 
+/* ── 文本输入题 ───────────────────────────────── */
+.text-answer-box {
+  margin-top: 40rpx;
+}
+
+.text-answer-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 96rpx;
+  padding: 0 32rpx;
+  background: #fff;
+  border: 2rpx solid #e8e8e8;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.text-answer-input:focus {
+  border-color: #1a1a2e;
+}
+
+.submit-text-btn {
+  margin-top: 28rpx;
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 16rpx;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.submit-text-btn[disabled] {
+  background: #999;
+  color: #fff;
+}
+
 /* ── 底部导航 ─────────────────────────────────── */
 .nav-buttons {
   position: fixed;

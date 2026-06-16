@@ -30,6 +30,7 @@ def get_questions(db: Session = Depends(get_db)):
                 description=q.description or "",
                 dimension=q.dimension,
                 sort_order=q.sort_order,
+                is_scored=q.is_scored,
                 options=[
                     OptionResponse(
                         id=o.id,

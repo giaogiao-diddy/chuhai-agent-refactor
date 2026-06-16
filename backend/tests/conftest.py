@@ -7,6 +7,8 @@ from pathlib import Path
 # ── 必须在 import app 模块之前设置 ──
 TEST_DATABASE_URL = "sqlite:///./test.db"
 os.environ["LB_DATABASE_URL"] = TEST_DATABASE_URL
+os.environ["LB_AI_REPORT_ENABLED"] = "false"
+os.environ["LB_LLM_API_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -82,28 +84,28 @@ def sample_tags() -> list[dict]:
 
 @pytest.fixture
 def sample_answers() -> list[dict]:
-    """15 题每题 2 分，total=30 → 轻量试探型 (26-35)"""
+    """17 计分题每题 2 分，total=34 → 轻量试探型 (31-43)"""
     return [
-        {"question_id": i, "option_id": (i - 1) * 4 + 2, "score": 2}
-        for i in range(1, 16)
+        {"question_id": question_id, "option_id": (question_id - 2) * 4 + 2, "score": 2}
+        for question_id in range(2, 19)  # Q2-Q18 计分
     ]
 
 
 @pytest.fixture
 def answers_all_min() -> list[dict]:
-    """15 题每题 1 分，total=15 → 观察准备型 (15-25)"""
+    """17 计分题每题 1 分，total=17 → 观察准备型 (17-30)"""
     return [
-        {"question_id": i, "option_id": (i - 1) * 4 + 1, "score": 1}
-        for i in range(1, 16)
+        {"question_id": question_id, "option_id": (question_id - 2) * 4 + 1, "score": 1}
+        for question_id in range(2, 19)
     ]
 
 
 @pytest.fixture
 def answers_all_max() -> list[dict]:
-    """15 题每题 4 分，total=60 → 优先布局型 (46-60)"""
+    """17 计分题每题 4 分，total=68 → 优先布局型 (57-68)"""
     return [
-        {"question_id": i, "option_id": i * 4, "score": 4}
-        for i in range(1, 16)
+        {"question_id": question_id, "option_id": (question_id - 2) * 4 + 4, "score": 4}
+        for question_id in range(2, 19)
     ]
 
 
@@ -117,21 +119,42 @@ def sample_assessment() -> dict:
 
 @pytest.fixture
 def mock_ai_response() -> dict:
-    """模拟 DeepSeek 成功返回的 JSON"""
+    """模拟 DeepSeek 成功返回的 V2 报告 JSON"""
     return {
         "summary_report": {
-            "preliminary_judgment": "您的企业具备基本出海条件，建议从轻量测试开始。",
+            "total_score": 34,
+            "display_score": 77,
+            "tag": "轻量试探型",
+            "tag_explanation": "已具备部分条件，可启动强成交人设内容矩阵进行低成本验证。",
+            "preliminary_judgment": "您的企业具备基本出海条件，建议从轻量内容验证开始。",
+            "positioning_assessment": "定位基础初步具备，但目标用户和市场切口仍需聚焦。",
+            "content_assessment": "内容资产不足，需要围绕产品信任建立表达体系。",
+            "conversion_assessment": "转化承接需要补齐报价、样品和跟进 SOP。",
             "strengths": ["产品标准化程度较高", "对目标市场有初步了解"],
             "risks": ["团队配置需要加强", "供应链稳定性有待验证"],
-            "tag_explanation": "已具备部分条件，但关键能力尚未完整，适合小预算、轻渠道测试。",
+            "unlock_hint": "提交信息后解锁完整报告，并领取 45 分钟 1 对 1 免费解读。",
         },
         "full_report": {
             "summary_conclusion": "综合来看，您的企业具备出海基本条件。",
-            "dimension_scores": {"公司实力": 22, "业务准备": 18, "市场认知": 20, "执行能力": 18},
-            "recommended_path": "建议优先选择东南亚市场进行小规模测试。",
+            "positioning_assessment": "定位定生死：先明确目标客户、市场区域和信任切口。",
+            "content_assessment": "内容定江山：用流量内容、营销内容、故事内容建立海外信任。",
+            "conversion_assessment": "SOP 定天下：补齐线索筛选、QA、跟进和客户管理 SOP。",
+            "dimension_scores": {
+                "enterprise_capacity": {"score": 6, "diagnosis": "企业承载力处于初步可验证状态。"},
+                "overseas_foundation": {"score": 8, "diagnosis": "海外基础需要继续积累。"},
+                "product_trust_asset": {"score": 8, "diagnosis": "产品具备内容化表达空间。"},
+                "content_acquisition": {"score": 4, "diagnosis": "内容获客能力需要加强。"},
+                "conversion_system": {"score": 2, "diagnosis": "转化 SOP 仍需搭建。"},
+            },
+            "recommended_path": "建议优先选择一个目标市场，用强成交人设内容矩阵做小规模验证。",
             "risk_reminder": "需注意供应链交付稳定性和品牌本地化准备。",
             "action_plan_30days": ["完成产品出海版本准备", "注册目标国家商标", "选择轻量渠道测试"],
             "consultant_guide": "请联系企业微信顾问获得1对1解读。",
+        },
+        "sales_followup": {
+            "lead_temperature": "B",
+            "followup_focus": ["目标市场", "内容素材", "转化 SOP"],
+            "opening_script": "可以先从您当前海外客户来源聊起。",
         },
     }
 

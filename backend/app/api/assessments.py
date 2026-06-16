@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.assessment import Assessment
 from app.models.answer import Answer
-from app.models.question import QuestionOption
+from app.models.question import Question, QuestionOption
 from app.models.report import Report
 from app.schemas.assessment import (
     AnswerSubmit,
@@ -16,7 +16,8 @@ from app.schemas.assessment import (
     CompleteResponse,
     ReportStatusResponse,
 )
-from app.services.scoring_service import calculate_total, score_to_tag
+from app.services.scoring_service import calculate_score_and_tag
+from config import settings
 
 router = APIRouter(tags=["assessments"])
 
@@ -38,6 +39,7 @@ def create_assessment(
 def submit_answer(
     assessment_id: int,
     body: AnswerSubmit,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -50,12 +52,27 @@ def submit_answer(
     if assessment.status != "in_progress":
         raise HTTPException(status_code=400, detail="测评已完成，不可继续答题")
 
-    option = db.query(QuestionOption).filter_by(
-        id=body.option_id,
-        question_id=body.question_id,
-    ).first()
-    if not option:
-        raise HTTPException(status_code=400, detail="选项与题目不匹配")
+    question = db.query(Question).filter_by(id=body.question_id, is_active=True).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="题目不存在")
+
+    option = None
+    answer_text = None
+    score = 0
+    if question.is_scored:
+        if body.option_id is None:
+            raise HTTPException(status_code=400, detail="请选择一个选项")
+        option = db.query(QuestionOption).filter_by(
+            id=body.option_id,
+            question_id=body.question_id,
+        ).first()
+        if not option:
+            raise HTTPException(status_code=400, detail="选项与题目不匹配")
+        score = option.score
+    else:
+        answer_text = (body.answer_text or "").strip()
+        if not answer_text:
+            raise HTTPException(status_code=400, detail="请输入行业信息")
 
     # upsert: 同一测评同一题反复提交 = 覆盖
     answer = (
@@ -64,19 +81,28 @@ def submit_answer(
         .first()
     )
     if answer:
-        answer.option_id = body.option_id
-        answer.score = option.score
+        answer.option_id = option.id if option else None
+        answer.answer_text = answer_text
+        answer.score = score
     else:
         answer = Answer(
             assessment_id=assessment_id,
             question_id=body.question_id,
-            option_id=body.option_id,
-            score=option.score,
+            option_id=option.id if option else None,
+            answer_text=answer_text,
+            score=score,
         )
         db.add(answer)
     db.commit()
     db.refresh(answer)
-    return {"question_id": answer.question_id, "option_id": answer.option_id, "score": answer.score}
+    if settings.ai_report_enabled and settings.llm_api_key:
+        background_tasks.add_task(_diagnose_single_question_bg, assessment_id, body.question_id)
+    return {
+        "question_id": answer.question_id,
+        "option_id": answer.option_id,
+        "answer_text": answer.answer_text,
+        "score": answer.score,
+    }
 
 
 @router.post("/assessments/{assessment_id}/complete", response_model=CompleteResponse)
@@ -86,29 +112,53 @@ def complete_assessment(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """完成测评 — 校验 15 题完整性 → 算分打标签 → 后台生成报告"""
+    """完成测评 — 校验 18 题完整性 → 算分打标签 → 后台生成报告"""
     assessment = db.query(Assessment).filter_by(id=assessment_id).first()
     if not assessment:
         raise HTTPException(status_code=404, detail="测评不存在")
     if assessment.user_id != current_user["user_id"]:
         raise HTTPException(status_code=403, detail="无权操作此测评")
 
+    questions = db.query(Question).filter_by(is_active=True).order_by(Question.sort_order).all()
     answers = db.query(Answer).filter_by(assessment_id=assessment_id).all()
-    if len(answers) < 15:
-        raise HTTPException(status_code=400, detail=f"请完成全部 15 道题（当前已答 {len(answers)} 题）")
+    answers_by_question = {answer.question_id: answer for answer in answers}
+    missing_question_ids = []
+    invalid_question_ids = []
 
-    answer_dicts = [{"question_id": a.question_id, "option_id": a.option_id, "score": a.score} for a in answers]
-    raw_score = calculate_total(answer_dicts)
-    tag, _ = score_to_tag(raw_score)
+    for question in questions:
+        answer = answers_by_question.get(question.id)
+        if not answer:
+            missing_question_ids.append(question.id)
+            continue
+        if question.is_scored and not answer.option_id:
+            invalid_question_ids.append(question.id)
+        if not question.is_scored and not (answer.answer_text or "").strip():
+            invalid_question_ids.append(question.id)
 
-    assessment.total_score = raw_score
-    assessment.tag = tag
+    if missing_question_ids or invalid_question_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"请完成全部 {len(questions)} 道题（当前已答 {len(answers_by_question)} 题）",
+        )
+
+    answer_dicts = [
+        {"question_id": answer.question_id, "option_id": answer.option_id, "score": answer.score}
+        for answer in answers
+    ]
+    score_result = calculate_score_and_tag(answer_dicts)
+
+    assessment.total_score = score_result["raw_score"]
+    assessment.tag = score_result["tag"]
     assessment.status = "generating"
     db.flush()
 
-    # 创建 report 记录
-    report = Report(assessment_id=assessment_id, generation_status="pending")
-    db.add(report)
+    report = db.query(Report).filter_by(assessment_id=assessment_id).first()
+    if report:
+        report.generation_status = "pending"
+        report.generation_error = None
+    else:
+        report = Report(assessment_id=assessment_id, generation_status="pending")
+        db.add(report)
     db.commit()
     db.refresh(assessment)
 
@@ -118,7 +168,9 @@ def complete_assessment(
     return CompleteResponse(
         assessment_id=assessment.id,
         total_score=assessment.total_score,
+        display_score=score_result["display_score"],
         tag=assessment.tag,
+        tag_explanation=score_result["tag_explanation"],
         status=assessment.status,
     )
 
@@ -156,6 +208,22 @@ def get_report_status(
 
 
 # ── 后台任务 ──────────────────────────────────────────────────────
+
+def _diagnose_single_question_bg(assessment_id: int, question_id: int):
+    """后台静默生成单题诊断，异常不影响答题主流程。"""
+    from app.core.database import SessionLocal
+    from app.services.report_service import diagnose_single_question
+
+    db = SessionLocal()
+    try:
+        diagnose_single_question(db, assessment_id, question_id)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("luobin")
+        logger.info("后台单题诊断异常 assessment_id=%s question_id=%s: %s", assessment_id, question_id, e)
+        db.rollback()
+    finally:
+        db.close()
 
 def _generate_report_bg(assessment_id: int):
     """后台异步生成报告 — AI 失败走模板兜底，异常时回写 failed 状态"""

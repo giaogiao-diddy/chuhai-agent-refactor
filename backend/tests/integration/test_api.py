@@ -9,6 +9,56 @@ import time
 import pytest
 
 
+def _seed_questions():
+    import json
+    from pathlib import Path
+
+    from app.core.database import SessionLocal
+    from app.models.question import Question, QuestionOption
+
+    db = SessionLocal()
+    path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
+    with open(path, encoding="utf-8") as f:
+        fixture = json.load(f)
+    for q_data in fixture["questions"]:
+        q = Question(
+            id=q_data["id"],
+            title=q_data["title"],
+            description=q_data.get("description", ""),
+            dimension=q_data["dimension"],
+            sort_order=q_data["sort_order"],
+            is_active=True,
+            is_scored=q_data.get("is_scored", True),
+        )
+        db.add(q)
+        for opt in q_data["options"]:
+            db.add(QuestionOption(
+                id=opt["id"],
+                question_id=q.id,
+                option_text=opt["text"],
+                score=opt["score"],
+                sort_order=opt["sort_order"],
+            ))
+    db.commit()
+    db.close()
+
+
+def _submit_full_v2_assessment(client, assessment_id: int, headers: dict, sample_answers: list[dict]):
+    resp = client.post(
+        f"/api/assessments/{assessment_id}/answers",
+        json={"question_id": 1, "answer_text": "智能硬件"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    for ans in sample_answers:
+        resp = client.post(
+            f"/api/assessments/{assessment_id}/answers",
+            json={"question_id": ans["question_id"], "option_id": ans["option_id"]},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+
 class TestHealth:
     """健康检查"""
 
@@ -40,82 +90,35 @@ class TestAuth:
 class TestQuestions:
     """题库接口"""
 
-    def test_get_questions_returns_15(self, client):
-        """GET /api/questions 返回 15 道题 — 需先种子数据"""
-        # 手动种子题目
-        import json
-        from pathlib import Path
-        from app.core.database import SessionLocal
-        from app.models.question import Question, QuestionOption
-
-        db = SessionLocal()
-        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
-        with open(path, encoding="utf-8") as f:
-            fixture = json.load(f)
-        for q_data in fixture["questions"]:
-            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
-                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
-            db.add(q)
-            for opt in q_data["options"]:
-                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
-                                       score=opt["score"], sort_order=opt["sort_order"]))
-        db.commit()
-        db.close()
+    def test_get_questions_returns_18(self, client):
+        """GET /api/questions 返回 18 道题 — Q1 为行业输入"""
+        _seed_questions()
 
         resp = client.get("/api/questions")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] == 15
-        assert len(data["questions"]) == 15
+        assert data["total"] == 18
+        assert len(data["questions"]) == 18
+        assert data["questions"][0]["is_scored"] is False
+        assert data["questions"][0]["options"] == []
 
     def test_get_questions_has_options(self, client):
-        """每题有 4 个选项"""
-        # seed
-        import json
-        from pathlib import Path
-        from app.core.database import SessionLocal
-        from app.models.question import Question, QuestionOption
-
-        db = SessionLocal()
-        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
-        with open(path, encoding="utf-8") as f:
-            fixture = json.load(f)
-        for q_data in fixture["questions"]:
-            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
-                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
-            db.add(q)
-            for opt in q_data["options"]:
-                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
-                                       score=opt["score"], sort_order=opt["sort_order"]))
-        db.commit()
-        db.close()
+        """Q1 无选项，Q2-Q18 每题有 4 个选项"""
+        _seed_questions()
 
         resp = client.get("/api/questions")
         data = resp.json()
         for q in data["questions"]:
-            assert len(q["options"]) == 4, f"Question {q['id']} has {len(q['options'])} options"
+            if q["id"] == 1:
+                assert q["is_scored"] is False
+                assert len(q["options"]) == 0
+            else:
+                assert q["is_scored"] is True
+                assert len(q["options"]) == 4, f"Question {q['id']} has {len(q['options'])} options"
 
     def test_get_questions_contains_score(self, client):
         """选项包含分值"""
-        # seed
-        import json
-        from pathlib import Path
-        from app.core.database import SessionLocal
-        from app.models.question import Question, QuestionOption
-
-        db = SessionLocal()
-        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
-        with open(path, encoding="utf-8") as f:
-            fixture = json.load(f)
-        for q_data in fixture["questions"]:
-            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
-                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
-            db.add(q)
-            for opt in q_data["options"]:
-                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
-                                       score=opt["score"], sort_order=opt["sort_order"]))
-        db.commit()
-        db.close()
+        _seed_questions()
 
         resp = client.get("/api/questions")
         data = resp.json()
@@ -169,25 +172,10 @@ class TestLeads:
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
         # 种子题目后创建测评
-        import json
-        from pathlib import Path
         from app.core.database import SessionLocal
-        from app.models.question import Question, QuestionOption
         from app.models.report import Report
 
-        db = SessionLocal()
-        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
-        with open(path, encoding="utf-8") as f:
-            fixture = json.load(f)
-        for q_data in fixture["questions"]:
-            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
-                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
-            db.add(q)
-            for opt in q_data["options"]:
-                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
-                                       score=opt["score"], sort_order=opt["sort_order"]))
-        db.commit()
-        db.close()
+        _seed_questions()
 
         # 创建测评 → 答题 → 完成
         create_resp = client.post("/api/assessments", headers=headers)
@@ -301,24 +289,7 @@ class TestShareRecord:
     def test_share_record_updates_benefit(self, client, sample_answers):
         """转发后 benefit_minutes 从 45 升级到 55"""
         # seed questions + login + complete assessment
-        import json
-        from pathlib import Path
-        from app.core.database import SessionLocal
-        from app.models.question import Question, QuestionOption
-
-        db = SessionLocal()
-        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
-        with open(path, encoding="utf-8") as f:
-            fixture = json.load(f)
-        for q_data in fixture["questions"]:
-            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
-                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
-            db.add(q)
-            for opt in q_data["options"]:
-                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
-                                       score=opt["score"], sort_order=opt["sort_order"]))
-        db.commit()
-        db.close()
+        _seed_questions()
 
         login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
         token = login_resp.json()["token"]
@@ -327,12 +298,7 @@ class TestShareRecord:
         create_resp = client.post("/api/assessments", headers=headers)
         assessment_id = create_resp.json()["id"]
 
-        for ans in sample_answers:
-            client.post(
-                f"/api/assessments/{assessment_id}/answers",
-                json={"question_id": ans["question_id"], "option_id": ans["option_id"]},
-                headers=headers,
-            )
+        _submit_full_v2_assessment(client, assessment_id, headers, sample_answers)
         client.post(f"/api/assessments/{assessment_id}/complete", headers=headers)
 
         import time
@@ -397,24 +363,7 @@ class TestMyReport:
 
     def test_my_report_returns_latest(self, client, sample_answers):
         """我的报告返回最近一次已完成测评的报告卡片"""
-        import json
-        from pathlib import Path
-        from app.core.database import SessionLocal
-        from app.models.question import Question, QuestionOption
-
-        db = SessionLocal()
-        path = Path(__file__).parent.parent / "fixtures" / "sample_questions.json"
-        with open(path, encoding="utf-8") as f:
-            fixture = json.load(f)
-        for q_data in fixture["questions"]:
-            q = Question(id=q_data["id"], title=q_data["title"], description=q_data.get("description", ""),
-                         dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True)
-            db.add(q)
-            for opt in q_data["options"]:
-                db.add(QuestionOption(id=opt["id"], question_id=q.id, option_text=opt["text"],
-                                       score=opt["score"], sort_order=opt["sort_order"]))
-        db.commit()
-        db.close()
+        _seed_questions()
 
         login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
         token = login_resp.json()["token"]
@@ -423,12 +372,7 @@ class TestMyReport:
         create_resp = client.post("/api/assessments", headers=headers)
         assessment_id = create_resp.json()["id"]
 
-        for ans in sample_answers:
-            client.post(
-                f"/api/assessments/{assessment_id}/answers",
-                json={"question_id": ans["question_id"], "option_id": ans["option_id"]},
-                headers=headers,
-            )
+        _submit_full_v2_assessment(client, assessment_id, headers, sample_answers)
         client.post(f"/api/assessments/{assessment_id}/complete", headers=headers)
 
         import time
@@ -444,7 +388,7 @@ class TestMyReport:
         assert data["assessment_id"] == assessment_id
         assert data["total_score"] > 0
         assert len(data["tag"]) > 0
-        assert data["display_score"] == data["total_score"] + 45
+        assert data["display_score"] == data["total_score"] + 43
         assert data["summary"] is not None
 
     def test_my_report_no_completed_assessment(self, client):

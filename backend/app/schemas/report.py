@@ -7,9 +7,13 @@ from pydantic import BaseModel
 class SummaryReport(BaseModel):
     """部分报告结构"""
     total_score: int
+    display_score: int
     tag: str
     tag_explanation: str
     preliminary_judgment: str
+    positioning_assessment: str
+    content_assessment: str
+    conversion_assessment: str
     strengths: list[str]
     risks: list[str]
     unlock_hint: str
@@ -18,7 +22,10 @@ class SummaryReport(BaseModel):
 class FullReport(BaseModel):
     """完整报告结构"""
     summary_conclusion: str
-    dimension_scores: dict[str, int]
+    positioning_assessment: str
+    content_assessment: str
+    conversion_assessment: str
+    dimension_scores: dict
     recommended_path: str
     risk_reminder: str
     action_plan_30days: list[str]

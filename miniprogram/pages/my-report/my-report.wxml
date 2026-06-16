@@ -15,7 +15,7 @@
   <view wx:else class="container">
     <view class="card report-card" bindtap="goToReport">
       <view class="card-header">
-        <view class="card-score">{{report.total_score || report.display_score}}</view>
+        <view class="card-score">{{report.display_score || report.total_score}}</view>
         <view class="card-tag">{{report.tag}}</view>
       </view>
       <view class="card-time" wx:if="{{report.created_at}}">

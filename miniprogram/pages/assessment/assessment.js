@@ -5,11 +5,13 @@ const { get, post } = require("../../utils/api");
 
 Page({
   data: {
-    questions: [],          // 15 道题
+    questions: [],          // 18 道题
     currentIndex: 0,        // 当前题号 (0-based)
-    answers: {},            // { questionId: { optionId, score } }
+    answers: {},            // { questionId: { optionId, answerText, score } }
     selectedOptionId: null, // 当前题目已选选项
-    totalQuestions: 15
+    textAnswer: "",         // 当前文本题答案
+    totalQuestions: 18,
+    submittingText: false
   },
 
   async onLoad() {
@@ -33,7 +35,8 @@ Page({
       questions: questions,
       totalQuestions: questions.length,
       answers: answers,
-      selectedOptionId: answers[questions[0]?.id]?.optionId || null
+      selectedOptionId: answers[questions[0]?.id]?.optionId || null,
+      textAnswer: answers[questions[0]?.id]?.answerText || ""
     });
   },
 
@@ -49,6 +52,48 @@ Page({
     } catch {
       return {};
     }
+  },
+
+  /** 文本题输入 */
+  onTextInput(e) {
+    this.setData({ textAnswer: e.detail.value || "" });
+  },
+
+  /** 提交文本题并前进 */
+  async submitTextAnswer() {
+    const question = this.data.questions[this.data.currentIndex];
+    const assessmentId = app.globalData.assessmentId;
+    const answerText = (this.data.textAnswer || "").trim();
+
+    if (!assessmentId) {
+      wx.showToast({ title: "测评信息丢失，请返回重试", icon: "none" });
+      return;
+    }
+
+    if (!answerText) {
+      wx.showToast({ title: "请输入行业信息", icon: "none" });
+      return;
+    }
+
+    this.setData({ submittingText: true });
+
+    const { error } = await post(`/api/assessments/${assessmentId}/answers`, {
+      question_id: question.id,
+      answer_text: answerText
+    });
+
+    this.setData({ submittingText: false });
+
+    if (error) {
+      wx.showToast({ title: "提交失败: " + error, icon: "none" });
+      return;
+    }
+
+    const answers = { ...this.data.answers };
+    answers[question.id] = { answerText, score: 0 };
+    this.setData({ answers });
+    this.saveAnswers(answers);
+    this.goNext();
   },
 
   /** 保存答案到本地存储 */
@@ -72,6 +117,10 @@ Page({
 
     if (!assessmentId) {
       wx.showToast({ title: "测评信息丢失，请返回重试", icon: "none" });
+      return;
+    }
+
+    if (!question.is_scored) {
       return;
     }
 
@@ -117,9 +166,11 @@ Page({
 
     const nextIndex = currentIndex + 1;
     const nextQuestion = this.data.questions[nextIndex];
+    const savedAnswer = this.data.answers[nextQuestion.id] || {};
     this.setData({
       currentIndex: nextIndex,
-      selectedOptionId: this.data.answers[nextQuestion.id]?.optionId || null
+      selectedOptionId: savedAnswer.optionId || null,
+      textAnswer: savedAnswer.answerText || ""
     });
   },
 
@@ -129,9 +180,11 @@ Page({
 
     const prevIndex = this.data.currentIndex - 1;
     const prevQuestion = this.data.questions[prevIndex];
+    const savedAnswer = this.data.answers[prevQuestion.id] || {};
     this.setData({
       currentIndex: prevIndex,
-      selectedOptionId: this.data.answers[prevQuestion.id]?.optionId || null
+      selectedOptionId: savedAnswer.optionId || null,
+      textAnswer: savedAnswer.answerText || ""
     });
   },
 
@@ -159,7 +212,7 @@ Page({
 
     // 跳转到报告生成中页面
     wx.redirectTo({
-      url: `/pages/report-generating/report-generating?assessment_id=${assessmentId}&score=${data.total_score || 0}&tag=${encodeURIComponent(data.tag || "")}`
+      url: `/pages/report-generating/report-generating?assessment_id=${assessmentId}&score=${data.display_score || data.total_score || 0}&tag=${encodeURIComponent(data.tag || "")}`
     });
   }
 });

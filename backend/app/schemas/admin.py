@@ -42,8 +42,12 @@ class AssessmentDetailResponse(BaseModel):
 class AIReportLogResponse(BaseModel):
     id: int
     assessment_id: int
+    question_id: int | None = None
     model: str
     status: str
+    diagnosis_tag: list | None = None
+    report_memory: str | None = None
+    sales_hint: str | None = None
     error_message: str | None = None
     latency_ms: int | None = None
     created_at: str | None = None

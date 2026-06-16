@@ -22,7 +22,8 @@ for q_data in fixture["questions"]:
     q = Question(
         id=q_data["id"], title=q_data["title"],
         description=q_data.get("description", ""),
-        dimension=q_data["dimension"], sort_order=q_data["sort_order"], is_active=True,
+        dimension=q_data["dimension"], sort_order=q_data["sort_order"],
+        is_active=True, is_scored=q_data.get("is_scored", True),
     )
     db.add(q)
     for opt in q_data["options"]:

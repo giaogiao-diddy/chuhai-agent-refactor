@@ -43,7 +43,7 @@ def get_my_report(
         assessment_id=assessment.id,
         total_score=assessment.total_score or 0,
         tag=assessment.tag or "",
-        display_score=min((assessment.total_score or 0) + 45, 100),
+        display_score=(assessment.total_score or 0) + 43,
         completed_at=str(assessment.completed_at) if assessment.completed_at else None,
         summary=report.summary_report_json if report else None,
     )

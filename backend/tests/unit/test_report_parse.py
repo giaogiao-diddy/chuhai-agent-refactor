@@ -87,21 +87,21 @@ class TestValidateReportFields:
 
     def test_full_dimension_scores_not_dict(self, mock_ai_response):
         """dimension_scores 不是字典"""
-        data = mock_ai_response.copy()
+        data = json.loads(json.dumps(mock_ai_response, ensure_ascii=False))
         data["full_report"]["dimension_scores"] = [1, 2, 3]
         assert validate_report_fields(data) is False
 
     def test_full_action_plan_not_list(self, mock_ai_response):
         """action_plan_30days 不是列表"""
-        data = mock_ai_response.copy()
+        data = json.loads(json.dumps(mock_ai_response, ensure_ascii=False))
         data["full_report"]["action_plan_30days"] = "字符串"
         assert validate_report_fields(data) is False
 
     def test_null_fields_fails(self, mock_ai_response):
         """包含 None 值的字段"""
-        data = mock_ai_response.copy()
+        data = json.loads(json.dumps(mock_ai_response, ensure_ascii=False))
         data["full_report"]["summary_conclusion"] = None
-        assert validate_report_fields(data) is True  # summary_conclusion 不是必检字段？
+        assert validate_report_fields(data) is False
 
     def test_summary_report_field_types(self, mock_ai_response):
         """部分报告各字段类型正确"""
@@ -109,6 +109,9 @@ class TestValidateReportFields:
         assert result is not None
         summary = result["summary_report"]
         assert isinstance(summary["preliminary_judgment"], str)
+        assert isinstance(summary["positioning_assessment"], str)
+        assert isinstance(summary["content_assessment"], str)
+        assert isinstance(summary["conversion_assessment"], str)
         assert isinstance(summary["strengths"], list)
         assert isinstance(summary["risks"], list)
 
@@ -118,5 +121,8 @@ class TestValidateReportFields:
         assert result is not None
         full = result["full_report"]
         assert isinstance(full["summary_conclusion"], str)
+        assert isinstance(full["positioning_assessment"], str)
+        assert isinstance(full["content_assessment"], str)
+        assert isinstance(full["conversion_assessment"], str)
         assert isinstance(full["dimension_scores"], dict)
         assert isinstance(full["action_plan_30days"], list)

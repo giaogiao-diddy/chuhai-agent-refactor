@@ -125,7 +125,9 @@ class TestAnswerSubmitValidation:
         with pytest.raises(ValidationError):
             AnswerSubmit(option_id=3)
 
-    def test_missing_option_id_fails(self):
-        """缺少 option_id"""
-        with pytest.raises(ValidationError):
-            AnswerSubmit(question_id=1)
+    def test_missing_option_id_allowed_for_text_question(self):
+        """V2 中 Q1 文本题允许缺少 option_id，API 层按题型做进一步校验"""
+        answer = AnswerSubmit(question_id=1, answer_text="智能硬件")
+        assert answer.question_id == 1
+        assert answer.option_id is None
+        assert answer.answer_text == "智能硬件"

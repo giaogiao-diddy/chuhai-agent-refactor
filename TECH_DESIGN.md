@@ -228,18 +228,22 @@ class Lead(Base):
 ```
 
 ```python
-# app/models/ai_report_logs.py —— AI 调用日志，便于排查问题
+# app/models/ai_report_logs.py —— AI 调用日志 + 逐题诊断记忆
 class AIReportLog(Base):
     __tablename__ = "ai_report_logs"
 
     id = Column(Integer, primary_key=True)
     assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False)
+    question_id = Column(Integer, nullable=True)        # v2.0: 逐题诊断时为该题 ID，最终合成为 NULL
     model = Column(String(64), nullable=False)
     prompt_version = Column(String(32), nullable=True)
     request_payload = Column(JSON, nullable=True)
     raw_response = Column(JSON, nullable=True)
     parsed_response = Column(JSON, nullable=True)
-    status = Column(String(16), default="pending")    # pending / success / failed
+    report_memory = Column(Text, nullable=True)         # v2.0: 逐题诊断的记忆文本
+    diagnosis_tag = Column(JSON, nullable=True)         # v2.0: 诊断标签列表
+    sales_hint = Column(Text, nullable=True)            # v2.0: 销售跟进提示
+    status = Column(String(16), default="pending")      # pending / success / failed
     error_message = Column(String(512), nullable=True)
     latency_ms = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -453,73 +457,129 @@ POST /assessments/{id}/complete
     └─→ return { status, assessment_id }
 ```
 
-### 4.3 评分规则
+### 4.3 评分规则（v2.0：18 题，17 题计分）
 
 ```python
 # app/services/scoring_service.py —— 纯函数，无副作用
 
 def calculate_total(answers: list[dict]) -> int:
-    """对每题分数求和。每题 1-4 分，共 15 题，原始总分 15-60。"""
-    return sum(a["score"] for a in answers)
+    """对每题分数求和。第 1 题（行业）不计分，第 2-18 题每题 1-4 分，原始总分 17-68。"""
+    return sum(a["score"] for a in answers if a["score"] > 0)
 
 def score_to_tag(raw_score: int) -> tuple[str, str]:
-    """根据原始分返回标签和解释。4 档标签。"""
-    if raw_score <= 25:
-        return ("观察准备型", "当前仍处于准备阶段，适合先完成调研、产品梳理和低成本验证。")
-    elif raw_score <= 35:
-        return ("轻量试探型", "已具备部分条件，但关键能力尚未完整，适合小预算、轻渠道测试。")
-    elif raw_score <= 45:
-        return ("基础具备型", "具备一定出海基础，可以进入系统化测试阶段。")
+    """根据原始分返回标签和解释。4 档标签（17 题计分版）。"""
+    if raw_score <= 30:
+        return ("观察准备型", "出海基础尚浅，建议先从定位梳理和轻量内容测试开始。")
+    elif raw_score <= 43:
+        return ("轻量试探型", "已具备部分条件，可启动强成交人设内容矩阵进行低成本验证。")
+    elif raw_score <= 56:
+        return ("基础具备型", "基础条件较好，适合系统化推进短视频出海获客体系。")
     else:
-        return ("优先布局型", "整体条件较成熟，具备较高海外市场开拓潜力。")
+        return ("优先布局型", "整体条件成熟，可进行多语种矩阵布局和规模化获客。")
 
 def calculate_score_and_tag(answers: list[dict]) -> dict:
-    """完整的评分入口：计算总分 → 打标签 → 映射展示分 → 返回结果"""
+    """完整的评分入口：计算总分 → 打标签 → 返回结果"""
     raw = calculate_total(answers)
     tag, explanation = score_to_tag(raw)
     return {
         "raw_score": raw,
-        "display_score": raw + 45,  # 内部 15-60 → 展示 60-100
+        "display_score": raw + 43,  # 内部 17-68 → 展示 60-111
         "tag": tag,
         "tag_explanation": explanation,
     }
 ```
 
-**原始分 ↔ 展示分映射表：**
+**原始分 ↔ 展示分映射表（17 题计分版）：**
 
 | 原始分 | 展示分 | 标签 | 说明 |
 |--------|--------|------|------|
-| 15-25 | 60-70 | 观察准备型 | 当前仍处于准备阶段，适合先完成调研、产品梳理和低成本验证 |
-| 26-35 | 71-80 | 轻量试探型 | 已具备部分条件，但关键能力尚未完整，适合小预算、轻渠道测试 |
-| 36-45 | 81-90 | 基础具备型 | 具备一定出海基础，可以进入系统化测试阶段 |
-| 46-60 | 91-100 | 优先布局型 | 整体条件较成熟，具备较高海外市场开拓潜力 |
+| 17-30 | 60-73 | 观察准备型 | 出海基础尚浅，建议先从定位梳理和轻量内容测试开始 |
+| 31-43 | 74-86 | 轻量试探型 | 已具备部分条件，可启动强成交人设内容矩阵进行低成本验证 |
+| 44-56 | 87-99 | 基础具备型 | 基础条件较好，适合系统化推进短视频出海获客体系 |
+| 57-68 | 100-111 | 优先布局型 | 整体条件成熟，可进行多语种矩阵布局和规模化获客 |
 
 > **设计理由**：
-> 1. 内部使用原始分 15-60（每題 1-4 分×15 题），对外通过 `+45` 映射为展示分 60-100
-> 2. 评分规则是纯函数，没有 I/O、没有数据库依赖，最值得 TDD
-> 3. `calculate_total` 和 `score_to_tag` 各自独立，可分别测试
+> 1. 第 1 题为行业手动输入，不计分——用于分销路由（不同行业对应不同销售企微二维码）
+> 2. 内部使用原始分 17-68，对外通过 `+43` 映射为展示分 60-111
+> 3. 评分规则是纯函数，没有 I/O、没有数据库依赖，最值得 TDD
 
-### 4.4 AI 报告生成流程
+### 4.4 AI 报告生成流程（v2.0：逐题诊断 + 最终合成）
 
 ```
-report_service.generate(assessment_id, answers, total_score, tag)
-    │
-    ├─ [AI 路径] ──→ 1. 构造 Prompt（分数 + 标签 + 答案摘要 + 维度摘要）
-    │                2. 调用 DeepSeek API（同步等待）
-    │                3. 解析 JSON 响应
-    │                4. 校验字段完整性
-    │                5. 成功 → 写入 DB，generation_type="ai"
-    │
-    └─ [模板路径] ─→ 1. 检测到 AI 失败（超时/报错/JSON 解析失败）
-                     2. 调用 template_service.build()
-                     3. 写入 DB，generation_type="template"
+┌─ 阶段 1：逐题诊断（用户答每道题时触发，后台静默）─────────┐
+│                                                          │
+│  POST /assessments/{id}/answers                          │
+│    │                                                     │
+│    ├─→ 保存答案到 DB                                      │
+│    └─→ 后台异步：diagnose_single_question(                │
+│              question_text, answer_text,                  │
+│              option_business_meaning,                     │
+│              previous_answer_summary                      │
+│          )                                               │
+│          ├─→ DeepSeek API（单题诊断 Prompt）               │
+│          ├─→ 生成 diagnosis_tag + report_memory +         │
+│          │     sales_hint                                │
+│          └─→ 存入 ai_report_logs                         │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+
+┌─ 阶段 2：最终合成（完成测评时触发）───────────────────────┐
+│                                                          │
+│  POST /assessments/{id}/complete                         │
+│    │                                                     │
+│    ├─→ scoring_service.calculate()                       │
+│    ├─→ 收集全部 18 条 report_memory                       │
+│    ├─→ report_service.generate_full()                     │
+│    │       ├─→ [AI 路径] 汇总 Prompt（分数+标签+          │
+│    │       │     18 条诊断记忆→DeepSeek→JSON 报告）       │
+│    │       │     成功 → DB，generation_type="ai"           │
+│    │       └─→ [模板] 失败 → template_service.build()      │
+│    └─→ 更新 assessment 状态                               │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+**单题诊断输出结构**（仅内部使用，不展示给用户）：
+
+```json
+{
+  "question_id": 6,
+  "diagnosis_tag": ["获客依赖线下", "内容资产不足", "适合轻资产验证"],
+  "report_memory": "该用户有海外获客基础，但线上内容获客能力不足。完整报告中应重点建议：1)建立强成交人设内容矩阵 2)从平台电商获客向社媒内容获客过渡。",
+  "sales_hint": "后续顾问沟通可重点询问：目前海外客户主要来自哪些国家、展会线索转化周期多长、是否有现成客户案例可拍成内容。"
+}
+```
+
+**最终报告结构（融合版）**：
+基于强成交人设「定位定生死、内容定江山、SOP定天下」三段框架 + 结构化评分：
+
+```json
+{
+  "summary_report": {
+    "total_score": 52, "tag": "基础具备型",
+    "positioning_assessment": "定位评价...",
+    "content_assessment": "内容力评价...",
+    "conversion_assessment": "转化力评价...",
+    "strengths": [...], "risks": [...], "unlock_hint": "..."
+  },
+  "full_report": {
+    "conclusion": "...",
+    "positioning_detail": "...",
+    "content_detail": "...",
+    "conversion_detail": "...",
+    "recommended_path": "...",
+    "action_plan_30days": [...],
+    "consultant_guide": "..."
+  }
+}
 ```
 
 **AI 输出限制（Prompt 层做、后端校验层兜底）**：
-- 不承诺收益（如"您的业务可提升 300%"）
-- 不输出确定性合规结论（如"您不需要办理 ICP 证"）
-- 不编造用户未提供的信息（如虚构市场数据）
-- 不使用强否定表达（如"您的业务完全没有出海可能"）
+- 不承诺收益
+- 不输出确定性合规结论
+- 不编造用户未提供的信息
+- 不使用强否定表达
+- 报告内容严格基于强成交人设方法论
 
 ### 4.5 模板报告生成
 
@@ -1029,7 +1089,7 @@ def mock_ai_response() -> dict:
 
 | 优先级 | 模块 | 必须覆盖的场景 |
 |--------|------|----------------|
-| P0 | `test_scoring.py` | 原始分 15→观察准备型 / 25→观察/26→轻量试探/36→基础具备/46→优先布局 / 单题累加正确 |
+| P0 | `test_scoring.py` | 原始分 17→观察准备型 / 30→观察/31→轻量试探/44→基础具备/57→优先布局 / 17 题累加正确 |
 | P0 | `test_assessment_flow.py` | 创建测评→逐题提交→完成→报告状态 success |
 | P1 | `test_template_report.py` | 4 种标签全部有对应模板 / 变量插值正确 / 缺失变量时优雅降级 |
 | P1 | `test_report_parse.py` | 完整 JSON 解析成功 / 缺失字段检测 / 非法 JSON 走模板兜底 |
@@ -1153,4 +1213,6 @@ tcb deploy
 | ORM 模式 | 同步 / 异步 | **同步 SQLAlchemy** | 瓶颈在 AI 调用不在 DB，同步代码更简单；线程池不影响事件循环 |
 | 部署方案 | 自建 ECS / 微信云托管 | **微信云托管** | 免 ICP 备案、自动 HTTPS、自动域名白名单、按量计费适合 MVP |
 | Python 版本 | 3.11 / 3.9 | **3.9** | 本地开发机只有 3.9，通过 `from __future__ import annotations` + `eval_type_backport` 兼容新语法 |
-| 评分域 | 展示分 60-100 / 原始分 15-60 | **内部原始分 15-60，对外展示 60-100** | 内部用原始分（每题 1-4×15），API 层 `+45` 映射为展示分；4 档标签 |
+| 评分域 v2.0 | 17 题计分（18 题，第 1 题不计分）| **原始分 17-68，展示分 +43** | 第 1 题行业用于分销路由；评分只计 17 题选择题 |
+| AI 报告模式 | 一次性生成 / 两阶段（逐题诊断+合成）| **两阶段** | 逐题静默诊断不打断用户；最终报告基于 18 条诊断记忆合成 |
+| 报告结构 | 传统结构化 / 强成交人设三段式 | **融合版** | 三段框架（定位/内容/转化）+ 结构化评分 |
