@@ -54,3 +54,4 @@ miniprogram/.tea/
 *.pyc
 *.pyo
 M4_PROMPT.md
+env-vars.json
