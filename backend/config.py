@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.deepseek.com"
     llm_model: str = "deepseek-chat"
     llm_timeout: int = 15
+    llm_max_tokens: int = 8000
 
     # ── JWT ────────────────────────────────────────────────
     jwt_secret: str = "your-secret-key"

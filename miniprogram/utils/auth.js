@@ -13,7 +13,7 @@
  * 后端 mock 模式接受任意非空 code，无需真实微信环境。
  */
 
-const { BASE_URL } = require("./config");
+const { BASE_URL, USE_MOCK_LOGIN } = require("./config");
 
 const STORAGE_KEY_TOKEN = "auth_token";
 const STORAGE_KEY_USER_ID = "auth_user_id";
@@ -23,8 +23,8 @@ const STORAGE_KEY_USER_ID = "auth_user_id";
 // ═══════════════════════════════════════
 const DEV_CODE = "dev_test_code_001";
 
-function isLocalDevBackend() {
-  return BASE_URL.includes("127.0.0.1") || BASE_URL.includes("localhost");
+function shouldUseMockLogin() {
+  return Boolean(USE_MOCK_LOGIN);
 }
 
 /* ── 读写缓存 ────────────────────────────────── */
@@ -83,50 +83,49 @@ function exchangeCodeForToken(code) {
 
 /**
  * 微信登录 → 换后端 token
- * 如果 wx.login() 失败（开发工具常见问题），fallback 到测试 code
+ * 真实模式：wx.login() 获取 code 后交给后端换取 openid 和 JWT。
+ * Mock 模式：仅在 USE_MOCK_LOGIN=true 时使用测试 code。
  */
 function login() {
-  if (isLocalDevBackend()) {
+  if (shouldUseMockLogin()) {
     return exchangeCodeForToken(DEV_CODE);
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let resolved = false;
 
-    function doLogin(code) {
+    function resolveOnce(result) {
       if (resolved) return;
       resolved = true;
-      exchangeCodeForToken(code).then(resolve);
+      resolve(result);
     }
 
-    // 先尝试真实 wx.login
+    function rejectOnce(err) {
+      if (resolved) return;
+      resolved = true;
+      reject(err);
+    }
+
     wx.login({
       success(res) {
         if (res.code) {
           exchangeCodeForToken(res.code)
-            .then((result) => { if (!resolved) { resolved = true; resolve(result); } })
-            .catch(() => {
-              console.warn("[Auth] wx.request 失败，使用开发模式 code");
-              doLogin(DEV_CODE);
-            });
+            .then(resolveOnce)
+            .catch(rejectOnce);
         } else {
-          console.warn("[Auth] wx.login 未返回 code，使用开发模式");
-          doLogin(DEV_CODE);
+          rejectOnce(new Error("wx.login 未返回 code"));
         }
       },
       fail(err) {
-        console.warn("[Auth] wx.login 失败: " + err.errMsg + "，使用开发模式");
-        doLogin(DEV_CODE);
+        rejectOnce(new Error("wx.login 失败: " + err.errMsg));
       }
     });
 
-    // 超时保护：2 秒后 wx.login 还没回调 → 用 dev code
     setTimeout(() => {
       if (!resolved) {
-        console.warn("[Auth] wx.login 超时，使用开发模式 code");
-        doLogin(DEV_CODE);
+        rejectOnce(new Error("wx.login 超时"));
       }
-    }, 2000);
+    }, 5000);
   });
 }
 

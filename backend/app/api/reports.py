@@ -9,6 +9,7 @@ from app.core.deps import get_current_user
 from app.models.assessment import Assessment
 from app.models.report import Report
 from app.schemas.report import SummaryReport, FullReport, MyReportResponse
+from app.services.report_service import _normalize_public_report_text
 
 router = APIRouter(tags=["reports"])
 
@@ -21,7 +22,7 @@ def _build_my_report_response(assessment: Assessment, report: Report | None) -> 
         display_score=(assessment.total_score or 0) + 43,
         is_unlocked=bool(report and report.is_unlocked),
         completed_at=str(assessment.completed_at) if assessment.completed_at else None,
-        summary=report.summary_report_json if report else None,
+        summary=_normalize_public_report_text(report.summary_report_json) if report else None,
     )
 
 
@@ -31,7 +32,7 @@ def get_summary_report(assessment_id: int, db: Session = Depends(get_db)):
     report = db.query(Report).filter_by(assessment_id=assessment_id).first()
     if not report or not report.summary_report_json:
         raise HTTPException(status_code=404, detail="报告不存在或尚未生成")
-    return report.summary_report_json
+    return _normalize_public_report_text(report.summary_report_json)
 
 
 @router.get("/reports/my", response_model=MyReportResponse)
@@ -106,4 +107,4 @@ def get_full_report(
         raise HTTPException(status_code=404, detail="报告不存在或尚未生成")
     if not report.is_unlocked:
         raise HTTPException(status_code=403, detail="请先提交信息解锁完整报告")
-    return report.full_report_json
+    return _normalize_public_report_text(report.full_report_json)

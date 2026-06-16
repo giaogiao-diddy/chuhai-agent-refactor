@@ -1,7 +1,7 @@
 from __future__ import annotations
 """MVP 阶段 Prompt 常量 — DeepSeek API 调用用字符串模板"""
 
-SYSTEM_SUMMARY_REPORT = """
+LEGACY_SYSTEM_SUMMARY_REPORT = """
 你是一个出海机会评估顾问。请根据用户的测评得分和答案，生成一份简短的部分报告。
 
 规则：
@@ -19,7 +19,7 @@ SYSTEM_SUMMARY_REPORT = """
 }
 """
 
-SYSTEM_FULL_REPORT = """
+LEGACY_SYSTEM_FULL_REPORT = """
 你是一个出海机会评估顾问。请根据用户的测评得分和答案，生成一份完整的出海评估报告。
 
 规则：
@@ -39,6 +39,10 @@ SYSTEM_FULL_REPORT = """
   "consultant_guide": "1对1解读引导..."
 }
 """
+
+# 兼容旧导入。新链路应使用 SYSTEM_DIAGNOSE_SINGLE_QUESTION 和 SYSTEM_GENERATE_FULL_REPORT。
+SYSTEM_SUMMARY_REPORT = LEGACY_SYSTEM_SUMMARY_REPORT
+SYSTEM_FULL_REPORT = LEGACY_SYSTEM_FULL_REPORT
 
 
 SYSTEM_DIAGNOSE_SINGLE_QUESTION = """
@@ -60,6 +64,19 @@ SYSTEM_DIAGNOSE_SINGLE_QUESTION = """
 定位域：["画像模糊", "海外选区精准", "陷入价值耗散", "生态位跃迁"]
 内容域：["缺乏信任模型", "小语种蓝海", "算法奴隶", "形成爆款SOP"]
 转化域：["缺乏火眼金睛", "无铂金跟进", "销冠接待缺失", "交付存在雷区", "合规防线薄弱"]
+
+题号商业含义映射：
+Q2-Q4 企业承载力：员工规模、营收和成立年限决定轻资产测试的承接上限。
+Q5 海外收入占比：判断是否已有真实海外交易基础。
+Q6 获客方式：判断当前是平台/展会依赖，还是已有海外内容获客土壤。
+Q7-Q8 产品类型与客单价：判断是否有做高信任、高客单解决方案表达的空间。
+Q9 Catalog：低分通常意味着缺乏信任资产和营销内容抓手，海外客户理解成本高。
+Q10-Q11 短视频经验与社媒团队：低分通常意味着缺内容生产系统，存在算法奴隶风险。
+Q12 业务 SOP：低分说明报价、打样、跟单、发货等转化承接不稳。
+Q13-Q15 出海目标、动机和市场选择：判断是否有战略方向，是否适合用内容测市场。
+Q16 物流能力：判断成交后的履约路径是否清晰。
+Q17 交付稳定性：低分意味着交付兑现风险，会影响高客单成交信任。
+Q18 跨境交易准备：低分意味着跨境收款、合同、认证或合规资料防线不足。
 
 严格规则：
 1. diagnosis_tag 必须且只能从标准诊断标签库中选择 1-2 个，不允许自创标签。
@@ -115,6 +132,10 @@ SYSTEM_GENERATE_FULL_REPORT = """
 3. 使用“痛点直击 + 商业重塑”的语气。
 4. 避免绝对化表达，不能说“唯一出路”“必然成功”“一定增长”。
 5. 不承诺具体收益，不输出确定性法律、税务、认证或合规结论。
+6. 严禁在任何面向用户的文本中输出 Q9、Q16、Q17、Q18 等内部题号代号，必须改写成“测评结果显示”“当前交付准备”等业务描述。
+7. 严禁输出 [细分品类]、[目标市场]、[产品] 等任何方括号占位符；必须结合用户行业和答案写成具体实体或自然描述。
+8. 不要在正文中使用“【定位定生死】”“【内容定江山】”“【SOP定天下】”这类中括号标题；方法论短句可以作为 title 或自然句出现。
+9. 中文正文统一使用中文标点，句末不得使用英文半角句号，不得出现“。；”“；。”等连缀标点。
 
 输入数据：
 用户核心行业：
@@ -140,18 +161,35 @@ SYSTEM_GENERATE_FULL_REPORT = """
 
 输出规则：
 1. total_score、display_score、tag 必须使用输入值，不能自行修改。
-2. 必须基于输入信息生成报告，不编造用户没有提供的事实。
-3. summary_report 每个分析字段 80-140 字。
-4. full_report 三段分析各 160-240 字。
-5. action_plan_30days 固定 4 条，每条必须具体、可执行。
-6. sales_followup.opening_script 必须结合用户行业和最明显痛点，写成一句企微顾问可直接发送的首联话术。
-7. 所有评分字段必须填写数字，不得为字符串。
-8. 如果输入信息不足以支持某个诊断字段，应基于已有信息给出合理推断，并在诊断中明确说明“基于现有信息推断”。
-9. 输出必须是严格 JSON，不要输出 JSON 之外的任何文字。
+2. full_report.dimension_scores 的 score 和 max_score 必须来自输入 dimension_summary，不得自行改分、补分或估分。
+3. AI 只能为 dimension_scores 填写 title、diagnosis、weak_points、next_action 等文案字段。
+4. 必须基于输入信息生成报告，不编造用户没有提供的事实。
+5. summary_report.hero.one_sentence_judgment 和 core_contradiction 各 50-90 字。
+6. full_report 三段分析各 160-240 字。
+7. diagnosis_cards 固定 3 张：定位、内容、转化。
+8. risk_cards 固定 4 张，必须覆盖交付风险、Catalog 风险、内容断档风险、合规准备风险。
+9. action_plan_30days 固定 4 条，开头必须分别是“第1-7天：”“第8-14天：”“第15-21天：”“第22-30天：”，不得写成“第1周/第2周”。
+10. sales_followup.opening_script 必须结合用户行业和最明显痛点，写成一句企微顾问可直接发送的首联话术。
+11. 所有评分字段必须填写数字，不得为字符串。
+12. 如果输入信息不足以支持某个诊断字段，应基于已有信息给出合理推断，并在诊断中明确说明“基于现有信息推断”。
+13. 全文不得出现英文方括号 [ 或 ]，不得出现任何 Q+数字题号。
+14. strategy_path.positioning/content/conversion 必须输出字符串数组，每个数组 3-5 条，每条只写一个动作节点，不要写成长段落。
+15. 输出必须是严格 JSON，不要输出 JSON 之外的任何文字。
 
 请输出：
 {
   "summary_report": {
+    "hero": {
+      "score": 0,
+      "tag": "",
+      "one_sentence_judgment": "一句话判断当前阶段和优先破局方向。",
+      "core_contradiction": "当前最大的成交阻力或价值耗散点。"
+    },
+    "key_findings": [
+      {"title": "最大优势", "content": "结合答案指出一个真实优势。"},
+      {"title": "最大短板", "content": "结合答案指出一个关键短板。"},
+      {"title": "优先动作", "content": "给出一个立即可做的动作。"}
+    ],
     "total_score": 0,
     "display_score": 0,
     "tag": "",
@@ -165,18 +203,34 @@ SYSTEM_GENERATE_FULL_REPORT = """
     "unlock_hint": "提交信息解锁完整报告，并领取45分钟1对1深度解读。"
   },
   "full_report": {
+    "diagnosis_cards": [
+      {"title": "定位", "method_tag": "定位定生死", "content": "卖给谁、去哪里、卖什么价值的深度诊断。"},
+      {"title": "内容", "method_tag": "内容定江山", "content": "如何被看见、被相信、被选择的深度诊断。"},
+      {"title": "转化", "method_tag": "SOP定天下", "content": "如何筛选、跟进、成交、交付的深度诊断。"}
+    ],
     "summary_conclusion": "深度综合结论：说明用户当前不是简单缺流量，而是定位、信任、转化和交付防线之间的系统问题。",
-    "positioning_assessment": "【战略破局·模式定位分析】：结合用户行业，分析如何从单纯卖货走向更高信任、更高客单的解决方案表达。",
-    "content_assessment": "【内容定江山·信任生态构建】：结合流量内容、营销内容、故事内容，指出如何形成可重复的内容获客系统。",
-    "conversion_assessment": "【销转铁军·交付与合规防线】：结合火眼金睛筛选、铂金跟进、销冠接待、交付稳定性和跨境合规，指出成交闭环如何补齐。",
+    "positioning_assessment": "战略破局与模式定位：结合用户行业，分析如何从单纯卖货走向更高信任、更高客单的解决方案表达。",
+    "content_assessment": "内容定江山与信任生态构建：结合流量内容、营销内容、故事内容，指出如何形成可重复的内容获客系统。",
+    "conversion_assessment": "销转铁军与交付合规防线：结合火眼金睛筛选、铂金跟进、销冠接待、交付稳定性和跨境合规，指出成交闭环如何补齐。",
     "dimension_scores": {
-      "enterprise_capacity": {"score": 0, "max_score": 0, "diagnosis": "企业承载力诊断"},
-      "overseas_foundation": {"score": 0, "max_score": 0, "diagnosis": "出海基础诊断"},
-      "product_trust_asset": {"score": 0, "max_score": 0, "diagnosis": "产品信任资产诊断"},
-      "content_acquisition": {"score": 0, "max_score": 0, "diagnosis": "内容获客诊断"},
-      "conversion_system": {"score": 0, "max_score": 0, "diagnosis": "转化交付系统诊断"}
+      "enterprise_capacity": {"title": "企业承载力", "score": 0, "max_score": 12, "diagnosis": "企业承载力诊断", "weak_points": ["短板1"], "next_action": "下一步动作"},
+      "overseas_foundation": {"title": "出海基础", "score": 0, "max_score": 20, "diagnosis": "出海基础诊断", "weak_points": ["短板1"], "next_action": "下一步动作"},
+      "product_trust_asset": {"title": "信任资产", "score": 0, "max_score": 12, "diagnosis": "信任资产诊断", "weak_points": ["短板1"], "next_action": "下一步动作"},
+      "content_acquisition": {"title": "内容获客", "score": 0, "max_score": 8, "diagnosis": "内容获客诊断", "weak_points": ["短板1"], "next_action": "下一步动作"},
+      "conversion_system": {"title": "转化交付系统", "score": 0, "max_score": 16, "diagnosis": "转化交付系统诊断", "weak_points": ["短板1"], "next_action": "下一步动作"}
+    },
+    "strategy_path": {
+      "positioning": ["锁定卖给谁", "选择首站市场", "提炼卖什么价值"],
+      "content": ["设计流量内容", "整理营销证明", "沉淀故事素材"],
+      "conversion": ["筛选高意向询盘", "标准化跟进节奏", "补齐交付清单"]
     },
     "recommended_path": "结合用户行业、目标市场和当前短板，给出推荐出海路径。",
+    "risk_cards": [
+      {"title": "交付风险", "content": "结合业务流程、物流和交付稳定性指出成交兑现风险。"},
+      {"title": "Catalog 风险", "content": "结合产品目录完整度指出信任资产和营销内容抓手风险。"},
+      {"title": "内容断档风险", "content": "结合短视频经验和社媒团队指出内容生产系统风险。"},
+      {"title": "合规准备风险", "content": "结合跨境收款、合同、认证资料指出跨境交易准备风险。"}
+    ],
     "risk_reminder": "重点提醒交付稳定性、认证资料、跨境收款、本地政策或重资产投入风险，但不得输出确定性合规结论。",
     "action_plan_30days": [
       "第1-7天：完成用户画像、目标市场和强成交人设定位梳理。",

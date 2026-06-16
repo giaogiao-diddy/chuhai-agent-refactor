@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: #f0f1f5;
+  background: #F8FAFC;
 }
 
 .container {
@@ -10,7 +10,7 @@
 .loading-box {
   text-align: center;
   padding: 100rpx 0;
-  color: #999;
+  color: #64748B;
 }
 
 /* ── 标题 ─────────────────────────────────────── */
@@ -22,13 +22,13 @@
 .title {
   font-size: 40rpx;
   font-weight: 700;
-  color: #1a1a2e;
+  color: #0F766E;
   margin-bottom: 16rpx;
 }
 
 .subtitle {
   font-size: 26rpx;
-  color: #999;
+  color: #64748B;
   line-height: 1.6;
 }
 
@@ -49,12 +49,12 @@
   width: 360rpx;
   height: 360rpx;
   border-radius: 12rpx;
-  background: #f8f9fa;
+  background: #F8FAFC;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2rpx dashed #ddd;
+  border: 2rpx dashed #CBD5E1;
 }
 
 .qrcode-placeholder-icon {
@@ -65,10 +65,10 @@
   width: 120rpx;
   height: 120rpx;
   background:
-    linear-gradient(45deg, #1a1a2e 25%, transparent 25%),
-    linear-gradient(-45deg, #1a1a2e 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #1a1a2e 75%),
-    linear-gradient(-45deg, transparent 75%, #1a1a2e 75%);
+    linear-gradient(45deg, #0D9488 25%, transparent 25%),
+    linear-gradient(-45deg, #0D9488 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0D9488 75%),
+    linear-gradient(-45deg, transparent 75%, #0D9488 75%);
   background-size: 40rpx 40rpx;
   background-position: 0 0, 0 20rpx, 20rpx -20rpx, -20rpx 0;
   opacity: 0.15;
@@ -77,13 +77,13 @@
 
 .qrcode-placeholder-text {
   font-size: 26rpx;
-  color: #999;
+  color: #64748B;
 }
 
 .consultant-name {
   margin-top: 20rpx;
   font-size: 28rpx;
-  color: #666;
+  color: #475569;
 }
 
 /* ── 状态 ─────────────────────────────────────── */
@@ -98,26 +98,26 @@
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #999;
+  color: #64748B;
 }
 
 .waiting-dot-anim {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #c8a45c;
+  background: #10B981;
   margin-right: 12rpx;
   animation: pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.4; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
+  0%, 100% { opacity: 0.4; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.12); }
+  50% { opacity: 1; box-shadow: 0 0 0 8rpx rgba(16, 185, 129, 0.16); }
 }
 
 .status-success {
   font-size: 28rpx;
-  color: #2e7d32;
+  color: #059669;
   font-weight: 600;
 }
 
@@ -129,32 +129,32 @@
 }
 
 .btn-secondary {
-  background: #fff;
-  color: #666;
+  background: #FFFFFF;
+  color: #475569;
   border-radius: 12rpx;
   font-size: 28rpx;
   padding: 20rpx;
-  border: 1rpx solid #e8e8e8;
+  border: 1rpx solid #E2E8F0;
 }
 
 /* ── 开发工具 ─────────────────────────────────── */
 .dev-section {
   margin-top: 60rpx;
-  border-top: 2rpx solid #eee;
+  border-top: 2rpx solid #E2E8F0;
   padding-top: 30rpx;
 }
 
 .divider {
   text-align: center;
   font-size: 24rpx;
-  color: #bbb;
+  color: #94A3B8;
   margin-bottom: 20rpx;
 }
 
 .btn-dev {
-  background: #fff7e6;
-  color: #b89437;
-  border: 2rpx dashed #c8a45c;
+  background: #ECFDF5;
+  color: #059669;
+  border: 2rpx dashed #10B981;
   border-radius: 12rpx;
   font-size: 26rpx;
   padding: 20rpx;

@@ -12,6 +12,7 @@
       class="card"
     >
       <view class="section-title">{{section.title}}</view>
+      <view wx:if="{{section.methodTag}}" class="method-tag">{{section.methodTag}}</view>
       <view class="section-text">{{section.content}}</view>
     </view>
 
@@ -41,26 +42,62 @@
     <!-- 推荐路径 -->
     <view class="card">
       <view class="section-title">推荐出海路径</view>
-      <view class="section-text">{{report.recommended_path}}</view>
+      <view wx:if="{{strategyItems.length}}">
+        <view
+          wx:for="{{strategyItems}}"
+          wx:key="title"
+          wx:for-item="item"
+          class="mini-card"
+        >
+          <view class="mini-title">{{item.title}}</view>
+          <view wx:if="{{item.steps.length}}" class="path-steps">
+            <view
+              wx:for="{{item.steps}}"
+              wx:key="*this"
+              wx:for-item="step"
+              class="path-step"
+            >
+              <view class="path-step-num">{{index + 1}}</view>
+              <view class="path-step-text">{{step}}</view>
+            </view>
+          </view>
+          <view wx:else class="section-text">{{item.content}}</view>
+        </view>
+      </view>
+      <view wx:else class="section-text">{{report.recommended_path}}</view>
     </view>
 
     <!-- 风险提醒 -->
     <view class="card">
       <view class="section-title">风险提醒</view>
-      <view class="section-text">{{report.risk_reminder}}</view>
+      <view wx:if="{{riskCards.length}}">
+        <view
+          wx:for="{{riskCards}}"
+          wx:key="title"
+          wx:for-item="risk"
+          class="mini-card risk-card"
+        >
+          <view class="mini-title">{{risk.title}}</view>
+          <view class="section-text">{{risk.content}}</view>
+        </view>
+      </view>
+      <view wx:else class="section-text">{{report.risk_reminder}}</view>
     </view>
 
     <!-- 30 天行动建议 -->
     <view class="card">
       <view class="section-title">30 天行动建议</view>
       <view
-        wx:for="{{report.action_plan_30days}}"
-        wx:key="*this"
+        wx:for="{{actionSteps}}"
+        wx:key="key"
         wx:for-item="step"
         class="action-step"
       >
         <view class="step-num">{{index + 1}}</view>
-        <view class="step-text">{{step}}</view>
+        <view class="step-text">
+          <view class="step-label">{{step.label}}</view>
+          <view class="step-content">{{step.content}}</view>
+        </view>
       </view>
     </view>
 

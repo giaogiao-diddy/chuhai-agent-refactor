@@ -6,19 +6,19 @@
 /* ── 进度条 ───────────────────────────────────── */
 .progress-bar {
   height: 6rpx;
-  background: #ddd;
+  background: #CBD5E1;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1a1a2e, #16213e);
+  background: linear-gradient(90deg, #0D9488, #10B981);
   transition: width 0.35s ease;
 }
 
 .progress-text {
   text-align: center;
   font-size: 24rpx;
-  color: #999;
+  color: #64748B;
   padding: 12rpx 0;
 }
 
@@ -37,9 +37,9 @@
   text-align: center;
   margin: 10rpx;
   border-radius: 50%;
-  border: 2rpx solid #ddd;
-  background: #fff;
-  color: #999;
+  border: 2rpx solid #CBD5E1;
+  background: #FFFFFF;
+  color: #64748B;
   font-size: 22rpx;
   font-weight: 600;
   position: relative;
@@ -55,16 +55,16 @@
 }
 
 .question-dot-answered {
-  border-color: #1a1a2e;
-  background: #eef0f7;
-  color: #1a1a2e;
+  border-color: #0D9488;
+  background: #F0FDFA;
+  color: #0F766E;
 }
 
 .question-dot-current {
-  background: #1a1a2e;
-  border-color: #1a1a2e;
-  color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(26, 26, 46, 0.3);
+  background: #0D9488;
+  border-color: #0D9488;
+  color: #FFFFFF;
+  box-shadow: 0 6rpx 16rpx rgba(13, 148, 136, 0.18);
 }
 
 /* ── 题目卡片 ─────────────────────────────────── */
@@ -75,13 +75,13 @@
 .question-title {
   font-size: 34rpx;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #1E293B;
   line-height: 1.6;
 }
 
 .question-desc {
   font-size: 24rpx;
-  color: #999;
+  color: #64748B;
   margin-top: 12rpx;
 }
 
@@ -95,19 +95,19 @@
   align-items: center;
   padding: 28rpx 28rpx;
   margin-bottom: 20rpx;
-  background: #fff;
-  border: 2rpx solid #e8e8e8;
+  background: #FFFFFF;
+  border: 2rpx solid #E2E8F0;
   border-radius: 16rpx;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .option-item:active {
-  background: #f8f8fa;
+  background: #F0FDFA;
 }
 
 .option-active {
-  border-color: #1a1a2e;
-  background: #edf0f8;
+  border-color: #0D9488;
+  background: #ECFDF5;
 }
 
 .option-disabled {
@@ -129,20 +129,20 @@
   width: 24rpx;
   height: 24rpx;
   border-radius: 50%;
-  border: 2rpx solid #ccc;
-  background: #fff;
+  border: 2rpx solid #CBD5E1;
+  background: #FFFFFF;
   transition: all 0.2s ease;
 }
 
 .option-radio-checked {
-  border-color: #1a1a2e;
-  background: #1a1a2e;
-  box-shadow: 0 0 0 6rpx rgba(26, 26, 46, 0.12) inset;
+  border-color: #0D9488;
+  background: #0D9488;
+  box-shadow: 0 0 0 6rpx rgba(13, 148, 136, 0.12) inset;
 }
 
 .option-text {
   font-size: 28rpx;
-  color: #333;
+  color: #1E293B;
   line-height: 1.5;
   flex: 1;
 }
@@ -157,15 +157,15 @@
   width: 100%;
   height: 96rpx;
   padding: 0 32rpx;
-  background: #fff;
-  border: 2rpx solid #e8e8e8;
+  background: #FFFFFF;
+  border: 2rpx solid #E2E8F0;
   border-radius: 16rpx;
   font-size: 28rpx;
-  color: #333;
+  color: #1E293B;
 }
 
 .text-answer-input:focus {
-  border-color: #1a1a2e;
+  border-color: #0D9488;
 }
 
 .submit-text-btn {
@@ -174,15 +174,15 @@
   height: 88rpx;
   line-height: 88rpx;
   border-radius: 16rpx;
-  background: #1a1a2e;
-  color: #fff;
+  background: #0D9488;
+  color: #FFFFFF;
   font-size: 30rpx;
   font-weight: 500;
 }
 
 .submit-text-btn[disabled] {
-  background: #bbb;
-  color: #fff;
+  background: #CBD5E1;
+  color: #FFFFFF;
 }
 
 /* ── 底部导航 ─────────────────────────────────── */
@@ -193,8 +193,8 @@
   right: 0;
   padding: 24rpx 32rpx;
   padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-  background: #fff;
-  border-top: 1rpx solid #f0f0f0;
+  background: #FFFFFF;
+  border-top: 1rpx solid #E2E8F0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -207,18 +207,18 @@
   text-align: center;
   font-size: 26rpx;
   border-radius: 36rpx;
-  border: 2rpx solid #1a1a2e;
-  background: #fff;
-  color: #1a1a2e;
+  border: 2rpx solid #0D9488;
+  background: #FFFFFF;
+  color: #0D9488;
 }
 
 .nav-btn[disabled] {
-  border-color: #ddd;
-  color: #ccc;
+  border-color: #CBD5E1;
+  color: #CBD5E1;
 }
 
 .nav-hint {
   font-size: 22rpx;
-  color: #999;
+  color: #64748B;
   margin-top: 12rpx;
 }

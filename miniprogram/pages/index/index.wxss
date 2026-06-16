@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 58%, #f0f1f5 58%);
+  background: linear-gradient(180deg, #0D9488 0%, #0F766E 58%, #F8FAFC 58%);
 }
 
 .loading-box {
@@ -8,7 +8,7 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  color: #fff;
+  color: #FFFFFF;
   font-size: 28rpx;
 }
 
@@ -30,9 +30,9 @@
   line-height: 100rpx;
   text-align: center;
   background: rgba(255, 255, 255, 0.12);
-  border: 3rpx solid rgba(255, 255, 255, 0.25);
+  border: 3rpx solid rgba(255, 255, 255, 0.28);
   border-radius: 24rpx;
-  color: #fff;
+  color: #FFFFFF;
   font-size: 38rpx;
   font-weight: 800;
   letter-spacing: 2rpx;
@@ -41,7 +41,7 @@
 .hero-title {
   font-size: 48rpx;
   font-weight: 700;
-  color: #fff;
+  color: #FFFFFF;
   margin-bottom: 16rpx;
 }
 
@@ -59,7 +59,7 @@
   display: flex;
   align-items: center;
   padding: 20rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid #E2E8F0;
 }
 
 .guide-item:last-child {
@@ -71,8 +71,8 @@
   height: 48rpx;
   line-height: 48rpx;
   text-align: center;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  color: #fff;
+  background: linear-gradient(135deg, #0D9488, #0F766E);
+  color: #FFFFFF;
   border-radius: 50%;
   font-size: 24rpx;
   font-weight: 700;
@@ -82,7 +82,7 @@
 
 .guide-text {
   font-size: 28rpx;
-  color: #333;
+  color: #1E293B;
 }
 
 /* ── 按钮 ─────────────────────────────────────── */
@@ -93,14 +93,14 @@
 /* ── 我的报告 ─────────────────────────────────── */
 .my-report-link {
   text-align: center;
-  color: #555;
+  color: #475569;
   font-size: 28rpx;
   margin-top: 32rpx;
   padding: 16rpx;
 }
 
 .link-arrow {
-  color: #c8a45c;
+  color: #10B981;
   font-weight: 600;
   margin-left: 4rpx;
 }

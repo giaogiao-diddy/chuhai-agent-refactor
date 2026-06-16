@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import re
 
 from sqlalchemy.orm import Session
 
@@ -19,13 +20,51 @@ from config import settings
 
 logger = logging.getLogger("luobin")
 
+_INTERNAL_QUESTION_CODE_RE = re.compile(r"(?<![A-Za-z])Q(?:1[0-8]|[1-9])")
+_LEADING_BRACKET_TAG_RE = re.compile(r"^【([^】]{2,18})】\s*")
+_SQUARE_PLACEHOLDER_RE = re.compile(r"\[[^\]]+\]")
+_CJK_RE = r"\u3400-\u4dbf\u4e00-\u9fff"
+
 
 _DIMENSION_QUESTION_IDS = {
     "enterprise_capacity": {2, 3, 4},
-    "overseas_foundation": {5, 6, 13, 14, 15, 16, 18},
-    "product_trust_asset": {7, 8, 9, 17},
+    "overseas_foundation": {5, 6, 13, 14, 15},
+    "product_trust_asset": {7, 8, 9},
     "content_acquisition": {10, 11},
-    "conversion_system": {12},
+    "conversion_system": {12, 16, 17, 18},
+}
+
+_DIMENSION_DEFAULT_COPY = {
+    "enterprise_capacity": {
+        "title": "企业承载力",
+        "diagnosis": "企业承载力需要结合规模、营收和经营年限判断。",
+        "weak_points": ["团队、资金和经营稳定性决定轻资产测试的承接上限。"],
+        "next_action": "先明确可投入的人力、预算和决策节奏。",
+    },
+    "overseas_foundation": {
+        "title": "出海基础",
+        "diagnosis": "出海基础需要结合海外收入、获客方式、目标市场和出海动机判断。",
+        "weak_points": ["海外渠道和目标市场不聚焦时，内容测试容易分散。"],
+        "next_action": "优先选择一个目标市场做低成本内容验证。",
+    },
+    "product_trust_asset": {
+        "title": "信任资产",
+        "diagnosis": "信任资产需要结合产品类型、客单价和 Catalog 完整度判断。",
+        "weak_points": ["目录、案例和产品证据不足会拉长海外客户信任周期。"],
+        "next_action": "整理多语言 Catalog、卖点、案例和交付证明。",
+    },
+    "content_acquisition": {
+        "title": "内容获客",
+        "diagnosis": "内容获客需要结合短视频经验和社媒团队配置判断。",
+        "weak_points": ["没有内容 SOP 时，账号容易依赖偶发爆款。"],
+        "next_action": "搭建信任三位一体选题库并开始测试。",
+    },
+    "conversion_system": {
+        "title": "转化交付系统",
+        "diagnosis": "转化交付系统需要结合 SOP、物流、交付稳定性和跨境交易准备判断。",
+        "weak_points": ["询盘筛选、跟进节奏、交付稳定和合规资料会影响成交兑现。"],
+        "next_action": "建立火眼金睛筛选、铂金跟进和交付合规清单。",
+    },
 }
 
 _ALLOWED_DIAGNOSIS_TAGS = {
@@ -90,6 +129,55 @@ def _is_nonempty_string(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def _text_has_public_output_leak(value: str) -> bool:
+    """识别不应暴露给用户的模板/题号痕迹。"""
+    return bool(_SQUARE_PLACEHOLDER_RE.search(value) or _INTERNAL_QUESTION_CODE_RE.search(value))
+
+
+def _iter_report_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from _iter_report_strings(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_report_strings(item)
+
+
+def _normalize_public_text(value: str) -> str:
+    text = _LEADING_BRACKET_TAG_RE.sub(r"\1：", value)
+    text = _INTERNAL_QUESTION_CODE_RE.sub("测评结果", text)
+    text = text.replace("测评结果显示", "测评结果显示")
+    text = text.replace("测评结果显示显示", "测评结果显示")
+    text = text.replace("测评结果测评结果", "测评结果")
+    text = re.sub(r"\s+([，。；：、！？])", r"\1", text)
+    text = re.sub(rf"(?<=[{_CJK_RE}])\s*\.(?=[，。；：、！？])", "。", text)
+    text = re.sub(rf"(?<=[{_CJK_RE}])\s*\.(?=$|[\s\"'）)])", "。", text)
+    text = re.sub(rf"(?<=[{_CJK_RE}])\s*\.(?=[{_CJK_RE}])", "。", text)
+    text = text.replace("。；", "。")
+    text = text.replace("；。", "。")
+    text = text.replace("。，", "。")
+    text = text.replace("，。", "。")
+    text = re.sub(r"。{2,}", "。", text)
+    text = re.sub(r"；{2,}", "；", text)
+    return text.strip()
+
+
+def _normalize_public_report_text(value):
+    """模板兜底或兼容旧报告时，清理公共文本里的内部题号和黑话括号。"""
+    if isinstance(value, str):
+        return _normalize_public_text(value)
+    if isinstance(value, list):
+        return [_normalize_public_report_text(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: _normalize_public_report_text(item)
+            for key, item in value.items()
+        }
+    return value
+
+
 def validate_report_fields(data: dict) -> bool:
     """校验 V2 AI 报告 JSON 的字段完整性。"""
     if not isinstance(data, dict):
@@ -126,6 +214,10 @@ def validate_report_fields(data: dict) -> bool:
         return False
     if not isinstance(summary.get("display_score"), int):
         return False
+    if "hero" not in summary or not isinstance(summary["hero"], dict):
+        return False
+    if "key_findings" not in summary or not isinstance(summary["key_findings"], list):
+        return False
     if any(not _is_nonempty_string(summary.get(field)) for field in summary_string_fields):
         return False
     if "strengths" not in summary or not isinstance(summary["strengths"], list):
@@ -133,13 +225,29 @@ def validate_report_fields(data: dict) -> bool:
     if "risks" not in summary or not isinstance(summary["risks"], list):
         return False
 
+    if "diagnosis_cards" not in full or not isinstance(full["diagnosis_cards"], list):
+        return False
+    if "strategy_path" not in full or not isinstance(full["strategy_path"], dict):
+        return False
+    if "risk_cards" not in full or not isinstance(full["risk_cards"], list):
+        return False
     if any(not _is_nonempty_string(full.get(field)) for field in full_string_fields):
         return False
     if "dimension_scores" not in full or not isinstance(full["dimension_scores"], dict):
         return False
+    for dimension in _DIMENSION_QUESTION_IDS:
+        dimension_score = full["dimension_scores"].get(dimension)
+        if not isinstance(dimension_score, dict):
+            return False
+        if not isinstance(dimension_score.get("score"), int):
+            return False
+        if not isinstance(dimension_score.get("max_score"), int):
+            return False
     if "action_plan_30days" not in full or not isinstance(full["action_plan_30days"], list):
         return False
     if "followup_focus" in sales and not isinstance(sales["followup_focus"], list):
+        return False
+    if any(_text_has_public_output_leak(text) for text in _iter_report_strings(data)):
         return False
 
     return True
@@ -188,7 +296,53 @@ def _build_dimension_summary(answer_summary: list[dict]) -> dict:
     return result
 
 
-def _call_llm(prompt: str) -> str:
+def _build_rule_dimension_scores(dimension_summary: dict, ai_dimension_scores: dict | None = None) -> dict:
+    """用规则分数覆盖 AI 维度分，只保留 AI 生成的诊断文案。"""
+    result = {}
+    ai_dimension_scores = ai_dimension_scores if isinstance(ai_dimension_scores, dict) else {}
+    for dimension, defaults in _DIMENSION_DEFAULT_COPY.items():
+        rule_values = dimension_summary.get(dimension, {})
+        ai_values = ai_dimension_scores.get(dimension, {})
+        ai_values = ai_values if isinstance(ai_values, dict) else {}
+        result[dimension] = {
+            "title": ai_values.get("title") or defaults["title"],
+            "score": int(rule_values.get("score", 0) or 0),
+            "max_score": int(rule_values.get("max_score", len(_DIMENSION_QUESTION_IDS[dimension]) * 4) or 0),
+            "diagnosis": ai_values.get("diagnosis") or defaults["diagnosis"],
+            "weak_points": ai_values.get("weak_points") if isinstance(ai_values.get("weak_points"), list) else defaults["weak_points"],
+            "next_action": ai_values.get("next_action") or defaults["next_action"],
+        }
+    return result
+
+
+def _apply_rule_based_report_fields(
+    parsed: dict,
+    raw_score: int,
+    display_score: int,
+    tag: str,
+    tag_explanation: str,
+    dimension_summary: dict,
+) -> dict:
+    """后端规则字段拥有最终解释权，AI 只补充诊断文案。"""
+    summary_report = parsed["summary_report"]
+    full_report = parsed["full_report"]
+
+    summary_report["total_score"] = raw_score
+    summary_report["display_score"] = display_score
+    summary_report["tag"] = tag
+    summary_report["tag_explanation"] = tag_explanation
+    if isinstance(summary_report.get("hero"), dict):
+        summary_report["hero"]["score"] = display_score
+        summary_report["hero"]["tag"] = tag
+
+    full_report["dimension_scores"] = _build_rule_dimension_scores(
+        dimension_summary,
+        full_report.get("dimension_scores"),
+    )
+    return _normalize_public_report_text(parsed)
+
+
+def _call_llm(prompt: str, max_tokens: int | None = None, timeout: int | None = None) -> str:
     if not settings.ai_report_enabled or not settings.llm_api_key:
         raise ValueError("AI 报告未启用或缺少 API Key")
 
@@ -202,10 +356,24 @@ def _call_llm(prompt: str) -> str:
         model=settings.llm_model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
-        max_tokens=3500,
-        timeout=settings.llm_timeout,
+        max_tokens=max_tokens or settings.llm_max_tokens,
+        timeout=timeout or settings.llm_timeout,
     )
     return resp.choices[0].message.content or ""
+
+
+def _single_question_llm_options() -> dict[str, int]:
+    return {
+        "max_tokens": 1200,
+        "timeout": settings.llm_timeout,
+    }
+
+
+def _full_report_llm_options() -> dict[str, int]:
+    return {
+        "max_tokens": settings.llm_max_tokens,
+        "timeout": max(settings.llm_timeout, 60),
+    }
 
 
 def _render_prompt(template: str, values: dict[str, object]) -> str:
@@ -264,7 +432,7 @@ def diagnose_single_question(db: Session, assessment_id: int, question_id: int):
             "answer": current,
             "previous_answer_summary": previous_summary,
         }
-        raw_response = _call_llm(prompt)
+        raw_response = _call_llm(prompt, **_single_question_llm_options())
         parsed = parse_ai_response(raw_response)
         ai_log.raw_response = {"content": raw_response}
 
@@ -369,18 +537,21 @@ def generate_report(db: Session, assessment_id: int):
             "dimension_summary": json.dumps(dimension_summary, ensure_ascii=False),
             "report_memories": json.dumps(report_memories, ensure_ascii=False),
         })
-        raw_response = _call_llm(prompt)
+        raw_response = _call_llm(prompt, **_full_report_llm_options())
         parsed = parse_ai_response(raw_response)
         ai_log.raw_response = {"content": raw_response}
 
         if parsed and validate_report_fields(parsed):
-            summary_report = parsed["summary_report"]
-            summary_report["total_score"] = raw_score
-            summary_report["display_score"] = display_score
-            summary_report["tag"] = tag
-            summary_report["tag_explanation"] = tag_explanation
+            parsed = _apply_rule_based_report_fields(
+                parsed,
+                raw_score=raw_score,
+                display_score=display_score,
+                tag=tag,
+                tag_explanation=tag_explanation,
+                dimension_summary=dimension_summary,
+            )
 
-            report.summary_report_json = summary_report
+            report.summary_report_json = parsed["summary_report"]
             report.full_report_json = parsed["full_report"]
             report.generation_type = "ai"
             report.ai_model = settings.llm_model
@@ -396,8 +567,16 @@ def generate_report(db: Session, assessment_id: int):
         ai_log.error_message = str(e)[:512]
 
     if not ai_success:
-        report.summary_report_json = build_summary(raw_score, tag, {"answers": answer_summary})
-        report.full_report_json = build_full(raw_score, tag, {"answers": answer_summary})
+        template_context = {
+            "answers": answer_summary,
+            "report_memories": report_memories,
+        }
+        report.summary_report_json = _normalize_public_report_text(
+            build_summary(raw_score, tag, template_context)
+        )
+        report.full_report_json = _normalize_public_report_text(
+            build_full(raw_score, tag, template_context)
+        )
         report.generation_type = "template"
         report.prompt_version = "v2.0-template"
 

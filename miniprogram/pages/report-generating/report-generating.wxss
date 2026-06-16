@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(180deg, #0D9488 0%, #0F766E 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,7 +22,7 @@
   height: 160rpx;
   border-radius: 50%;
   border: 4rpx solid rgba(255, 255, 255, 0.12);
-  border-top-color: #c8a45c;
+  border-top-color: #10B981;
   animation: spin 1.2s linear infinite;
 }
 
@@ -44,7 +44,7 @@
 .title {
   font-size: 36rpx;
   font-weight: 600;
-  color: #fff;
+  color: #FFFFFF;
   margin-bottom: 20rpx;
 }
 
