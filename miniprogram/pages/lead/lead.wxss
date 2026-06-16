@@ -1,72 +1,147 @@
 .page {
   min-height: 100vh;
+  background: #f5f5f5;
 }
 
-/* ── 头部引导 ─────────────────────────────────── */
-.lead-header {
+.container {
+  padding: 40rpx 30rpx;
+}
+
+/* 加载 */
+.loading-box {
   text-align: center;
-  padding: 48rpx 0 32rpx;
+  padding: 100rpx 0;
+  color: #999;
 }
 
-.lead-title {
-  font-size: 40rpx;
+/* 标题 */
+.header {
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.title {
+  font-size: 36rpx;
   font-weight: 700;
   color: #1a1a2e;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
 }
 
-.lead-subtitle {
+.subtitle {
   font-size: 26rpx;
-  color: #666;
+  color: #888;
   line-height: 1.6;
 }
 
-.highlight {
-  color: #1a1a2e;
+/* 卡片 */
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 40rpx 30rpx;
+  margin-bottom: 30rpx;
+}
+
+/* 二维码 */
+.qrcode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qrcode-img {
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 12rpx;
+}
+
+.qrcode-placeholder {
+  width: 360rpx;
+  height: 360rpx;
+  border-radius: 12rpx;
+  background: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed #ccc;
+}
+
+.qrcode-placeholder-icon {
+  font-size: 64rpx;
+  margin-bottom: 16rpx;
+}
+
+.qrcode-placeholder-text {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.consultant-name {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+}
+
+/* 状态 */
+.status-box {
+  text-align: center;
+  margin-bottom: 30rpx;
+  padding: 20rpx;
+}
+
+.status-waiting {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.status-success {
+  font-size: 28rpx;
+  color: #07c160;
   font-weight: 600;
 }
 
-/* ── 表单卡片 ─────────────────────────────────── */
-.form-card {
-  margin-top: 32rpx;
+/* 按钮 */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
 }
 
-.form-item {
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.form-item:last-child {
-  border-bottom: none;
-}
-
-.form-label {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 12rpx;
-}
-
-.form-input {
-  width: 100%;
-  height: 72rpx;
-  font-size: 28rpx;
-  color: #333;
-  background: #f8f8f8;
-  border-radius: 12rpx;
-  padding: 0 20rpx;
-  box-sizing: border-box;
-}
-
-/* ── 按钮 ─────────────────────────────────────── */
 .btn-primary {
-  margin-top: 48rpx;
+  background: #1a1a2e;
+  color: #fff;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  padding: 24rpx;
 }
 
-/* ── 隐私提示 ─────────────────────────────────── */
-.privacy-note {
+.btn-secondary {
+  background: #f5f5f5;
+  color: #666;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  padding: 20rpx;
+}
+
+/* 开发工具 */
+.dev-section {
+  margin-top: 60rpx;
+  border-top: 2rpx solid #eee;
+  padding-top: 30rpx;
+}
+
+.divider {
   text-align: center;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #bbb;
-  margin-top: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.btn-dev {
+  background: #fff3cd;
+  color: #856404;
+  border: 2rpx dashed #ffc107;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  padding: 20rpx;
 }

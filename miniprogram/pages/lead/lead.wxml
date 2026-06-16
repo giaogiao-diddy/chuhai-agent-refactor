@@ -1,75 +1,71 @@
 <view class="page">
   <view class="container">
-    <!-- 引导 -->
-    <view class="lead-header">
-      <view class="lead-title">解锁完整报告</view>
-      <view class="lead-subtitle">
-        提交信息后即可查看完整报告，并获得<text class="highlight">45 分钟 1 对 1 免费解读</text>
-      </view>
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-box">
+      <text>加载中...</text>
     </view>
 
-    <!-- 表单 -->
-    <view class="card form-card">
-      <view class="form-item">
-        <view class="form-label">姓名</view>
-        <input
-          class="form-input"
-          placeholder="请输入姓名"
-          value="{{name}}"
-          data-field="name"
-          bindinput="onInput"
-          maxlength="16"
-        />
+    <!-- 已解锁 / 正常内容 -->
+    <view wx:else class="unlock-content">
+      <!-- 标题 -->
+      <view class="header">
+        <view class="title">添加企业微信，解锁完整报告</view>
+        <view class="subtitle">添加顾问后，系统确认成功即可自动解锁</view>
       </view>
 
-      <view class="form-item">
-        <view class="form-label">电话 / 微信</view>
-        <input
-          class="form-input"
-          placeholder="请输入联系方式"
-          value="{{contact}}"
-          data-field="contact"
-          bindinput="onInput"
-          maxlength="32"
+      <!-- 二维码区域 -->
+      <view class="card qrcode-card">
+        <image
+          wx:if="{{qrCodeUrl}}"
+          class="qrcode-img"
+          src="{{qrCodeUrl}}"
+          mode="widthFix"
         />
+        <view wx:else class="qrcode-placeholder">
+          <view class="qrcode-placeholder-icon">📱</view>
+          <view class="qrcode-placeholder-text">企微二维码待配置</view>
+        </view>
+        <view class="consultant-name">顾问：{{consultantName}}</view>
       </view>
 
-      <view class="form-item">
-        <view class="form-label">公司</view>
-        <input
-          class="form-input"
-          placeholder="请输入公司名称"
-          value="{{company}}"
-          data-field="company"
-          bindinput="onInput"
-          maxlength="64"
-        />
+      <!-- 状态提示 -->
+      <view class="status-box">
+        <view wx:if="{{isUnlocked}}" class="status-success">
+          <text>✅ {{message}}</text>
+        </view>
+        <view wx:else class="status-waiting">
+          <text>⏳ {{message}}</text>
+        </view>
       </view>
 
-      <view class="form-item">
-        <view class="form-label">身份</view>
-        <input
-          class="form-input"
-          placeholder="如：创始人、运营负责人"
-          value="{{role}}"
-          data-field="role"
-          bindinput="onInput"
-          maxlength="32"
-        />
+      <!-- 操作按钮 -->
+      <view class="actions">
+        <button
+          wx:if="{{!isUnlocked}}"
+          class="btn-primary"
+          bindtap="onCheckStatus"
+        >
+          我已添加，检查解锁状态
+        </button>
+        <button
+          class="btn-secondary"
+          bindtap="goBack"
+        >
+          返回部分报告
+        </button>
       </view>
-    </view>
 
-    <!-- 提交按钮 -->
-    <button
-      class="btn-primary"
-      bindtap="submitLead"
-      disabled="{{submitting}}"
-    >
-      {{submitting ? '提交中...' : '解锁完整报告'}}
-    </button>
-
-    <view class="privacy-note">
-      提交即表示同意将信息提供给顾问进行后续服务
+      <!-- 开发工具 -->
+      <view wx:if="{{enableMockUnlock && !isUnlocked}}" class="dev-section">
+        <view class="divider">开发调试</view>
+        <button
+          class="btn-dev"
+          bindtap="onMockUnlock"
+          loading="{{mockUnlocking}}"
+        >
+          🔧 模拟添加成功（仅开发环境）
+        </button>
+      </view>
     </view>
   </view>
 </view>

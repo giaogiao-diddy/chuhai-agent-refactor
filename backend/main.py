@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 
-from app.api import auth, questions, assessments, reports, leads, admin
+from app.api import auth, questions, assessments, reports, leads, admin, wecom
 from app.core.middleware import RequestLoggingMiddleware
 from app.core import database as db_module
 from config import settings
@@ -55,6 +55,7 @@ app.include_router(assessments.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(leads.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(wecom.router, prefix="/api")
 
 
 @app.get("/health")

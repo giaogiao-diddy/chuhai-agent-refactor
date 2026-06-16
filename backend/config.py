@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # ── Admin ──────────────────────────────────────────────
     admin_user_ids: str = ""  # 逗号分隔的 user_id，为空时跳过管理员校验
 
+    # ── 企业微信 ───────────────────────────────────────────
+    wecom_qr_code_url: str = ""
+    wecom_consultant_name: str = "企微顾问"
+    wecom_unlock_poll_interval: float = 2.0
+    enable_mock_wecom_unlock: bool = True
+
     # ── WeChat ─────────────────────────────────────────────
     wx_appid: str = ""
     wx_secret: str = ""
