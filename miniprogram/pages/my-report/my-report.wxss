@@ -22,8 +22,19 @@
 }
 
 .empty-icon {
-  font-size: 100rpx;
   margin-bottom: 32rpx;
+}
+
+.empty-icon-circle {
+  width: 120rpx;
+  height: 120rpx;
+  line-height: 120rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #eef0f7;
+  color: #1a1a2e;
+  font-size: 48rpx;
+  font-weight: 700;
 }
 
 .empty-text {
@@ -48,6 +59,7 @@
 .card-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 20rpx;
 }
 
@@ -55,7 +67,19 @@
   font-size: 64rpx;
   font-weight: 800;
   color: #1a1a2e;
-  margin-right: 24rpx;
+  line-height: 1.1;
+}
+
+.card-label {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .card-tag {
@@ -64,6 +88,28 @@
   color: #fff;
   border-radius: 32rpx;
   font-size: 26rpx;
+}
+
+.unlock-tag {
+  margin-top: 12rpx;
+  padding: 6rpx 18rpx;
+  border-radius: 24rpx;
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.unlock-tag-on {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.card-brief {
+  margin-bottom: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #555;
 }
 
 .card-time {
@@ -75,5 +121,6 @@
 .card-arrow {
   text-align: right;
   font-size: 26rpx;
-  color: #1a1a2e;
+  color: #c8a45c;
+  font-weight: 500;
 }

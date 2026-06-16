@@ -1,27 +1,26 @@
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f0f1f5;
 }
 
 .container {
   padding: 40rpx 30rpx;
 }
 
-/* 加载 */
 .loading-box {
   text-align: center;
   padding: 100rpx 0;
   color: #999;
 }
 
-/* 标题 */
+/* ── 标题 ─────────────────────────────────────── */
 .header {
   text-align: center;
   margin-bottom: 40rpx;
 }
 
 .title {
-  font-size: 36rpx;
+  font-size: 40rpx;
   font-weight: 700;
   color: #1a1a2e;
   margin-bottom: 16rpx;
@@ -29,19 +28,11 @@
 
 .subtitle {
   font-size: 26rpx;
-  color: #888;
+  color: #999;
   line-height: 1.6;
 }
 
-/* 卡片 */
-.card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 40rpx 30rpx;
-  margin-bottom: 30rpx;
-}
-
-/* 二维码 */
+/* ── 二维码卡片 ───────────────────────────────── */
 .qrcode-card {
   display: flex;
   flex-direction: column;
@@ -58,17 +49,30 @@
   width: 360rpx;
   height: 360rpx;
   border-radius: 12rpx;
-  background: #f0f0f0;
+  background: #f8f9fa;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2rpx dashed #ccc;
+  border: 2rpx dashed #ddd;
 }
 
 .qrcode-placeholder-icon {
-  font-size: 64rpx;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.placeholder-qr-pattern {
+  width: 120rpx;
+  height: 120rpx;
+  background:
+    linear-gradient(45deg, #1a1a2e 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1a2e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1a2e 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1a2e 75%);
+  background-size: 40rpx 40rpx;
+  background-position: 0 0, 0 20rpx, 20rpx -20rpx, -20rpx 0;
+  opacity: 0.15;
+  border-radius: 8rpx;
 }
 
 .qrcode-placeholder-text {
@@ -82,7 +86,7 @@
   color: #666;
 }
 
-/* 状态 */
+/* ── 状态 ─────────────────────────────────────── */
 .status-box {
   text-align: center;
   margin-bottom: 30rpx;
@@ -90,40 +94,50 @@
 }
 
 .status-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 28rpx;
   color: #999;
 }
 
+.waiting-dot-anim {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #c8a45c;
+  margin-right: 12rpx;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
 .status-success {
   font-size: 28rpx;
-  color: #07c160;
+  color: #2e7d32;
   font-weight: 600;
 }
 
-/* 按钮 */
+/* ── 按钮 ─────────────────────────────────────── */
 .actions {
   display: flex;
   flex-direction: column;
   gap: 20rpx;
 }
 
-.btn-primary {
-  background: #1a1a2e;
-  color: #fff;
-  border-radius: 12rpx;
-  font-size: 30rpx;
-  padding: 24rpx;
-}
-
 .btn-secondary {
-  background: #f5f5f5;
+  background: #fff;
   color: #666;
   border-radius: 12rpx;
   font-size: 28rpx;
   padding: 20rpx;
+  border: 1rpx solid #e8e8e8;
 }
 
-/* 开发工具 */
+/* ── 开发工具 ─────────────────────────────────── */
 .dev-section {
   margin-top: 60rpx;
   border-top: 2rpx solid #eee;
@@ -138,9 +152,9 @@
 }
 
 .btn-dev {
-  background: #fff3cd;
-  color: #856404;
-  border: 2rpx dashed #ffc107;
+  background: #fff7e6;
+  color: #b89437;
+  border: 2rpx dashed #c8a45c;
   border-radius: 12rpx;
   font-size: 26rpx;
   padding: 20rpx;

@@ -1,13 +1,10 @@
 <view class="page">
   <view class="container">
-    <!-- 加载中 -->
     <view wx:if="{{loading}}" class="loading-box">
       <text>加载中...</text>
     </view>
 
-    <!-- 已解锁 / 正常内容 -->
     <view wx:else class="unlock-content">
-      <!-- 标题 -->
       <view class="header">
         <view class="title">添加企业微信，解锁完整报告</view>
         <view class="subtitle">添加顾问后，系统确认成功即可自动解锁</view>
@@ -19,10 +16,12 @@
           wx:if="{{qrCodeUrl}}"
           class="qrcode-img"
           src="{{qrCodeUrl}}"
-          mode="widthFix"
+          mode="aspectFit"
         />
         <view wx:else class="qrcode-placeholder">
-          <view class="qrcode-placeholder-icon">📱</view>
+          <view class="qrcode-placeholder-icon">
+            <view class="placeholder-qr-pattern"></view>
+          </view>
           <view class="qrcode-placeholder-text">企微二维码待配置</view>
         </view>
         <view class="consultant-name">顾问：{{consultantName}}</view>
@@ -31,10 +30,11 @@
       <!-- 状态提示 -->
       <view class="status-box">
         <view wx:if="{{isUnlocked}}" class="status-success">
-          <text>✅ {{message}}</text>
+          <text>已确认添加，正在解锁报告...</text>
         </view>
         <view wx:else class="status-waiting">
-          <text>⏳ {{message}}</text>
+          <view class="waiting-dot-anim"></view>
+          <text>{{message}}</text>
         </view>
       </view>
 
@@ -42,7 +42,7 @@
       <view class="actions">
         <button
           wx:if="{{!isUnlocked}}"
-          class="btn-primary"
+          class="btn-cta"
           bindtap="onCheckStatus"
         >
           我已添加，检查解锁状态
@@ -63,7 +63,7 @@
           bindtap="onMockUnlock"
           loading="{{mockUnlocking}}"
         >
-          🔧 模拟添加成功（仅开发环境）
+          模拟添加成功（仅开发环境）
         </button>
       </view>
     </view>

@@ -11,6 +11,9 @@
       <view class="tag-badge">{{report.tag || tag}}</view>
     </view>
 
+    <!-- 深色到浅色的过渡带 -->
+    <view class="score-transition"></view>
+
     <!-- 标签说明 -->
     <view class="card">
       <view class="section-title">评估概要</view>
@@ -29,9 +32,10 @@
       <view
         wx:for="{{report.strengths}}"
         wx:key="*this"
-        class="list-item list-item-good"
+        class="list-item"
       >
-        ✓ {{item}}
+        <view class="bullet-dot bullet-success"></view>
+        <text>{{item}}</text>
       </view>
     </view>
 
@@ -41,17 +45,18 @@
       <view
         wx:for="{{report.risks}}"
         wx:key="*this"
-        class="list-item list-item-risk"
+        class="list-item"
       >
-        ! {{item}}
+        <view class="bullet-dot bullet-warning"></view>
+        <text>{{item}}</text>
       </view>
     </view>
 
-    <!-- 解锁入口 -->
+    <!-- 解锁入口 — CTA 暖金 -->
     <view class="unlock-box">
       <view class="unlock-hint">{{report.unlock_hint}}</view>
-      <button class="btn-primary" bindtap="goToLead">
-        解锁完整报告
+      <button class="btn-cta" bindtap="goToLead" loading="{{checkingUnlock}}" disabled="{{checkingUnlock}}">
+        {{checkingUnlock ? '检查解锁状态...' : '解锁完整报告'}}
       </button>
     </view>
   </view>

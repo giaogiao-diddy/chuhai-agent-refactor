@@ -6,20 +6,39 @@
 
   <!-- 空态 -->
   <view wx:elif="{{empty}}" class="empty-box">
-    <view class="empty-icon">📋</view>
+    <view class="empty-icon">
+      <view class="empty-icon-circle">?</view>
+    </view>
     <view class="empty-text">暂无测评报告</view>
     <view class="empty-hint">完成一次出海测评后，报告将在这里展示</view>
   </view>
 
-  <!-- 报告卡片 -->
+  <!-- 报告列表 -->
   <view wx:else class="container">
-    <view class="card report-card" bindtap="goToReport">
+    <view
+      wx:for="{{reports}}"
+      wx:key="assessment_id"
+      wx:for-item="report"
+      wx:for-index="index"
+      class="card report-card"
+      bindtap="goToReport"
+      data-index="{{index}}"
+    >
       <view class="card-header">
-        <view class="card-score">{{report.display_score || report.total_score}}</view>
-        <view class="card-tag">{{report.tag}}</view>
+        <view>
+          <view class="card-score">{{report.display_score || report.total_score}}</view>
+          <view class="card-label">出海准备度</view>
+        </view>
+        <view class="card-meta">
+          <view class="card-tag">{{report.tag}}</view>
+          <view class="unlock-tag {{report.is_unlocked ? 'unlock-tag-on' : ''}}">
+            {{report.is_unlocked ? '已解锁' : '未解锁'}}
+          </view>
+        </view>
       </view>
-      <view class="card-time" wx:if="{{report.created_at}}">
-        测评时间：{{report.created_at}}
+      <view class="card-brief">{{report.brief}}</view>
+      <view class="card-time" wx:if="{{report.displayTime}}">
+        完成时间：{{report.displayTime}}
       </view>
       <view class="card-arrow">查看详情 →</view>
     </view>

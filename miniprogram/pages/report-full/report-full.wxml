@@ -4,21 +4,15 @@
   </view>
 
   <view wx:else class="container">
-    <!-- 综合结论 -->
-    <view class="card">
-      <view class="section-title">综合结论</view>
-      <view class="summary-grid" wx:if="{{summaryItems.length}}">
-        <view
-          wx:for="{{summaryItems}}"
-          wx:key="title"
-          wx:for-item="summary"
-          class="summary-item"
-        >
-          <view class="summary-label">{{summary.title}}</view>
-          <view class="summary-content">{{summary.content}}</view>
-        </view>
-      </view>
-      <view wx:else class="section-text">{{report.summary_conclusion}}</view>
+    <!-- V3 结构化评估模块 -->
+    <view
+      wx:for="{{structuredSections}}"
+      wx:key="title"
+      wx:for-item="section"
+      class="card"
+    >
+      <view class="section-title">{{section.title}}</view>
+      <view class="section-text">{{section.content}}</view>
     </view>
 
     <!-- 维度评分 -->
@@ -73,13 +67,21 @@
     <!-- 顾问引导 -->
     <view class="consultant-box">
       <view class="consultant-qr">
-        <view class="qr-placeholder">
-          <view class="qr-placeholder-title">企微二维码</view>
-          <view class="qr-placeholder-text">请替换为顾问二维码</view>
+        <image
+          wx:if="{{qrcodeUrl}}"
+          class="qr-image"
+          src="{{qrcodeUrl}}"
+          mode="aspectFit"
+        />
+        <view wx:else class="qr-placeholder">
+          <view class="qr-placeholder-inner">
+            <view class="qr-pattern"></view>
+          </view>
+          <view class="qr-placeholder-text">添加顾问获取解读</view>
         </view>
       </view>
       <view class="consultant-text">
-        {{report.consultant_guide}}
+        添加企业微信顾问，领取 {{benefitMinutes}} 分钟 1 对 1 解读。
       </view>
       <view class="consultant-benefit">
         当前解读权益：<text class="benefit-highlight">{{benefitMinutes}} 分钟</text>
@@ -87,7 +89,7 @@
     </view>
 
     <!-- 转发按钮 -->
-    <button class="btn-primary share-btn" open-type="share">
+    <button class="btn-cta share-btn" open-type="share">
       转发好友，升级为 {{benefitMinutes + 10}} 分钟解读
     </button>
   </view>

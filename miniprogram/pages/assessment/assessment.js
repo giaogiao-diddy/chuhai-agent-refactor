@@ -5,16 +5,25 @@ const { get, post } = require("../../utils/api");
 
 Page({
   data: {
-    questions: [],          // 18 道题
-    currentIndex: 0,        // 当前题号 (0-based)
-    answers: {},            // { questionId: { optionId, answerText, score } }
-    selectedOptionId: null, // 当前题目已选选项
-    textAnswer: "",         // 当前文本题答案
-    totalQuestions: 18,
-    submittingText: false
+    questions: [],
+    questionNavItems: [],
+    currentIndex: 0,
+    answers: {},
+    selectedOptionId: null,
+    textAnswer: "",
+    totalQuestions: 0,
+    submittingText: false,
+    submittingOption: false,
+    completing: false
   },
 
-  async onLoad() {
+  async onLoad(options) {
+    // 优先从 URL 参数读 assessmentId，回退到 globalData
+    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+    if (assessmentId) {
+      app.globalData.assessmentId = assessmentId;
+    }
+
     wx.showLoading({ title: "加载题目" });
 
     const { data, error } = await get("/api/questions");
@@ -27,12 +36,11 @@ Page({
     }
 
     const questions = data.questions || [];
-
-    // 恢复已有答案（回退修改场景）
     const answers = this.restoreAnswers();
 
     this.setData({
       questions: questions,
+      questionNavItems: this.buildQuestionNavItems(questions, answers),
       totalQuestions: questions.length,
       answers: answers,
       selectedOptionId: answers[questions[0]?.id]?.optionId || null,
@@ -40,46 +48,97 @@ Page({
     });
   },
 
-  /** 从本地存储恢复答案 */
-  restoreAnswers() {
-    const assessmentId = app.globalData.assessmentId;
-    if (!assessmentId) return {};
+  /* ── 答案持久化 ──────────────────────────────── */
 
+  restoreAnswers() {
+    const id = app.globalData.assessmentId;
+    if (!id) return {};
     try {
-      const key = `answers_${assessmentId}`;
-      const saved = wx.getStorageSync(key);
+      const saved = wx.getStorageSync(`answers_${id}`);
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
     }
   },
 
-  /** 文本题输入 */
+  saveAnswers(answers) {
+    const id = app.globalData.assessmentId;
+    if (!id) return;
+    try {
+      wx.setStorageSync(`answers_${id}`, JSON.stringify(answers));
+    } catch { /* 静默 */ }
+  },
+
+  /* ── 题号导航 ────────────────────────────────── */
+
+  buildQuestionNavItems(questions, answers) {
+    return questions.map((q, i) => ({
+      index: i,
+      number: i + 1,
+      answered: q.is_scored === false
+        ? !!(answers[q.id]?.answerText || "").trim()
+        : !!answers[q.id]?.optionId
+    }));
+  },
+
+  refreshNav(answers) {
+    this.setData({
+      questionNavItems: this.buildQuestionNavItems(this.data.questions, answers)
+    });
+  },
+
+  /* ── 题目跳转 ────────────────────────────────── */
+
+  goToIndex(index) {
+    const q = this.data.questions[index];
+    const a = this.data.answers[q.id] || {};
+    this.setData({
+      currentIndex: index,
+      selectedOptionId: a.optionId || null,
+      textAnswer: a.answerText || ""
+    });
+  },
+
+  jumpToQuestion(e) {
+    if (this.data.submittingText || this.data.submittingOption) return;
+    const index = Number(e.currentTarget.dataset.index);
+    if (Number.isNaN(index) || index < 0 || index >= this.data.questions.length) return;
+    this.goToIndex(index);
+  },
+
+  /* ── 上一题 ──────────────────────────────────── */
+
+  goPrev() {
+    if (this.data.currentIndex <= 0) return;
+    this.goToIndex(this.data.currentIndex - 1);
+  },
+
+  /* ── 文本题 ──────────────────────────────────── */
+
   onTextInput(e) {
     this.setData({ textAnswer: e.detail.value || "" });
   },
 
-  /** 提交文本题并前进 */
   async submitTextAnswer() {
-    const question = this.data.questions[this.data.currentIndex];
+    const q = this.data.questions[this.data.currentIndex];
     const assessmentId = app.globalData.assessmentId;
-    const answerText = (this.data.textAnswer || "").trim();
+    const text = (this.data.textAnswer || "").trim();
 
     if (!assessmentId) {
       wx.showToast({ title: "测评信息丢失，请返回重试", icon: "none" });
       return;
     }
-
-    if (!answerText) {
+    if (!text) {
       wx.showToast({ title: "请输入行业信息", icon: "none" });
       return;
     }
+    if (this.data.submittingText) return;
 
     this.setData({ submittingText: true });
 
     const { error } = await post(`/api/assessments/${assessmentId}/answers`, {
-      question_id: question.id,
-      answer_text: answerText
+      question_id: q.id,
+      answer_text: text
     });
 
     this.setData({ submittingText: false });
@@ -90,108 +149,102 @@ Page({
     }
 
     const answers = { ...this.data.answers };
-    answers[question.id] = { answerText, score: 0 };
+    answers[q.id] = { answerText: text, score: 0 };
     this.setData({ answers });
+    this.refreshNav(answers);
     this.saveAnswers(answers);
-    this.goNext();
+    this.goNextUnansweredOrNext();
   },
 
-  /** 保存答案到本地存储 */
-  saveAnswers(answers) {
-    const assessmentId = app.globalData.assessmentId;
-    if (!assessmentId) return;
+  /* ── 计分题选项 ──────────────────────────────── */
 
-    try {
-      const key = `answers_${assessmentId}`;
-      wx.setStorageSync(key, JSON.stringify(answers));
-    } catch {
-      // 静默失败
-    }
-  },
-
-  /** 点击选项 → 提交答案并前进 */
   async selectOption(e) {
+    if (this.data.submittingOption) return;
+
     const optionId = e.currentTarget.dataset.optionId;
-    const question = this.data.questions[this.data.currentIndex];
+    const q = this.data.questions[this.data.currentIndex];
     const assessmentId = app.globalData.assessmentId;
 
     if (!assessmentId) {
       wx.showToast({ title: "测评信息丢失，请返回重试", icon: "none" });
       return;
     }
+    if (q.is_scored === false) return;
 
-    if (!question.is_scored) {
-      return;
-    }
-
-    // 找到对应选项的分数
-    const option = question.options.find(o => o.id === optionId);
+    const option = q.options.find(o => o.id === optionId);
     if (!option) return;
 
-    // 乐观更新 UI
-    this.setData({ selectedOptionId: optionId });
+    this.setData({ selectedOptionId: optionId, submittingOption: true });
 
-    // 提交答案到后端（逐题保存）
     const { error } = await post(`/api/assessments/${assessmentId}/answers`, {
-      question_id: question.id,
+      question_id: q.id,
       option_id: optionId
     });
+
+    this.setData({ submittingOption: false });
 
     if (error) {
       wx.showToast({ title: "提交失败: " + error, icon: "none" });
       return;
     }
 
-    // 记录答案
     const answers = { ...this.data.answers };
-    answers[question.id] = { optionId, score: option.score };
+    answers[q.id] = { optionId, score: option.score };
     this.setData({ answers });
+    this.refreshNav(answers);
     this.saveAnswers(answers);
 
-    // 延迟跳转，让用户看到选中状态
-    setTimeout(() => {
-      this.goNext();
-    }, 300);
+    setTimeout(() => this.goNextUnansweredOrNext(), 300);
   },
 
-  /** 前进到下一题 */
-  goNext() {
-    const { currentIndex, totalQuestions } = this.data;
+  /* ── 自动跳转逻辑 ────────────────────────────── */
 
-    if (currentIndex >= totalQuestions - 1) {
-      // 最后一题 → 提交完成
-      this.completeAssessment();
+  isAnswered(question) {
+    if (!question) return false;
+    const a = this.data.answers[question.id];
+    if (!a) return false;
+    return question.is_scored === false
+      ? !!(a.answerText || "").trim()
+      : !!a.optionId;
+  },
+
+  findNextUnansweredIndex() {
+    const { questions, currentIndex } = this.data;
+    for (let i = currentIndex + 1; i < questions.length; i += 1) {
+      if (!this.isAnswered(questions[i])) return i;
+    }
+    return -1;
+  },
+
+  findAnyUnansweredIndex() {
+    const { questions } = this.data;
+    for (let i = 0; i < questions.length; i += 1) {
+      if (!this.isAnswered(questions[i])) return i;
+    }
+    return -1;
+  },
+
+  goNextUnansweredOrNext() {
+    const next = this.findNextUnansweredIndex();
+    if (next >= 0) {
+      this.goToIndex(next);
       return;
     }
-
-    const nextIndex = currentIndex + 1;
-    const nextQuestion = this.data.questions[nextIndex];
-    const savedAnswer = this.data.answers[nextQuestion.id] || {};
-    this.setData({
-      currentIndex: nextIndex,
-      selectedOptionId: savedAnswer.optionId || null,
-      textAnswer: savedAnswer.answerText || ""
-    });
+    const any = this.findAnyUnansweredIndex();
+    if (any >= 0) {
+      this.goToIndex(any);
+      return;
+    }
+    this.completeAssessment();
   },
 
-  /** 返回上一题 */
-  goPrev() {
-    if (this.data.currentIndex <= 0) return;
+  /* ── 完成测评 ────────────────────────────────── */
 
-    const prevIndex = this.data.currentIndex - 1;
-    const prevQuestion = this.data.questions[prevIndex];
-    const savedAnswer = this.data.answers[prevQuestion.id] || {};
-    this.setData({
-      currentIndex: prevIndex,
-      selectedOptionId: savedAnswer.optionId || null,
-      textAnswer: savedAnswer.answerText || ""
-    });
-  },
-
-  /** 完成测评 */
   async completeAssessment() {
+    if (this.data.completing) return;
     const assessmentId = app.globalData.assessmentId;
 
+    this.setData({ completing: true });
     wx.showLoading({ title: "提交测评", mask: true });
 
     const { data, error } = await post(`/api/assessments/${assessmentId}/complete`, {});
@@ -199,18 +252,13 @@ Page({
     wx.hideLoading();
 
     if (error) {
+      this.setData({ completing: false });
       wx.showToast({ title: "提交失败: " + error, icon: "none" });
       return;
     }
 
-    // 清理本地答案缓存
-    try {
-      wx.removeStorageSync(`answers_${assessmentId}`);
-    } catch {
-      // 静默
-    }
+    try { wx.removeStorageSync(`answers_${assessmentId}`); } catch { /* 静默 */ }
 
-    // 跳转到报告生成中页面
     wx.redirectTo({
       url: `/pages/report-generating/report-generating?assessment_id=${assessmentId}&score=${data.display_score || data.total_score || 0}&tag=${encodeURIComponent(data.tag || "")}`
     });

@@ -1,25 +1,70 @@
 .page {
   min-height: 100vh;
-  padding-bottom: 120rpx;
+  padding-bottom: 140rpx;
 }
 
 /* ── 进度条 ───────────────────────────────────── */
 .progress-bar {
   height: 6rpx;
-  background: #e8e8e8;
+  background: #ddd;
 }
 
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #1a1a2e, #16213e);
-  transition: width 0.3s ease;
+  transition: width 0.35s ease;
 }
 
 .progress-text {
   text-align: center;
   font-size: 24rpx;
   color: #999;
-  padding: 16rpx 0;
+  padding: 12rpx 0;
+}
+
+/* ── 题号圆点导航 ──────────────────────────────── */
+.question-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 4rpx 20rpx 12rpx;
+}
+
+.question-dot {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  margin: 10rpx;
+  border-radius: 50%;
+  border: 2rpx solid #ddd;
+  background: #fff;
+  color: #999;
+  font-size: 22rpx;
+  font-weight: 600;
+  position: relative;
+}
+
+.question-dot::after {
+  content: "";
+  position: absolute;
+  top: -12rpx;
+  left: -12rpx;
+  right: -12rpx;
+  bottom: -12rpx;
+}
+
+.question-dot-answered {
+  border-color: #1a1a2e;
+  background: #eef0f7;
+  color: #1a1a2e;
+}
+
+.question-dot-current {
+  background: #1a1a2e;
+  border-color: #1a1a2e;
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(26, 26, 46, 0.3);
 }
 
 /* ── 题目卡片 ─────────────────────────────────── */
@@ -42,36 +87,69 @@
 
 /* ── 选项列表 ─────────────────────────────────── */
 .options-list {
-  margin-top: 40rpx;
+  margin-top: 36rpx;
 }
 
 .option-item {
   display: flex;
   align-items: center;
-  padding: 28rpx 32rpx;
+  padding: 28rpx 28rpx;
   margin-bottom: 20rpx;
   background: #fff;
   border: 2rpx solid #e8e8e8;
   border-radius: 16rpx;
-  font-size: 28rpx;
-  color: #333;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .option-item:active {
-  transform: scale(0.98);
+  background: #f8f8fa;
 }
 
-.option-selected {
+.option-active {
   border-color: #1a1a2e;
-  background: #f0f0fa;
-  color: #1a1a2e;
-  font-weight: 500;
+  background: #edf0f8;
+}
+
+.option-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.option-marker {
+  flex-shrink: 0;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-radio {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  border: 2rpx solid #ccc;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.option-radio-checked {
+  border-color: #1a1a2e;
+  background: #1a1a2e;
+  box-shadow: 0 0 0 6rpx rgba(26, 26, 46, 0.12) inset;
+}
+
+.option-text {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.5;
+  flex: 1;
 }
 
 /* ── 文本输入题 ───────────────────────────────── */
 .text-answer-box {
-  margin-top: 40rpx;
+  margin-top: 36rpx;
 }
 
 .text-answer-input {
@@ -103,7 +181,7 @@
 }
 
 .submit-text-btn[disabled] {
-  background: #999;
+  background: #bbb;
   color: #fff;
 }
 
@@ -141,6 +219,6 @@
 
 .nav-hint {
   font-size: 22rpx;
-  color: #bbb;
+  color: #999;
   margin-top: 12rpx;
 }

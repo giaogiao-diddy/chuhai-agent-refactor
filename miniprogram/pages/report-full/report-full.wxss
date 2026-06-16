@@ -28,41 +28,6 @@
   line-height: 1.8;
 }
 
-/* ── 综合结论 ─────────────────────────────────── */
-.summary-grid {
-  display: flex;
-  flex-direction: column;
-}
-
-.summary-item {
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #f4f4f4;
-}
-
-.summary-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.summary-label {
-  display: inline-flex;
-  align-items: center;
-  min-height: 40rpx;
-  padding: 0 16rpx;
-  margin-bottom: 12rpx;
-  border-radius: 20rpx;
-  background: #f2f4f8;
-  color: #1a1a2e;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.summary-content {
-  font-size: 28rpx;
-  color: #4f5663;
-  line-height: 1.75;
-}
-
 /* ── 维度评分 ─────────────────────────────────── */
 .dimension-row {
   padding: 20rpx 0;
@@ -95,9 +60,10 @@
 
 .dim-bar {
   height: 100%;
-  background: linear-gradient(90deg, #1a1a2e, #16213e);
+  background: linear-gradient(90deg, #1a1a2e, #c8a45c);
   border-radius: 6rpx;
   min-width: 12rpx;
+  transition: width 0.6s ease;
 }
 
 .dim-score {
@@ -113,7 +79,7 @@
   gap: 16rpx;
   margin-top: 10rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: #999;
 }
 
 /* ── 行动步骤 ─────────────────────────────────── */
@@ -155,7 +121,7 @@
   padding: 48rpx 32rpx;
   margin-top: 32rpx;
   text-align: center;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
 .consultant-qr {
@@ -166,8 +132,8 @@
   width: 320rpx;
   height: 320rpx;
   border-radius: 12rpx;
-  border: 2rpx solid #f0f0f0;
-  background: #f8f8f8;
+  border: 2rpx solid #eee;
+  background: #fafafa;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -175,14 +141,22 @@
   justify-content: center;
 }
 
-.qr-placeholder-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1a1a2e;
-  margin-bottom: 12rpx;
+.qr-pattern {
+  width: 100rpx;
+  height: 100rpx;
+  background:
+    linear-gradient(45deg, #1a1a2e 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1a2e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1a2e 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1a2e 75%);
+  background-size: 32rpx 32rpx;
+  background-position: 0 0, 0 16rpx, 16rpx -16rpx, -16rpx 0;
+  opacity: 0.12;
+  border-radius: 8rpx;
 }
 
 .qr-placeholder-text {
+  margin-top: 16rpx;
   font-size: 24rpx;
   color: #999;
 }
@@ -200,7 +174,7 @@
 }
 
 .benefit-highlight {
-  color: #1a1a2e;
+  color: #c8a45c;
   font-weight: 700;
   font-size: 36rpx;
 }

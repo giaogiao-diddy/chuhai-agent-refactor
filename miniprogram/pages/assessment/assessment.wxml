@@ -5,6 +5,20 @@
   </view>
   <view class="progress-text">{{currentIndex + 1}} / {{totalQuestions}}</view>
 
+  <!-- 题号圆点导航 -->
+  <view class="question-nav">
+    <view
+      wx:for="{{questionNavItems}}"
+      wx:key="index"
+      wx:for-item="nav"
+      class="question-dot {{nav.answered ? 'question-dot-answered' : ''}} {{nav.index === currentIndex ? 'question-dot-current' : ''}}"
+      data-index="{{nav.index}}"
+      bindtap="jumpToQuestion"
+    >
+      {{nav.number}}
+    </view>
+  </view>
+
   <!-- 题目卡片 -->
   <view class="container" wx:if="{{questions[currentIndex]}}">
     <view class="card question-card">
@@ -18,7 +32,7 @@
     <view class="text-answer-box" wx:if="{{questions[currentIndex].is_scored === false}}">
       <input
         class="text-answer-input"
-        placeholder="请输入您的行业，例如：智能硬件制造"
+        placeholder="请输入您的行业，例如：智能硬件制造、跨境电商零售"
         value="{{textAnswer}}"
         bindinput="onTextInput"
         maxlength="200"
@@ -40,17 +54,20 @@
       <view
         wx:for="{{questions[currentIndex].options}}"
         wx:key="id"
-        class="option-item {{selectedOptionId === item.id ? 'option-selected' : ''}}"
+        class="option-item {{selectedOptionId === item.id ? 'option-active' : ''}} {{submittingOption ? 'option-disabled' : ''}}"
         data-option-id="{{item.id}}"
         bindtap="selectOption"
       >
-        {{item.text}}
+        <view class="option-marker">
+          <view class="option-radio {{selectedOptionId === item.id ? 'option-radio-checked' : ''}}"></view>
+        </view>
+        <text class="option-text">{{item.text}}</text>
       </view>
     </view>
   </view>
 
-  <!-- 底部导航按钮 -->
-  <view class="nav-buttons">
+  <!-- 底部导航 -->
+  <view class="nav-buttons safe-bottom">
     <button
       class="nav-btn nav-btn-prev"
       bindtap="goPrev"
@@ -59,7 +76,7 @@
       上一题
     </button>
     <view class="nav-hint">
-      {{questions[currentIndex].is_scored === false ? '输入后点击下一题' : '点击选项自动提交并跳转'}}
+      {{submittingText ? '正在保存答案...' : (submittingOption ? '正在提交...' : (questions[currentIndex].is_scored === false ? '输入后点击下一题' : '点击选项自动提交并跳转'))}}
     </view>
   </view>
 </view>
