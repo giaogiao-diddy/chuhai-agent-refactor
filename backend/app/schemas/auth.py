@@ -13,3 +13,14 @@ class WechatLoginResponse(BaseModel):
     openid: str
     token: str
     is_new: bool = False
+
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AdminLoginResponse(BaseModel):
+    token: str
+    username: str
+    role: str

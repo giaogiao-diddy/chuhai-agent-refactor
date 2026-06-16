@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 import logging
 
@@ -56,6 +57,12 @@ app.include_router(reports.router, prefix="/api")
 app.include_router(leads.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(wecom.router, prefix="/api")
+
+# ── 管理后台静态页面 ────────────────────────────────────
+import os
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(static_dir):
+    app.mount("/admin", StaticFiles(directory=static_dir, html=True), name="admin_static")
 
 
 @app.get("/health")

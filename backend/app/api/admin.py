@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import require_admin
+from config import settings
 from app.models.lead import Lead
 from app.models.assessment import Assessment
 from app.models.answer import Answer
@@ -19,6 +20,42 @@ from app.schemas.admin import (
 )
 
 router = APIRouter(tags=["admin"])
+
+
+@router.post("/admin/login", response_model=dict)
+def admin_login(body: dict, db: Session = Depends(get_db)):
+    """管理员登录 — 账号密码 → JWT Token"""
+    import hashlib
+    import time
+    import jwt as pyjwt
+
+    from app.models.admin_user import AdminUser
+
+    username = body.get("username", "")
+    password = body.get("password", "")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="用户名和密码不能为空")
+
+    pwd_hash = hashlib.sha256(password.encode()).hexdigest()
+    admin = db.query(AdminUser).filter_by(username=username, password_hash=pwd_hash).first()
+    if not admin:
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+    admin.last_login_at = __import__("datetime").datetime.utcnow()
+    db.commit()
+
+    now = int(time.time())
+    payload = {
+        "sub": str(admin.id),
+        "username": admin.username,
+        "role": admin.role,
+        "is_admin": True,
+        "iat": now,
+        "exp": now + 86400,  # 24h
+    }
+    token = pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+    return {"token": token, "username": admin.username, "role": admin.role}
 
 
 @router.get("/admin/leads", response_model=list[LeadDetailResponse])
