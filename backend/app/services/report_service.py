@@ -28,6 +28,46 @@ _DIMENSION_QUESTION_IDS = {
     "conversion_system": {12},
 }
 
+_ALLOWED_DIAGNOSIS_TAGS = {
+    "画像模糊",
+    "海外选区精准",
+    "陷入价值耗散",
+    "生态位跃迁",
+    "缺乏信任模型",
+    "小语种蓝海",
+    "算法奴隶",
+    "形成爆款SOP",
+    "缺乏火眼金睛",
+    "无铂金跟进",
+    "销冠接待缺失",
+    "交付存在雷区",
+    "合规防线薄弱",
+}
+
+
+def _sanitize_diagnosis_tags(tags: object) -> list[str]:
+    """只保留标准标签库中的标签，避免 AI 自创标签污染后台筛选。"""
+    if not isinstance(tags, list):
+        return []
+
+    result = []
+    for tag in tags:
+        if tag in _ALLOWED_DIAGNOSIS_TAGS and tag not in result:
+            result.append(tag)
+        if len(result) >= 2:
+            break
+    return result
+
+
+def _extract_user_industry(answer_summary: list[dict]) -> str:
+    """Q1 是用户行业输入，作为所有 AI 诊断的行业大前提。"""
+    for item in answer_summary:
+        if item.get("question_id") == 1:
+            industry = str(item.get("answer_text") or "").strip()
+            if industry:
+                return industry
+    return "未填写行业"
+
 
 def parse_ai_response(data: dict | str | None) -> dict | None:
     """解析 AI 返回的响应，统一为 dict 或 None。"""
@@ -207,7 +247,9 @@ def diagnose_single_question(db: Session, assessment_id: int, question_id: int):
             for item in answer_summary
             if item["question_id"] != question_id
         ]
+        user_industry = _extract_user_industry(answer_summary)
         prompt = _render_prompt(SYSTEM_DIAGNOSE_SINGLE_QUESTION, {
+            "user_industry": user_industry,
             "question_text": question.title,
             "question_dimension": question.dimension,
             "answer_text": current["answer_text"],
@@ -218,6 +260,7 @@ def diagnose_single_question(db: Session, assessment_id: int, question_id: int):
         ai_log.request_payload = {
             "question_id": question_id,
             "question_text": question.title,
+            "user_industry": user_industry,
             "answer": current,
             "previous_answer_summary": previous_summary,
         }
@@ -232,6 +275,7 @@ def diagnose_single_question(db: Session, assessment_id: int, question_id: int):
         sales_hint = parsed.get("sales_hint")
         if not isinstance(diagnosis_tag, list) or not _is_nonempty_string(report_memory):
             raise ValueError("单题诊断字段缺失")
+        diagnosis_tag = _sanitize_diagnosis_tags(diagnosis_tag)
 
         ai_log.parsed_response = parsed
         ai_log.diagnosis_tag = diagnosis_tag
@@ -287,6 +331,7 @@ def generate_report(db: Session, assessment_id: int):
     tag_explanation = score_to_tag(raw_score)[1]
     display_score = raw_score + 43
     answer_summary = _build_answer_summary(db, answers)
+    user_industry = _extract_user_industry(answer_summary)
     dimension_summary = _build_dimension_summary(answer_summary)
     report_memories = _collect_report_memories(db, assessment_id)
 
@@ -304,6 +349,7 @@ def generate_report(db: Session, assessment_id: int):
             "total_score": raw_score,
             "display_score": display_score,
             "tag": tag,
+            "user_industry": user_industry,
             "answers_json": answer_summary,
             "dimension_summary": dimension_summary,
             "report_memories": report_memories,
@@ -315,6 +361,7 @@ def generate_report(db: Session, assessment_id: int):
     ai_success = False
     try:
         prompt = _render_prompt(SYSTEM_GENERATE_FULL_REPORT, {
+            "user_industry": user_industry,
             "total_score": raw_score,
             "display_score": display_score,
             "tag": tag,

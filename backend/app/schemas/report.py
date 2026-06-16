@@ -44,5 +44,6 @@ class MyReportResponse(BaseModel):
     total_score: int
     tag: str
     display_score: int
+    is_unlocked: bool = False
     completed_at: str | None = None
     summary: dict | None = None

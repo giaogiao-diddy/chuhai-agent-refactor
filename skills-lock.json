@@ -109,6 +109,12 @@
       "skillPath": "skills/test-driven-development/SKILL.md",
       "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
     },
+    "ui-ux-pro-max": {
+      "source": "likaia/nginxpulse",
+      "sourceType": "github",
+      "skillPath": ".codex/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "0748e5ae5abc760499ed12f197f96fce307d44b25290f2978ac5ccea671eca7e"
+    },
     "using-git-worktrees": {
       "source": "obra/superpowers",
       "sourceType": "github",

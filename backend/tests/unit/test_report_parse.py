@@ -6,7 +6,14 @@
 
 import json
 import pytest
-from app.services.report_service import parse_ai_response, validate_report_fields
+from app.services.prompts import SYSTEM_DIAGNOSE_SINGLE_QUESTION, SYSTEM_GENERATE_FULL_REPORT
+from app.services.report_service import (
+    _extract_user_industry,
+    _render_prompt,
+    _sanitize_diagnosis_tags,
+    parse_ai_response,
+    validate_report_fields,
+)
 
 
 class TestParseAIResponse:
@@ -126,3 +133,51 @@ class TestValidateReportFields:
         assert isinstance(full["conversion_assessment"], str)
         assert isinstance(full["dimension_scores"], dict)
         assert isinstance(full["action_plan_30days"], list)
+
+
+class TestPromptContextHelpers:
+    """Prompt 上下文辅助函数测试"""
+
+    def test_extract_user_industry_from_q1_answer(self):
+        """从 Q1 文本答案中提取用户行业"""
+        answer_summary = [
+            {"question_id": 1, "answer_text": "五金配件"},
+            {"question_id": 2, "answer_text": "20人及以下"},
+        ]
+
+        assert _extract_user_industry(answer_summary) == "五金配件"
+
+    def test_extract_user_industry_falls_back_when_missing(self):
+        """Q1 缺失时使用兜底行业描述"""
+        assert _extract_user_industry([]) == "未填写行业"
+
+    def test_sanitize_diagnosis_tags_keeps_only_standard_tags(self):
+        """逐题诊断标签只能保留标准标签库中的标签，且最多 2 个"""
+        tags = ["画像模糊", "AI自创标签", "合规防线薄弱", "无铂金跟进"]
+
+        assert _sanitize_diagnosis_tags(tags) == ["画像模糊", "合规防线薄弱"]
+
+    def test_prompt_render_replaces_user_industry(self):
+        """两套 Prompt 渲染后不应残留 user_industry 占位符"""
+        diagnose_prompt = _render_prompt(SYSTEM_DIAGNOSE_SINGLE_QUESTION, {
+            "user_industry": "五金配件",
+            "question_text": "是否具备外语产品目录？",
+            "question_dimension": "product_trust_asset",
+            "answer_text": "暂时没有",
+            "score": 1,
+            "previous_answer_summary": "[]",
+        })
+        full_prompt = _render_prompt(SYSTEM_GENERATE_FULL_REPORT, {
+            "user_industry": "五金配件",
+            "total_score": 34,
+            "display_score": 77,
+            "tag": "轻量试探型",
+            "answers_json": "[]",
+            "dimension_summary": "{}",
+            "report_memories": "[]",
+        })
+
+        assert "{user_industry}" not in diagnose_prompt
+        assert "{user_industry}" not in full_prompt
+        assert "五金配件" in diagnose_prompt
+        assert "五金配件" in full_prompt

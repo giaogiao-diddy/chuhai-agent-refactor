@@ -399,3 +399,67 @@ class TestMyReport:
 
         resp = client.get("/api/reports/my", headers=headers)
         assert resp.status_code == 404
+
+    def test_my_report_list_returns_all_completed_reports(self, client, db):
+        """我的报告列表返回同一用户所有已完成测评，最新的排在前面"""
+        from datetime import datetime, timedelta
+
+        from app.models.assessment import Assessment
+        from app.models.report import Report
+
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
+        user_id = login_resp.json()["user_id"]
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        older = Assessment(
+            user_id=user_id,
+            total_score=34,
+            tag="轻量试探型",
+            status="completed",
+            completed_at=datetime.utcnow() - timedelta(days=1),
+        )
+        newer = Assessment(
+            user_id=user_id,
+            total_score=58,
+            tag="优先布局型",
+            status="completed",
+            completed_at=datetime.utcnow(),
+        )
+        db.add_all([older, newer])
+        db.flush()
+        db.add_all([
+            Report(
+                assessment_id=older.id,
+                summary_report_json={"preliminary_judgment": "旧报告"},
+                full_report_json={"summary_conclusion": "旧完整报告"},
+                is_unlocked=True,
+                generation_status="success",
+            ),
+            Report(
+                assessment_id=newer.id,
+                summary_report_json={"preliminary_judgment": "新报告"},
+                full_report_json={"summary_conclusion": "新完整报告"},
+                is_unlocked=False,
+                generation_status="success",
+            ),
+        ])
+        db.commit()
+
+        resp = client.get("/api/reports/my/list", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert [item["assessment_id"] for item in data] == [newer.id, older.id]
+        assert data[0]["display_score"] == 101
+        assert data[0]["is_unlocked"] is False
+        assert data[1]["is_unlocked"] is True
+
+    def test_my_report_list_no_completed_assessment_returns_empty_list(self, client):
+        """没有已完成测评时，我的报告列表返回空数组"""
+        login_resp = client.post("/api/auth/wechat-login", json={"code": "test"})
+        token = login_resp.json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp = client.get("/api/reports/my/list", headers=headers)
+        assert resp.status_code == 200
+        assert resp.json() == []

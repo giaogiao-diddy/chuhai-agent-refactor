@@ -13,6 +13,18 @@ from app.schemas.report import SummaryReport, FullReport, MyReportResponse
 router = APIRouter(tags=["reports"])
 
 
+def _build_my_report_response(assessment: Assessment, report: Report | None) -> MyReportResponse:
+    return MyReportResponse(
+        assessment_id=assessment.id,
+        total_score=assessment.total_score or 0,
+        tag=assessment.tag or "",
+        display_score=(assessment.total_score or 0) + 43,
+        is_unlocked=bool(report and report.is_unlocked),
+        completed_at=str(assessment.completed_at) if assessment.completed_at else None,
+        summary=report.summary_report_json if report else None,
+    )
+
+
 @router.get("/reports/{assessment_id}/summary")
 def get_summary_report(assessment_id: int, db: Session = Depends(get_db)):
     """获取部分报告（无需留资，公开访问）"""
@@ -39,14 +51,39 @@ def get_my_report(
 
     report = db.query(Report).filter_by(assessment_id=assessment.id).first()
 
-    return MyReportResponse(
-        assessment_id=assessment.id,
-        total_score=assessment.total_score or 0,
-        tag=assessment.tag or "",
-        display_score=(assessment.total_score or 0) + 43,
-        completed_at=str(assessment.completed_at) if assessment.completed_at else None,
-        summary=report.summary_report_json if report else None,
+    return _build_my_report_response(assessment, report)
+
+
+@router.get("/reports/my/list", response_model=list[MyReportResponse])
+def list_my_reports(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """我的报告列表 — 返回当前用户所有已完成测评，按完成时间倒序排列"""
+    assessments = (
+        db.query(Assessment)
+        .filter_by(user_id=current_user["user_id"], status="completed")
+        .order_by(Assessment.completed_at.desc(), Assessment.id.desc())
+        .all()
     )
+    if not assessments:
+        return []
+
+    assessment_ids = [assessment.id for assessment in assessments]
+    reports = (
+        db.query(Report)
+        .filter(Report.assessment_id.in_(assessment_ids))
+        .all()
+    )
+    report_by_assessment_id = {report.assessment_id: report for report in reports}
+
+    return [
+        _build_my_report_response(
+            assessment,
+            report_by_assessment_id.get(assessment.id),
+        )
+        for assessment in assessments
+    ]
 
 
 @router.get("/reports/{assessment_id}/full")
