@@ -75,6 +75,12 @@ Page({
     this.pollStep += 1;
 
     this.timer = setTimeout(async () => {
+      const id = this.data.assessmentId;
+      if (!id) {
+        console.error("[Polling] assessmentId 丢失");
+        return;
+      }
+
       const elapsed = this.data.elapsed + Math.round(delay / 1000);
       this.setData({ elapsed });
 
