@@ -1,7 +1,7 @@
 "use strict";
 
 const app = getApp();
-const { get, post } = require("../../utils/api");
+const { call } = require("../../utils/cloudApi");
 
 Page({
   data: {
@@ -19,7 +19,7 @@ Page({
   timer: null,
 
   onLoad(options) {
-    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+    const assessmentId = options.assessment_id || app.globalData.assessmentId || null;
     this.setData({ assessmentId: assessmentId });
     this.loadUnlockSession();
   },
@@ -41,7 +41,7 @@ Page({
       return;
     }
 
-    const { data, error } = await post("/api/wecom/unlock-session", {
+    const { data, error } = await call("createWecomUnlockSession", {
       assessment_id: assessmentId
     });
 
@@ -91,7 +91,9 @@ Page({
     const { assessmentId, isUnlocked } = this.data;
     if (isUnlocked || !assessmentId) return;
 
-    const { data, error } = await get(`/api/wecom/unlock-status/${assessmentId}`);
+    const { data, error } = await call("getWecomUnlockStatus", {
+      assessment_id: assessmentId
+    });
 
     if (error || !data) return;
 
@@ -122,7 +124,7 @@ Page({
 
     this.setData({ mockUnlocking: true });
 
-    const { data, error } = await post("/api/wecom/mock-unlock", {
+    const { data, error } = await call("mockUnlock", {
       assessment_id: assessmentId
     });
 

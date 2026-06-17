@@ -1,13 +1,8 @@
 "use strict";
 
 const app = getApp();
-const { get } = require("../../utils/api");
+const { call } = require("../../utils/cloudApi");
 
-// 轮询退避序列（秒）
-const BACKOFF_SEQUENCE = [1.0, 1.5, 2.5, 4.0];
-const MAX_POLL_STEPS = BACKOFF_SEQUENCE.length;
-
-/* 按标签生成动态等待文案 */
 const WAIT_MESSAGES = {
   "观察准备型": "正在分析您的行业定位与出海基础条件...",
   "轻量试探型": "正在评估您的产品匹配度与内容获客潜力...",
@@ -28,90 +23,51 @@ Page({
   },
 
   timer: null,
-  pollStep: 0,
 
   onLoad(options) {
-    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
-    // 同步 globalData
+    const assessmentId = options.assessment_id || app.globalData.assessmentId || null;
     if (assessmentId) app.globalData.assessmentId = assessmentId;
 
     const tag = decodeURIComponent(options.tag || "");
-    const message = WAIT_MESSAGES[tag] || FALLBACK_MESSAGE;
-
     this.setData({
-      assessmentId: assessmentId,
+      assessmentId,
       score: Number(options.score) || 0,
-      tag: tag,
-      waitMessage: message
+      tag,
+      waitMessage: WAIT_MESSAGES[tag] || FALLBACK_MESSAGE
     });
 
-    this.startPolling();
+    this.checkReportSoon();
   },
 
   onUnload() {
-    this.stopPolling();
-  },
-
-  stopPolling() {
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
     }
   },
 
-  startPolling() {
-    const id = this.data.assessmentId;
-    if (!id) {
-      wx.showToast({ title: "参数错误", icon: "none" });
-      return;
-    }
-    this.pollStep = 0;
-    this.doPoll();
-  },
-
-  doPoll() {
-    if (this.pollStep >= MAX_POLL_STEPS) this.pollStep = MAX_POLL_STEPS - 1;
-    const delay = BACKOFF_SEQUENCE[this.pollStep] * 1000;
-    this.pollStep += 1;
-
+  checkReportSoon() {
     this.timer = setTimeout(async () => {
       const id = this.data.assessmentId;
       if (!id) {
-        console.error("[Polling] assessmentId 丢失");
+        wx.showToast({ title: "参数错误", icon: "none" });
         return;
       }
 
-      const elapsed = this.data.elapsed + Math.round(delay / 1000);
-      this.setData({ elapsed });
+      const { data, error } = await call("getReportDetail", {
+        assessment_id: id,
+        full: false
+      });
 
-      if (elapsed >= this.data.maxWait) {
+      if (error || !data || !data.ok) {
         this.setData({ showTimeoutHint: true });
-      }
-
-      const { data, error } = await get(`/api/assessments/${id}/report-status`);
-
-      if (error) {
-        console.error("[Polling] 查询失败:", error);
-        this.doPoll();
+        wx.showToast({ title: "报告暂未生成", icon: "none" });
         return;
       }
 
-      if (data.status === "success") {
-        this.stopPolling();
-        wx.redirectTo({
-          url: `/pages/report-partial/report-partial?assessment_id=${id}&score=${this.data.score}&tag=${encodeURIComponent(this.data.tag)}`
-        });
-        return;
-      }
-
-      if (data.status === "failed") {
-        this.stopPolling();
-        wx.showToast({ title: "报告生成失败，请重试", icon: "none" });
-        return;
-      }
-
-      // pending / generating → 继续
-      this.doPoll();
-    }, delay);
+      wx.redirectTo({
+        url: `/pages/report-partial/report-partial?assessment_id=${id}&score=${this.data.score}&tag=${encodeURIComponent(this.data.tag)}`
+      });
+    }, 1000);
   }
 });

@@ -1,7 +1,7 @@
 "use strict";
 
 const app = getApp();
-const { get, post } = require("../../utils/api");
+const { call } = require("../../utils/cloudApi");
 
 Page({
   data: {
@@ -10,45 +10,62 @@ Page({
     currentIndex: 0,
     answers: {},
     selectedOptionId: null,
+    selectedOptionIds: [],
+    currentOptions: [],
     textAnswer: "",
     totalQuestions: 0,
+    branch: null,
     submittingText: false,
     submittingOption: false,
     completing: false
   },
 
   async onLoad(options) {
-    // 优先从 URL 参数读 assessmentId，回退到 globalData
-    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+    const assessmentId = options.assessment_id || app.globalData.assessmentId || null;
     if (assessmentId) {
       app.globalData.assessmentId = assessmentId;
     }
+    await this.loadQuestionFlow();
+  },
 
+  async loadQuestionFlow(branch) {
+    const assessmentId = app.globalData.assessmentId;
     wx.showLoading({ title: "加载题目" });
 
-    const { data, error } = await get("/api/questions");
+    const { data, error } = await call("getQuestionFlow", {
+      assessment_id: assessmentId,
+      branch: branch || this.data.branch
+    });
 
     wx.hideLoading();
 
-    if (error) {
-      wx.showToast({ title: "加载失败: " + error, icon: "none" });
+    if (error || !data || !data.ok) {
+      wx.showToast({ title: "加载失败", icon: "none" });
       return;
     }
 
     const questions = data.questions || [];
-    const answers = this.restoreAnswers();
-
+    const answers = this.filterAnswersForQuestions(this.restoreAnswers(), questions);
     this.setData({
-      questions: questions,
+      questions,
       questionNavItems: this.buildQuestionNavItems(questions, answers),
       totalQuestions: questions.length,
-      answers: answers,
-      selectedOptionId: answers[questions[0]?.id]?.optionId || null,
-      textAnswer: answers[questions[0]?.id]?.answerText || ""
+      answers,
+      branch: data.branch || branch || this.data.branch || null,
+      currentIndex: Math.min(this.data.currentIndex, Math.max(questions.length - 1, 0))
     });
+    this.syncCurrentAnswerState();
   },
 
-  /* ── 答案持久化 ──────────────────────────────── */
+  filterAnswersForQuestions(answers, questions) {
+    const validIds = new Set(questions.map((item) => item.id));
+    return Object.keys(answers || {}).reduce((result, key) => {
+      if (validIds.has(key)) {
+        result[key] = answers[key];
+      }
+      return result;
+    }, {});
+  },
 
   restoreAnswers() {
     const id = app.globalData.assessmentId;
@@ -56,7 +73,7 @@ Page({
     try {
       const saved = wx.getStorageSync(`answers_${id}`);
       return saved ? JSON.parse(saved) : {};
-    } catch {
+    } catch (err) {
       return {};
     }
   },
@@ -66,18 +83,16 @@ Page({
     if (!id) return;
     try {
       wx.setStorageSync(`answers_${id}`, JSON.stringify(answers));
-    } catch { /* 静默 */ }
+    } catch (err) {
+      // ignore storage failures
+    }
   },
 
-  /* ── 题号导航 ────────────────────────────────── */
-
   buildQuestionNavItems(questions, answers) {
-    return questions.map((q, i) => ({
-      index: i,
-      number: i + 1,
-      answered: q.is_scored === false
-        ? !!(answers[q.id]?.answerText || "").trim()
-        : !!answers[q.id]?.optionId
+    return questions.map((question, index) => ({
+      index,
+      number: index + 1,
+      answered: this.isAnswerComplete(question, answers[question.id])
     }));
   },
 
@@ -87,125 +102,169 @@ Page({
     });
   },
 
-  /* ── 题目跳转 ────────────────────────────────── */
+  syncCurrentAnswerState() {
+    const question = this.data.questions[this.data.currentIndex];
+    const answer = question ? this.data.answers[question.id] || {} : {};
+    const selectedIds = answer.optionIds || [];
+    const currentOptions = (question && question.options ? question.options : []).map((option) => ({
+      ...option,
+      checked: selectedIds.indexOf(option.id) >= 0
+    }));
+    this.setData({
+      selectedOptionId: answer.optionId || null,
+      selectedOptionIds: selectedIds,
+      textAnswer: answer.answerText || "",
+      currentOptions
+    });
+  },
 
   goToIndex(index) {
-    const q = this.data.questions[index];
-    const a = this.data.answers[q.id] || {};
-    this.setData({
-      currentIndex: index,
-      selectedOptionId: a.optionId || null,
-      textAnswer: a.answerText || ""
-    });
+    if (index < 0 || index >= this.data.questions.length) return;
+    this.setData({ currentIndex: index }, () => this.syncCurrentAnswerState());
   },
 
   jumpToQuestion(e) {
     if (this.data.submittingText || this.data.submittingOption) return;
     const index = Number(e.currentTarget.dataset.index);
-    if (Number.isNaN(index) || index < 0 || index >= this.data.questions.length) return;
+    if (Number.isNaN(index)) return;
     this.goToIndex(index);
   },
-
-  /* ── 上一题 ──────────────────────────────────── */
 
   goPrev() {
     if (this.data.currentIndex <= 0) return;
     this.goToIndex(this.data.currentIndex - 1);
   },
 
-  /* ── 文本题 ──────────────────────────────────── */
-
   onTextInput(e) {
     this.setData({ textAnswer: e.detail.value || "" });
   },
 
   async submitTextAnswer() {
-    const q = this.data.questions[this.data.currentIndex];
-    const assessmentId = app.globalData.assessmentId;
+    const question = this.data.questions[this.data.currentIndex];
     const text = (this.data.textAnswer || "").trim();
-
-    if (!assessmentId) {
-      wx.showToast({ title: "测评信息丢失，请返回重试", icon: "none" });
-      return;
-    }
     if (!text) {
-      wx.showToast({ title: "请输入行业信息", icon: "none" });
+      wx.showToast({ title: "请先填写内容", icon: "none" });
       return;
     }
-    if (this.data.submittingText) return;
-
-    this.setData({ submittingText: true });
-
-    const { error } = await post(`/api/assessments/${assessmentId}/answers`, {
-      question_id: q.id,
+    await this.submitAnswer({
+      question_id: question.id,
       answer_text: text
+    }, {
+      answerText: text
     });
-
-    this.setData({ submittingText: false });
-
-    if (error) {
-      wx.showToast({ title: "提交失败: " + error, icon: "none" });
-      return;
-    }
-
-    const answers = { ...this.data.answers };
-    answers[q.id] = { answerText: text, score: 0 };
-    this.setData({ answers });
-    this.refreshNav(answers);
-    this.saveAnswers(answers);
-    this.goNextUnansweredOrNext();
   },
-
-  /* ── 计分题选项 ──────────────────────────────── */
 
   async selectOption(e) {
     if (this.data.submittingOption) return;
-
     const optionId = e.currentTarget.dataset.optionId;
-    const q = this.data.questions[this.data.currentIndex];
-    const assessmentId = app.globalData.assessmentId;
+    const question = this.data.questions[this.data.currentIndex];
+    if (!question || question.type !== "single_choice") return;
 
-    if (!assessmentId) {
+    const option = question.options.find((item) => item.id === optionId);
+    if (!option) return;
+
+    this.setData({ selectedOptionId: optionId });
+    await this.submitAnswer({
+      question_id: question.id,
+      option_id: optionId
+    }, {
+      optionId,
+      score: option.feasibility_score || 0
+    });
+  },
+
+  toggleMultiOption(e) {
+    const optionId = e.currentTarget.dataset.optionId;
+    const selected = this.data.selectedOptionIds.slice();
+    const index = selected.indexOf(optionId);
+    if (index >= 0) {
+      selected.splice(index, 1);
+    } else {
+      selected.push(optionId);
+    }
+    this.setData({ selectedOptionIds: selected });
+    const currentOptions = this.data.currentOptions.map((option) => ({
+      ...option,
+      checked: selected.indexOf(option.id) >= 0
+    }));
+    this.setData({ currentOptions });
+  },
+
+  async submitMultiAnswer() {
+    const question = this.data.questions[this.data.currentIndex];
+    const optionIds = this.data.selectedOptionIds;
+    if (!optionIds.length) {
+      wx.showToast({ title: "请至少选择一项", icon: "none" });
+      return;
+    }
+    const score = (question.options || [])
+      .filter((item) => optionIds.includes(item.id))
+      .reduce((sum, item) => sum + (item.feasibility_score || 0), 0);
+    await this.submitAnswer({
+      question_id: question.id,
+      option_ids: optionIds
+    }, {
+      optionIds,
+      score
+    });
+  },
+
+  async submitAnswer(payload, localAnswer) {
+    const assessmentId = app.globalData.assessmentId;
+    const question = this.data.questions[this.data.currentIndex];
+    if (!assessmentId || !question) {
       wx.showToast({ title: "测评信息丢失，请返回重试", icon: "none" });
       return;
     }
-    if (q.is_scored === false) return;
+    if (this.data.submittingOption || this.data.submittingText) return;
 
-    const option = q.options.find(o => o.id === optionId);
-    if (!option) return;
+    const loadingKey = question.type === "text" ? "submittingText" : "submittingOption";
+    this.setData({ [loadingKey]: true });
 
-    this.setData({ selectedOptionId: optionId, submittingOption: true });
-
-    const { error } = await post(`/api/assessments/${assessmentId}/answers`, {
-      question_id: q.id,
-      option_id: optionId
+    const { data, error } = await call("submitAnswer", {
+      assessment_id: assessmentId,
+      ...payload
     });
 
-    this.setData({ submittingOption: false });
+    this.setData({ [loadingKey]: false });
 
-    if (error) {
-      wx.showToast({ title: "提交失败: " + error, icon: "none" });
+    if (error || !data || !data.ok) {
+      wx.showToast({ title: error || "提交失败", icon: "none" });
       return;
     }
 
     const answers = { ...this.data.answers };
-    answers[q.id] = { optionId, score: option.score };
+    answers[question.id] = localAnswer;
     this.setData({ answers });
     this.refreshNav(answers);
     this.saveAnswers(answers);
 
-    setTimeout(() => this.goNextUnansweredOrNext(), 300);
+    if (data.branch && data.branch !== this.data.branch) {
+      this.setData({ branch: data.branch, currentIndex: this.data.currentIndex + 1 });
+      await this.loadQuestionFlow(data.branch);
+      this.goNextUnansweredOrNext();
+      return;
+    }
+
+    setTimeout(() => this.goNextUnansweredOrNext(), 250);
   },
 
-  /* ── 自动跳转逻辑 ────────────────────────────── */
+  isAnswerComplete(question, answer) {
+    if (!question || !answer) return false;
+    if (question.type === "text" || question.type === "url") {
+      return !!(answer.answerText || "").trim();
+    }
+    if (question.type === "multiple_choice") {
+      return Array.isArray(answer.optionIds) && answer.optionIds.length > 0;
+    }
+    if (question.type === "single_choice") {
+      return !!answer.optionId;
+    }
+    return false;
+  },
 
   isAnswered(question) {
-    if (!question) return false;
-    const a = this.data.answers[question.id];
-    if (!a) return false;
-    return question.is_scored === false
-      ? !!(a.answerText || "").trim()
-      : !!a.optionId;
+    return this.isAnswerComplete(question, this.data.answers[question.id]);
   },
 
   findNextUnansweredIndex() {
@@ -238,29 +297,33 @@ Page({
     this.completeAssessment();
   },
 
-  /* ── 完成测评 ────────────────────────────────── */
-
   async completeAssessment() {
     if (this.data.completing) return;
     const assessmentId = app.globalData.assessmentId;
-
     this.setData({ completing: true });
-    wx.showLoading({ title: "提交测评", mask: true });
+    wx.showLoading({ title: "生成报告", mask: true });
 
-    const { data, error } = await post(`/api/assessments/${assessmentId}/complete`, {});
+    const { data, error } = await call("completeAssessment", {
+      assessment_id: assessmentId
+    });
 
     wx.hideLoading();
 
-    if (error) {
+    if (error || !data || !data.ok) {
       this.setData({ completing: false });
-      wx.showToast({ title: "提交失败: " + error, icon: "none" });
+      const missing = data && Array.isArray(data.missing_question_ids) ? data.missing_question_ids.length : 0;
+      wx.showToast({ title: missing ? `还有${missing}题未完成` : (error || "提交失败"), icon: "none" });
       return;
     }
 
-    try { wx.removeStorageSync(`answers_${assessmentId}`); } catch { /* 静默 */ }
+    try {
+      wx.removeStorageSync(`answers_${assessmentId}`);
+    } catch (err) {
+      // ignore storage failures
+    }
 
     wx.redirectTo({
-      url: `/pages/report-generating/report-generating?assessment_id=${assessmentId}&score=${data.display_score || data.total_score || 0}&tag=${encodeURIComponent(data.tag || "")}`
+      url: `/pages/report-partial/report-partial?assessment_id=${assessmentId}&score=${data.feasibility_score || 0}&tag=${encodeURIComponent(data.feasibility_tag || "")}`
     });
   }
 });

@@ -1,7 +1,7 @@
 "use strict";
 
 const app = getApp();
-const { get, post } = require("../../utils/api");
+const { call } = require("../../utils/cloudApi");
 
 const DIMENSION_LABELS = {
   enterprise_capacity: "企业承载力",
@@ -96,6 +96,8 @@ function buildStructuredSections(report) {
   }
 
   const mapping = [
+    { key: "industry_assessment", label: "行业机会评估" },
+    { key: "pathway_assessment", label: "出海路径评估" },
     { key: "positioning_assessment", label: "定位评估" },
     { key: "content_assessment", label: "内容矩阵评估" },
     { key: "conversion_assessment", label: "转化与合规评估" }
@@ -241,8 +243,8 @@ Page({
   },
 
   onLoad(options) {
-    const id = Number(options.assessment_id) || app.globalData.assessmentId || null;
-    this.setData({ assessmentId: id });
+    const id = options.assessment_id || app.globalData.assessmentId || null;
+    this.setData({ assessmentId: id, reportId: options.report_id || null });
     this.loadFullReport();
   },
 
@@ -254,7 +256,11 @@ Page({
       return;
     }
 
-    const { data, error } = await get(`/api/reports/${id}/full`);
+    const { data, error } = await call("getReportDetail", {
+      assessment_id: id,
+      report_id: this.data.reportId || undefined,
+      full: true
+    });
 
     if (error) {
       wx.showToast({ title: "加载报告失败", icon: "none" });
@@ -262,25 +268,21 @@ Page({
       return;
     }
 
+    const report = data.report || data;
+    const full = report.full_report || report;
+
     this.setData({
-      report: data,
-      structuredSections: buildStructuredSections(data || {}),
-      dimensionRows: normalizeDimensionRows(data && data.dimension_scores),
-      strategyItems: buildStrategyItems(data || {}),
-      riskCards: buildRiskCards(data || {}),
-      actionSteps: normalizeActionPlan(data && data.action_plan_30days),
+      report: full,
+      structuredSections: buildStructuredSections(full || {}),
+      dimensionRows: normalizeDimensionRows(full && full.dimension_scores),
+      strategyItems: buildStrategyItems(full || {}),
+      riskCards: buildRiskCards(full || {}),
+      actionSteps: normalizeActionPlan(full && full.action_plan_30days),
       loading: false
     });
   },
 
   onShareAppMessage() {
-    const id = this.data.assessmentId;
-    post("/api/share-records", {
-      assessment_id: id,
-      share_scene: "moment"
-    }).catch(err => console.error("分享记录失败:", err));
-
-    // 本地累加，确保文案实时更新
     const next = this.data.benefitMinutes + 10;
     this.setData({ benefitMinutes: next });
 

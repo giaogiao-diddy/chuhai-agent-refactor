@@ -10,25 +10,25 @@
     <view class="hero">
       <!-- 品牌 Logo 占位色块 — 后续替换为真实 logo 图片 -->
       <view class="hero-logo">
-        <view class="hero-logo-inner">LB</view>
+        <view class="hero-logo-inner">DF</view>
       </view>
-      <view class="hero-title">罗宾出海分析</view>
-      <view class="hero-subtitle">3 分钟完成测评 · 获得专属出海评估报告</view>
+      <view class="hero-title">深度未来</view>
+      <view class="hero-subtitle">20-30 分钟完成企业出海可行性评估</view>
     </view>
 
     <!-- 引导卡片 -->
     <view class="card guide-card">
       <view class="guide-item">
         <view class="guide-num">1</view>
-        <text class="guide-text">完成 18 道出海测评题</text>
+        <text class="guide-text">静下心完成一份动态出海评估问卷</text>
       </view>
       <view class="guide-item">
         <view class="guide-num">2</view>
-        <text class="guide-text">获取出海准备度评分</text>
+        <text class="guide-text">获得行业、市场、路径、风险与第一步动作判断</text>
       </view>
       <view class="guide-item">
         <view class="guide-num">3</view>
-        <text class="guide-text">添加企微顾问，解锁完整评估报告</text>
+        <text class="guide-text">添加企微顾问，解锁完整分析与 1 对 1 解读</text>
       </view>
     </view>
 

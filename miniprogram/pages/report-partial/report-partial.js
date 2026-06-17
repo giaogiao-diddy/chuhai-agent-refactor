@@ -1,11 +1,12 @@
 "use strict";
 
 const app = getApp();
-const { get } = require("../../utils/api");
+const { call } = require("../../utils/cloudApi");
 
 Page({
   data: {
     assessmentId: null,
+    reportId: null,
     score: 0,
     tag: "",
     report: null,
@@ -13,10 +14,11 @@ Page({
   },
 
   async onLoad(options) {
-    const assessmentId = Number(options.assessment_id) || app.globalData.assessmentId || null;
+    const assessmentId = options.assessment_id || app.globalData.assessmentId || null;
 
     this.setData({
       assessmentId: assessmentId,
+      reportId: options.report_id || null,
       score: Number(options.score) || 0,
       tag: decodeURIComponent(options.tag || "")
     });
@@ -33,7 +35,11 @@ Page({
       return;
     }
 
-    const { data, error } = await get(`/api/reports/${assessmentId}/summary`);
+    const { data, error } = await call("getReportDetail", {
+      assessment_id: assessmentId,
+      report_id: this.data.reportId || undefined,
+      full: false
+    });
 
     if (error) {
       wx.showToast({ title: "加载报告失败", icon: "none" });
@@ -41,8 +47,19 @@ Page({
       return;
     }
 
+    const report = data.report || data;
+    const hero = report.hero || {};
+    const summary = report.summary_report || {};
+
     this.setData({
-      report: data,
+      report: {
+        ...summary,
+        display_score: hero.score || this.data.score,
+        total_score: hero.score || this.data.score,
+        tag: hero.tag || this.data.tag,
+        tag_explanation: hero.one_sentence_judgment || summary.industry_market || "",
+        preliminary_judgment: summary.preliminary_judgment || hero.core_contradiction || ""
+      },
       loading: false
     });
   },

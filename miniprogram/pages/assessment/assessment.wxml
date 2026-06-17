@@ -29,13 +29,13 @@
     </view>
 
     <!-- 文本输入题 -->
-    <view class="text-answer-box" wx:if="{{questions[currentIndex].is_scored === false}}">
+    <view class="text-answer-box" wx:if="{{questions[currentIndex].type === 'text' || questions[currentIndex].type === 'url'}}">
       <input
         class="text-answer-input"
-        placeholder="请输入您的行业，例如：智能硬件制造、跨境电商零售"
+        placeholder="{{questions[currentIndex].helper_text || '请输入具体信息'}}"
         value="{{textAnswer}}"
         bindinput="onTextInput"
-        maxlength="200"
+        maxlength="300"
         confirm-type="next"
         bindconfirm="submitTextAnswer"
       />
@@ -49,10 +49,10 @@
       </button>
     </view>
 
-    <!-- 选项列表 -->
-    <view class="options-list" wx:else>
+    <!-- 单选题 -->
+    <view class="options-list" wx:elif="{{questions[currentIndex].type === 'single_choice'}}">
       <view
-        wx:for="{{questions[currentIndex].options}}"
+        wx:for="{{currentOptions}}"
         wx:key="id"
         class="option-item {{selectedOptionId === item.id ? 'option-active' : ''}} {{submittingOption ? 'option-disabled' : ''}}"
         data-option-id="{{item.id}}"
@@ -63,6 +63,30 @@
         </view>
         <text class="option-text">{{item.text}}</text>
       </view>
+    </view>
+
+    <!-- 多选题 -->
+    <view class="options-list" wx:elif="{{questions[currentIndex].type === 'multiple_choice'}}">
+      <view
+        wx:for="{{currentOptions}}"
+        wx:key="id"
+        class="option-item {{item.checked ? 'option-active' : ''}} {{submittingOption ? 'option-disabled' : ''}}"
+        data-option-id="{{item.id}}"
+        bindtap="toggleMultiOption"
+      >
+        <view class="option-marker">
+          <view class="option-radio {{item.checked ? 'option-radio-checked' : ''}}"></view>
+        </view>
+        <text class="option-text">{{item.text}}</text>
+      </view>
+      <button
+        class="submit-text-btn"
+        bindtap="submitMultiAnswer"
+        loading="{{submittingOption}}"
+        disabled="{{submittingOption}}"
+      >
+        确认，下一题
+      </button>
     </view>
   </view>
 
@@ -76,7 +100,7 @@
       上一题
     </button>
     <view class="nav-hint">
-      {{submittingText ? '正在保存答案...' : (submittingOption ? '正在提交...' : (questions[currentIndex].is_scored === false ? '输入后点击下一题' : '点击选项自动提交并跳转'))}}
+      {{submittingText ? '正在保存答案...' : (submittingOption ? '正在提交...' : (questions[currentIndex].type === 'multiple_choice' ? '可多选，确认后进入下一题' : (questions[currentIndex].type === 'text' ? '输入后点击下一题' : '点击选项自动提交并跳转')))}}
     </view>
   </view>
 </view>

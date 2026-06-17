@@ -1,13 +1,17 @@
 "use strict";
 
-const { get } = require("../../utils/api");
+const { call } = require("../../utils/cloudApi");
 
 function normalizeReport(item) {
-  const s = item.summary || {};
+  const report = item.report_json || {};
+  const summary = report.summary_report || {};
+  const hero = report.hero || {};
   return {
     ...item,
-    displayTime: item.completed_at || "",
-    brief: s.preliminary_judgment || s.tag_explanation || "查看本次出海测评报告详情"
+    displayTime: item.created_at || "",
+    display_score: hero.score || 0,
+    tag: hero.tag || "",
+    brief: summary.preliminary_judgment || hero.one_sentence_judgment || "查看本次出海测评报告详情"
   };
 }
 
@@ -25,7 +29,7 @@ Page({
   },
 
   async loadMyReport() {
-    const { data, error } = await get("/api/reports/my/list");
+    const { data, error } = await call("getReportList");
 
     if (error) {
       wx.showToast({ title: "加载失败", icon: "none" });
@@ -33,7 +37,7 @@ Page({
       return;
     }
 
-    const reports = Array.isArray(data) ? data.map(normalizeReport) : [];
+    const reports = data && Array.isArray(data.reports) ? data.reports.map(normalizeReport) : [];
     if (!reports.length) {
       this.setData({ loading: false, empty: true });
       return;
@@ -57,28 +61,13 @@ Page({
 
     if (report.is_unlocked) {
       wx.navigateTo({
-        url: `/pages/report-full/report-full?assessment_id=${assessmentId}`
-      });
-      return;
-    }
-
-    this.setData({ checkingReport: true });
-    wx.showLoading({ title: "检查报告状态..." });
-
-    const { data, error } = await get(`/api/reports/${assessmentId}/full`);
-
-    wx.hideLoading();
-    this.setData({ checkingReport: false });
-
-    if (data && !error) {
-      wx.navigateTo({
-        url: `/pages/report-full/report-full?assessment_id=${assessmentId}`
+        url: `/pages/report-full/report-full?assessment_id=${assessmentId}&report_id=${report._id || ""}`
       });
       return;
     }
 
     wx.navigateTo({
-      url: `/pages/report-partial/report-partial?assessment_id=${assessmentId}&score=${report.display_score || report.total_score || 0}&tag=${encodeURIComponent(report.tag || "")}`
+      url: `/pages/report-partial/report-partial?assessment_id=${assessmentId}&report_id=${report._id || ""}&score=${report.display_score || 0}&tag=${encodeURIComponent(report.tag || "")}`
     });
   }
 });
