@@ -6,14 +6,17 @@ function call(name, data) {
     data: data || {}
   }).then((res) => {
     const result = res.result || {};
-    if (result.ok === false) {
+    // 新格式 { success:false, errorCode, errorMessage }
+    if (result.success === false || result.ok === false) {
       return {
-        data: result,
-        error: result.error || "云函数调用失败"
+        data: null,
+        error: result.errorMessage || result.error || "云函数调用失败"
       };
     }
+    // 新格式 { success:true, data:{...} } → 解包里层 data
+    // 旧格式 { ok:true, ... } → 原样返回
     return {
-      data: result,
+      data: result.data || result,
       error: null
     };
   }).catch((err) => {
