@@ -3,15 +3,15 @@ const assert = require("assert");
 const {
   getQuestionById,
   getQuestionsForBranch,
-  resolveBranch,
 } = require("../questionFlow");
+const { normalizeQuestion } = require("../questionModel");
 const { buildTemplateReport } = require("../reportTemplate");
 const { calculateScores } = require("../scoring");
 const { validateAnswer } = require("../validators");
 
-function test(name, fn) {
+async function test(name, fn) {
   try {
-    fn();
+    await fn();
     console.log(`PASS ${name}`);
   } catch (error) {
     console.error(`FAIL ${name}`);
@@ -20,44 +20,110 @@ function test(name, fn) {
   }
 }
 
-test("question flow uses overseas branch names", () => {
-  const branchQuestion = getQuestionById("q_has_overseas");
-  const branchNames = branchQuestion.options.map((item) => item.branch_to).filter(Boolean);
+const MOCK_QUESTIONS = [
+  {
+    question_id: 1,
+    title: "是否已有海外订单？",
+    description: "",
+    dimension: "feasibility",
+    branch: "common",
+    type: "radio",
+    options: [
+      { option_id: 1, option_text: "有", score: 4, branch_to: "has_overseas" },
+      { option_id: 2, option_text: "没有", score: 1, branch_to: "no_overseas" },
+    ],
+    sort_order: 1,
+    is_active: true,
+  },
+  {
+    question_id: 2,
+    title: "已有出海渠道",
+    description: "",
+    dimension: "lead",
+    branch: "has_overseas",
+    type: "checkbox",
+    options: [{ option_id: 1, option_text: "展会", score: 2 }],
+    sort_order: 2,
+    is_active: true,
+  },
+  {
+    question_id: 3,
+    title: "准备先验证什么",
+    description: "",
+    dimension: "lead",
+    branch: "no_overseas",
+    type: "text",
+    options: [],
+    sort_order: 3,
+    is_active: true,
+  },
+];
 
-  assert(branchNames.includes("has_overseas"));
-  assert(branchNames.includes("no_overseas"));
-});
-
-test("question flow returns common and selected branch questions", () => {
-  const hasOverseasQuestions = getQuestionsForBranch("has_overseas");
-  const noOverseasQuestions = getQuestionsForBranch("no_overseas");
-
-  assert(hasOverseasQuestions.some((item) => item.id === "q_overseas_channels"));
-  assert(!hasOverseasQuestions.some((item) => item.id === "q_domestic_strength"));
-  assert(noOverseasQuestions.some((item) => item.id === "q_domestic_strength"));
-  assert(!noOverseasQuestions.some((item) => item.id === "q_overseas_channels"));
-});
-
-test("resolveBranch derives branch from branch answer", () => {
-  const branch = resolveBranch([
-    {
-      question_id: "q_has_overseas",
-      option_id: "stable_orders",
+function createMockDb(data) {
+  return {
+    collection() {
+      return {
+        where(query) {
+          const matched = data.filter((item) => {
+            return Object.keys(query).every((key) => item[key] === query[key]);
+          });
+          return {
+            orderBy() {
+              return {
+                async get() {
+                  return { data: matched.slice().sort((a, b) => a.sort_order - b.sort_order) };
+                },
+              };
+            },
+            limit() {
+              return {
+                async get() {
+                  return { data: matched.slice(0, 1) };
+                },
+              };
+            },
+          };
+        },
+      };
     },
-  ]);
+  };
+}
 
-  assert.equal(branch, "has_overseas");
+test("question flow loads active questions from database and filters branch", async () => {
+  const db = createMockDb(MOCK_QUESTIONS);
+  const hasOverseasQuestions = await getQuestionsForBranch(db, "has_overseas");
+  const noOverseasQuestions = await getQuestionsForBranch(db, "no_overseas");
+
+  assert(hasOverseasQuestions.questions.some((item) => item.question_id === 2));
+  assert(!hasOverseasQuestions.questions.some((item) => item.question_id === 3));
+  assert(noOverseasQuestions.questions.some((item) => item.question_id === 3));
+  assert(!noOverseasQuestions.questions.some((item) => item.question_id === 2));
+});
+
+test("question flow gets question by numeric id", async () => {
+  const db = createMockDb(MOCK_QUESTIONS);
+  const question = await getQuestionById(db, 1);
+
+  assert.equal(question.question_id, 1);
+  assert.equal(question.options[0].branch_to, "has_overseas");
 });
 
 test("validators support text single and multiple choice", () => {
-  validateAnswer(getQuestionById("q_industry"), { answer_text: "五金配件" });
-  validateAnswer(getQuestionById("q_company_type"), { option_id: "factory" });
-  validateAnswer(getQuestionById("q_revenue_pressure"), {
-    option_ids: ["growth_slow", "need_new_market"],
-  });
+  validateAnswer(normalizeQuestion({
+    question_id: 10,
+    title: "行业",
+    description: "",
+    dimension: "feasibility",
+    branch: "common",
+    type: "text",
+    options: [],
+    sort_order: 1,
+  }), { answer_text: "五金配件" });
+  validateAnswer(normalizeQuestion(MOCK_QUESTIONS[0]), { option_id: 1 });
+  validateAnswer(normalizeQuestion(MOCK_QUESTIONS[1]), { option_ids: [1] });
 
   assert.throws(() => {
-    validateAnswer(getQuestionById("q_company_type"), { option_id: "wrong" });
+    validateAnswer(normalizeQuestion(MOCK_QUESTIONS[0]), { option_id: 999 });
   }, /选项不属于当前题目/);
 });
 

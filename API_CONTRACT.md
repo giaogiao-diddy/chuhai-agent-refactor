@@ -362,6 +362,122 @@ const { data, error } = await call("函数名", { 参数 });
 
 ---
 
+---
+
+## Agent 智能体接口（新增 Phase 2-3）
+
+### 13. startConversation — 启动对话诊断
+
+> 👤 | 已部署
+
+```
+请求:
+{ assessment_id: "assess_xxx" }
+
+成功返回:
+{
+  success: true,
+  data: {
+    replyText: "你好，我是深度未来的企业出海诊断顾问...",
+    conversation_status: "collecting",
+    conversation_round: 0
+  }
+}
+```
+
+---
+
+### 14. continueConversation — 继续对话
+
+> 👤 | 已部署
+
+```
+请求:
+{
+  assessment_id: "assess_xxx",
+  client_message_id: "uuid-from-client",  // 前端生成，幂等防重
+  message: "我们是做健身器材的..."
+}
+
+成功返回（正常进行中）:
+{
+  success: true,
+  data: {
+    replyText: "健身器材在东南亚确实有机会...",
+    conversation_round: 2,
+    isEnded: false,
+    isVetoed: false
+  }
+}
+
+成功返回（8轮结束）:
+{
+  success: true,
+  data: {
+    replyText: "沟通已经比较充分了，现在为您生成报告...",
+    conversation_round: 8,
+    isEnded: true,
+    isVetoed: false
+  }
+}
+
+成功返回（一票否决）:
+{
+  success: true,
+  data: {
+    replyText: "",
+    conversation_round: 3,
+    isEnded: true,
+    isVetoed: true,
+    vetoMessage: "当前业务不适合以短视频作为主成交渠道，建议考虑B2B平台、展会、独立站等替代路径。系统已为您准备风险提示白皮书。"
+  }
+}
+```
+
+**关键规则：**
+- `client_message_id` 必须前端生成并携带。同一 ID 重复请求不重复调用 AI，直接返回缓存结果。
+- `isEnded === true` 时前端底部切换为"生成报告"按钮。
+- `isVetoed === true` 时前端切换为"查看风险提示"按钮。
+- 重试请求必须携带相同的 `client_message_id`。
+
+---
+
+### 15. finishConversation — 结算生成报告
+
+> 👤 | 已部署
+
+```
+请求:
+{ assessment_id: "assess_xxx" }
+
+成功返回:
+{
+  success: true,
+  data: {
+    assessment_id: "assess_xxx",
+    status: "completed",
+    feasibility_score: 72,
+    feasibility_tag: "轻量试探型",
+    generation_type: "ai"           // "ai" | "template"
+  }
+}
+
+失败返回:
+{
+  success: false,
+  errorCode: "REPORT_TRANSACTION_FAILED",
+  errorMessage: "原因说明"
+}
+```
+
+**后端行为：**
+- 槽位补全 17 道题 → 规则算分 → RAG → AI报告 → reportGuard审计 → 事务写入 reports + lead_reports。
+- AI 失败自动走模板兜底。
+- reports 文档含 `openid` 字段，兼容现有解锁函数。
+- lead_reports 文档含 `sales_followup` 等顾问字段，只有顾问端接口返回。
+
+---
+
 ## 变更日志
 
 | 日期 | 变更 |
@@ -370,3 +486,4 @@ const { data, error } = await call("函数名", { 参数 });
 | 6/17 更新 | login / getAssessmentConfig / createAssessment / getSystemConfig / updateSystemConfig / getQuestionFlow 已部署 |
 | 6/17 更新 | 统一响应格式改为 `{ success, data/errorCode/errorMessage }` |
 | 6/17 更新 | createAssessment 强制要求 basicInfo |
+| 6/18 新增 | Agent 智能体接口：startConversation + continueConversation + finishConversation |

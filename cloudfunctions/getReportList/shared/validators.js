@@ -5,7 +5,9 @@ function requireNonEmptyString(value, field) {
 }
 
 function optionExists(question, optionId) {
-  return Array.isArray(question.options) && question.options.some((option) => option.id === optionId);
+  return Array.isArray(question.options) && question.options.some((option) => {
+    return String(option.id || option.option_id) === String(optionId);
+  });
 }
 
 function validateAnswer(question, payload) {
@@ -13,14 +15,16 @@ function validateAnswer(question, payload) {
     throw new Error("题目不存在");
   }
 
-  if (question.type === "single_choice") {
-    requireNonEmptyString(payload.option_id, "option_id");
+  if (question.type === "single_choice" || question.type === "radio") {
+    if (payload.option_id === undefined || payload.option_id === null || String(payload.option_id).trim() === "") {
+      throw new Error("option_id不能为空");
+    }
     if (!optionExists(question, payload.option_id)) {
       throw new Error("选项不属于当前题目");
     }
   }
 
-  if (question.type === "multiple_choice") {
+  if (question.type === "multiple_choice" || question.type === "checkbox") {
     if (!Array.isArray(payload.option_ids) || payload.option_ids.length === 0) {
       throw new Error("option_ids不能为空");
     }

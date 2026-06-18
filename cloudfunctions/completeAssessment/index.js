@@ -2,6 +2,7 @@ const { db, getContext, now } = require("./shared/db");
 const { getQuestionsForBranch } = require("./shared/questionFlow");
 const { calculateScores } = require("./shared/scoring");
 const { buildTemplateReport } = require("./shared/reportTemplate");
+const { fail, fromError, success } = require("./shared/response");
 
 async function upsert(collectionName, query, data) {
   const existing = await db.collection(collectionName).where(query).limit(1).get();
@@ -16,66 +17,90 @@ async function upsert(collectionName, query, data) {
 exports.main = async (event) => {
   const { OPENID } = getContext();
   const assessmentId = event.assessment_id;
-  const assessmentResult = await db.collection("assessments").doc(assessmentId).get();
-
-  if (!assessmentResult.data || assessmentResult.data.openid !== OPENID) {
-    throw new Error("测评不存在或无权访问");
+  if (!OPENID) {
+    return fail("UNAUTHORIZED", "未获取到用户身份，请重新进入小程序");
+  }
+  if (!assessmentId) {
+    return fail("INVALID_PARAMS", "assessment_id不能为空");
   }
 
-  const assessment = assessmentResult.data;
-  const branch = assessment.branch;
-  if (!branch) {
-    throw new Error("请先完成分流题");
-  }
+  try {
+    const assessmentResult = await db.collection("assessments").doc(assessmentId).get();
 
-  const requiredQuestions = getQuestionsForBranch(branch).filter((question) => question.required);
-  const answersResult = await db.collection("answers").where({ assessment_id: assessmentId, openid: OPENID }).get();
-  const answers = answersResult.data;
-  const answeredIds = new Set(answers.map((answer) => answer.question_id));
-  const missing = requiredQuestions.filter((question) => !answeredIds.has(question.id));
+    if (!assessmentResult.data || assessmentResult.data.openid !== OPENID) {
+      return fail("FORBIDDEN", "测评不存在或无权访问");
+    }
 
-  if (missing.length > 0) {
+    const assessment = assessmentResult.data;
+    const branch = assessment.branch;
+    if (!branch) {
+      return fail("INVALID_STATE", "请先完成分流题");
+    }
+
+    const questionConfig = await getQuestionsForBranch(db, branch);
+    const requiredQuestions = questionConfig.questions;
+    const answersResult = await db.collection("answers").where({ assessment_id: assessmentId, openid: OPENID }).get();
+    const answers = answersResult.data;
+    const answeredIds = new Set(answers.map((answer) => Number(answer.question_id)));
+    const missing = requiredQuestions.filter((question) => !answeredIds.has(Number(question.question_id)));
+
+    if (missing.length > 0) {
+      return {
+        ok: false,
+        ...fail("INCOMPLETE_ANSWERS", "还有必答题未完成"),
+        error: "还有必答题未完成",
+        missing_question_ids: missing.map((question) => question.question_id),
+      };
+    }
+
+    const scores = calculateScores(answers);
+    const reportBundle = buildTemplateReport({ assessment, answers, scores });
+
+    await db.collection("assessments").doc(assessmentId).update({
+      data: {
+        ...scores,
+        status: "completed",
+        completed_at: now(),
+        updated_at: now(),
+      },
+    });
+
+    const reportId = await upsert("reports", { assessment_id: assessmentId, openid: OPENID }, {
+      openid: OPENID,
+      assessment_id: assessmentId,
+      generation_type: "template",
+      generation_status: "success",
+      is_unlocked: false,
+      report_json: reportBundle.customer_report,
+      updated_at: now(),
+    });
+
+    await upsert("lead_reports", { assessment_id: assessmentId, openid: OPENID }, {
+      openid: OPENID,
+      assessment_id: assessmentId,
+      report_json: reportBundle.consultant_report,
+      updated_at: now(),
+    });
+
+    return {
+      ok: true,
+      ...success({
+        assessment_id: assessmentId,
+        report_id: reportId,
+        ...scores,
+        report: reportBundle.customer_report,
+      }),
+      assessment_id: assessmentId,
+      report_id: reportId,
+      ...scores,
+      report: reportBundle.customer_report,
+    };
+  } catch (err) {
+    console.error("completeAssessment 失败:", err);
     return {
       ok: false,
-      error: "还有必答题未完成",
-      missing_question_ids: missing.map((question) => question.id),
+      ...fromError(err, "DB_ERROR", "完成测评失败"),
+      error: err.message || "完成测评失败",
     };
   }
-
-  const scores = calculateScores(answers);
-  const reportBundle = buildTemplateReport({ assessment, answers, scores });
-
-  await db.collection("assessments").doc(assessmentId).update({
-    data: {
-      ...scores,
-      status: "completed",
-      completed_at: now(),
-      updated_at: now(),
-    },
-  });
-
-  const reportId = await upsert("reports", { assessment_id: assessmentId, openid: OPENID }, {
-    openid: OPENID,
-    assessment_id: assessmentId,
-    generation_type: "template",
-    generation_status: "success",
-    is_unlocked: false,
-    report_json: reportBundle.customer_report,
-    updated_at: now(),
-  });
-
-  await upsert("lead_reports", { assessment_id: assessmentId, openid: OPENID }, {
-    openid: OPENID,
-    assessment_id: assessmentId,
-    report_json: reportBundle.consultant_report,
-    updated_at: now(),
-  });
-
-  return {
-    ok: true,
-    assessment_id: assessmentId,
-    report_id: reportId,
-    ...scores,
-    report: reportBundle.customer_report,
-  };
 };

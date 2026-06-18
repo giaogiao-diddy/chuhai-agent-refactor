@@ -1,0 +1,80 @@
+<view class="page">
+  <!-- 顶部顾问 Header -->
+  <view class="agent-header">
+    <view class="agent-avatar">
+      <view class="avatar-inner">DF</view>
+    </view>
+    <view class="agent-info">
+      <view class="agent-name">深度未来 · 出海诊断顾问</view>
+      <view class="agent-subtitle">专注于中小工厂低成本轻资产出海资质评估（约8轮对话）</view>
+    </view>
+  </view>
+
+  <!-- 中部对话滚动区 -->
+  <scroll-view
+    class="chat-area"
+    scroll-y
+    scroll-into-view="{{scrollToId}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <view class="message-list">
+      <block wx:for="{{messageList}}" wx:key="id">
+        <!-- 用户消息（右侧） -->
+        <view wx:if="{{item.role === 'user'}}" class="msg-row msg-row-user">
+          <view class="msg-bubble msg-bubble-user">{{item.content}}</view>
+        </view>
+
+        <!-- AI 消息（左侧） -->
+        <view wx:if="{{item.role === 'assistant'}}" class="msg-row msg-row-assistant">
+          <view class="msg-bubble msg-bubble-assistant">
+            <text>{{item.displayText || ''}}</text>
+            <text wx:if="{{item.typing}}" class="cursor-blink">|</text>
+          </view>
+        </view>
+      </block>
+
+      <!-- 底部锚点 -->
+      <view id="bottom-anchor"></view>
+    </view>
+  </scroll-view>
+
+  <!-- 底部控制区 -->
+  <view class="bottom-bar">
+    <!-- 对话采集中：输入框 + 发送 -->
+    <view wx:if="{{!isEnded}}" class="input-row">
+      <input
+        class="chat-input"
+        value="{{inputText}}"
+        placeholder="输入你的企业信息..."
+        bindinput="onInputChange"
+        disabled="{{isSending || isTyping}}"
+        confirm-type="send"
+        bindconfirm="onSend"
+        maxlength="500"
+      />
+      <button
+        class="send-btn {{isSending ? 'sending' : ''}}"
+        bindtap="onSend"
+        disabled="{{isSending || isTyping || !inputText}}"
+      >
+        <text wx:if="{{!isSending}}">发送</text>
+        <view wx:else class="btn-spinner"></view>
+      </button>
+    </view>
+
+    <!-- 对话结束：生成报告按钮 / 否决按钮 -->
+    <view wx:if="{{isEnded}}" class="finish-row">
+      <button wx:if="{{!isVetoed}}" class="generate-btn" bindtap="onGenerateReport">
+        生成我的个性化出海报告
+      </button>
+      <button wx:if="{{isVetoed}}" class="veto-btn" bindtap="onGenerateReport">
+        查看出海风险提示与替代路径白皮书
+      </button>
+    </view>
+  </view>
+
+  <!-- 安全区占位 -->
+  <view class="safe-bottom"></view>
+</view>

@@ -55,3 +55,4 @@ miniprogram/.tea/
 *.pyo
 M4_PROMPT.md
 env-vars.json
+cloudfunctions/node_modules

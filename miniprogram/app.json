@@ -6,7 +6,8 @@
     "pages/report-partial/report-partial",
     "pages/lead/lead",
     "pages/report-full/report-full",
-    "pages/my-report/my-report"
+    "pages/my-report/my-report",
+    "pages/agent-assessment/agent-assessment"
   ],
   "window": {
     "navigationBarTitleText": "深度未来",
