@@ -2,34 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useStreaming } from "@/hooks/useStreaming";
-import type { UserReport } from "@/lib/api";
-
-const FORBIDDEN_REPORT_TERMS = [
-  "lead_score", "lead_priority", "lead_report", "raw_report",
-  "sales_followup", "consultant_notes", "consultant_guide",
-  "scoring_result", "audit_result", "scoring_error", "report_error",
-  "销售话术", "顾问跟进", "线索优先级", "顾问备注",
-];
-
-function getRenderedReportText(report: UserReport): string {
-  return [
-    report.tag,
-    report.tag_explanation,
-    report.preliminary_judgment,
-    ...report.strengths,
-    ...report.risks,
-    report.summary_conclusion,
-    report.recommended_path,
-    report.risk_reminder,
-    ...report.action_plan_30days,
-    report.unlock_hint,
-  ].join("\n");
-}
-
-function validateReport(report: UserReport): boolean {
-  const text = getRenderedReportText(report);
-  return !FORBIDDEN_REPORT_TERMS.some((term) => text.includes(term));
-}
+import { validateRenderedReport } from "@/lib/reportSafety";
 
 export default function ChatPage() {
   const {
@@ -47,7 +20,7 @@ export default function ChatPage() {
 
   const showFinish = state && state.conversation_round >= 1 && !isCompleted;
   const busy = isStreaming || isFinishing || isStarting;
-  const reportSafe = report && validateReport(report);
+  const reportSafe = report && validateRenderedReport(report);
 
   return (
     <div style={s.page}>
@@ -82,6 +55,7 @@ export default function ChatPage() {
             <ol>{report.action_plan_30days.map((a,i) => <li key={i}>{a}</li>)}</ol>
             <p style={{ color: "#999" }}>{report.unlock_hint}</p>
             {assessmentId && <p style={s.assessmentId}>报告编号：{assessmentId}</p>}
+            <p style={{ marginTop: 8 }}><a href="/reports" style={{ color: "#0D9488", fontSize: 14 }}>查看我的报告</a></p>
           </div>
         )}
         {report && !reportSafe && <div style={s.error}>报告内容校验失败，请联系管理员</div>}
