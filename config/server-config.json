@@ -1,0 +1,11 @@
+{
+  "OpenAccessTypes": ["PUBLIC", "MINIAPP"],
+  "Port": 8000,
+  "Cpu": 1,
+  "Mem": 2,
+  "MinNum": 1,
+  "MaxNum": 5,
+  "EnvParams": "{\"LB_DB_HOST\":\"172.17.0.14\",\"LB_DB_PORT\":\"3306\",\"LB_DB_USER\":\"lkh\",\"LB_DB_PASSWORD\":\"Lkh911704.\",\"LB_DB_NAME\":\"cloud1-d8gh82s3a39eff92d\",\"LB_LLM_API_KEY\":\"sk-4699ce371f924a16b0da6adbaebf268b\",\"LB_LLM_BASE_URL\":\"https://api.deepseek.com\",\"LB_LLM_MODEL\":\"deepseek-chat\",\"LB_JWT_SECRET\":\"6d08036d74aaae3daeff4429d2b8a351d3540b276633b61d529f1b30dfaf2b44\",\"LB_WX_APPID\":\"wx7ed6bdb5ed913fa9\",\"LB_WX_SECRET\":\"c5fe33595bef547dc04a253a3a55d52a\"}",
+  "VpcConf": {"VpcId": "vpc-2t3wnw2u", "SubnetId": "subnet-kc3srjv9"},
+  "PolicyDetails": [{"PolicyType": "cpu", "PolicyThreshold": 60}]
+}

@@ -1,0 +1,198 @@
+{
+  "empty_current": {
+    "current": {
+      "company_name": null,
+      "industry": null,
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "健身器材", "confidence": 0.9},
+      "main_product": {"value": "力量训练设备", "confidence": 0.85}
+    }
+  },
+  "low_confidence": {
+    "current": {
+      "company_name": null,
+      "industry": {"value": "五金配件", "confidence": 0.8},
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "服装", "confidence": 0.5}
+    }
+  },
+  "higher_confidence": {
+    "current": {
+      "company_name": null,
+      "industry": {"value": "五金配件", "confidence": 0.7},
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "医疗器械", "confidence": 0.85}
+    }
+  },
+  "lower_confidence": {
+    "current": {
+      "company_name": null,
+      "industry": {"value": "五金配件", "confidence": 0.9},
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "玩具", "confidence": 0.5}
+    }
+  },
+  "unknown_field": {
+    "current": {
+      "company_name": null,
+      "industry": null,
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "健身器材", "confidence": 0.9},
+      "not_a_valid_field": {"value": "whatever", "confidence": 0.9}
+    }
+  },
+  "missing_required": {
+    "slots": {
+      "company_name": null,
+      "industry": {"value": "健身器材", "confidence": 0.9},
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": {"value": "有少量订单", "confidence": 0.8},
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    }
+  },
+  "null_value_high_confidence": {
+    "current": {
+      "company_name": null,
+      "industry": {"value": "五金配件", "confidence": 0.7},
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "   ", "confidence": 0.95}
+    }
+  },
+  "not_high_enough_confidence": {
+    "current": {
+      "company_name": null,
+      "industry": {"value": "五金配件", "confidence": 0.9},
+      "main_product": null,
+      "target_market": null,
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "industry": {"value": "医疗器械", "confidence": 0.7}
+    }
+  },
+  "empty_list_incoming": {
+    "current": {
+      "company_name": null,
+      "industry": null,
+      "main_product": null,
+      "target_market": {"value": ["北美", "东南亚"], "confidence": 0.8},
+      "overseas_experience": null,
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": null,
+      "consultation_intent": null
+    },
+    "incoming": {
+      "target_market": {"value": [], "confidence": 0.95}
+    }
+  },
+  "all_required": {
+    "slots": {
+      "company_name": null,
+      "industry": {"value": "健身器材", "confidence": 0.9},
+      "main_product": {"value": "力量训练设备", "confidence": 0.85},
+      "target_market": {"value": "东南亚", "confidence": 0.8},
+      "overseas_experience": {"value": "有少量订单", "confidence": 0.8},
+      "annual_revenue": null,
+      "team_size": null,
+      "sales_team_size": null,
+      "overseas_order_ratio": null,
+      "content_capability": null,
+      "conversion_channel": null,
+      "monthly_budget": {"value": "2-5万", "confidence": 0.7},
+      "consultation_intent": {"value": "想预约", "confidence": 0.75}
+    }
+  }
+}

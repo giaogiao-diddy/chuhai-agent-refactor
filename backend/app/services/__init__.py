@@ -1,10 +1,15 @@
-from __future__ import annotations
-from app.services.scoring_service import calculate_total, score_to_tag
-from app.services.template_report import build_summary, build_full
+from app.services.deepseek_client import DeepSeekClient
+from app.services.slot_engine import (
+    get_missing_required_slots,
+    merge_slots,
+    normalize_slot_value,
+)
+from app.services.slot_to_score import build_scoring_input_from_slots
 
 __all__ = [
-    "calculate_total",
-    "score_to_tag",
-    "build_summary",
-    "build_full",
+    "DeepSeekClient",
+    "merge_slots",
+    "normalize_slot_value",
+    "get_missing_required_slots",
+    "build_scoring_input_from_slots",
 ]

@@ -1,0 +1,23 @@
+{
+  "name": "chuhai-agent-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "node ./scripts/next-build.cjs",
+    "start": "next start",
+    "test:parser": "tsx ./scripts/test-streaming-parser.ts"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.4.0"
+  }
+}

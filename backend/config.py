@@ -1,69 +1,41 @@
-from __future__ import annotations
-"""全局配置中心 — 所有环境变量集中管理，通过 pydantic-settings 读取 .env"""
+from functools import lru_cache
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # ── 数据库 ─────────────────────────────────────────────
-    database_url: str = ""       # 设置后直接用作连接串（测试用 SQLite）
-    db_host: str = "localhost"
-    db_port: int = 3306
-    db_user: str = "root"
-    db_password: str = ""
-    db_name: str = "luobin_agent"
+    """全局配置，从环境变量 / .env 文件读取。"""
 
-    @property
-    def db_url(self) -> str:
-        if self.database_url:
-            return self.database_url
-        return f"mysql+pymysql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-    # ── LLM (DeepSeek) ─────────────────────────────────────
-    llm_api_key: str = ""
-    llm_base_url: str = "https://api.deepseek.com"
-    llm_model: str = "deepseek-chat"
-    llm_timeout: int = 15
-    llm_max_tokens: int = 8000
+    # ── 应用基础 ──
+    APP_NAME: str = "chuhai-agent"
+    APP_VERSION: str = "0.1.0"
+    ENV: str = "development"
 
-    # ── JWT ────────────────────────────────────────────────
-    jwt_secret: str = "your-secret-key"
-    jwt_algorithm: str = "HS256"
-    jwt_expire_hours: int = 72
+    # ── 数据库 ──
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/chuhai_agent"
 
-    # ── CORS ───────────────────────────────────────────────
-    cors_origins: str = "*"  # 逗号分隔的允许域名，* 表示全部
+    # ── CORS ──
+    CORS_ORIGINS: str = "*"
 
-    # ── Server ─────────────────────────────────────────────
-    server_host: str = "0.0.0.0"
-    server_port: int = 8000
-    port: int = 8000
-    debug: bool = False
+    # ── 鉴权 ──
+    JWT_SECRET_KEY: str = ""
+    WECHAT_APP_ID: str = ""
+    WECHAT_APP_SECRET: str = ""
 
-    # ── Admin ──────────────────────────────────────────────
-    admin_user_ids: str = ""  # 逗号分隔的 user_id，为空时跳过管理员校验
-
-    # ── 企业微信 ───────────────────────────────────────────
-    wecom_qr_code_url: str = "/images/wecom-sales.png"
-    wecom_consultant_name: str = "企微顾问"
-    wecom_unlock_poll_interval: float = 2.0
-    enable_mock_wecom_unlock: bool = True
-
-    # ── WeChat ─────────────────────────────────────────────
-    wx_appid: str = ""
-    wx_secret: str = ""
-
-    # ── 云托管 ─────────────────────────────────────────────
-    cloudbase_env_id: str = ""
-
-    # ── 报告 ───────────────────────────────────────────────
-    ai_report_enabled: bool = True
-    report_poll_interval: float = 1.5
-    report_generate_timeout: int = 20
-
-    class Config:
-        env_file = ".env"
-        env_prefix = "LB_"
+    # ── AI ──
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_MODEL: str = "deepseek-v4-flash"
+    DEEPSEEK_EMBEDDING_MODEL: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    """返回全局唯一的 Settings 实例（lru_cache 保证单例）。"""
+    return Settings()

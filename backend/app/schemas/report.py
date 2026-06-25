@@ -1,49 +1,56 @@
-from __future__ import annotations
-"""报告相关模型"""
+from pydantic import BaseModel, Field
 
-from pydantic import BaseModel
-
-
-class SummaryReport(BaseModel):
-    """部分报告结构"""
-    total_score: int
-    display_score: int
-    tag: str
-    tag_explanation: str
-    preliminary_judgment: str
-    positioning_assessment: str
-    content_assessment: str
-    conversion_assessment: str
-    strengths: list[str]
-    risks: list[str]
-    unlock_hint: str
+from app.schemas.scoring import DimensionScore
 
 
-class FullReport(BaseModel):
-    """完整报告结构"""
+class RawAIReport(BaseModel):
     summary_conclusion: str
     positioning_assessment: str
     content_assessment: str
     conversion_assessment: str
-    dimension_scores: dict
     recommended_path: str
     risk_reminder: str
-    action_plan_30days: list[str]
+    action_plan_30days: list[str] = Field(min_length=4, max_length=4)
     consultant_guide: str
+    sales_followup: str
+    consultant_notes: str
 
 
-class AIReportOutput(BaseModel):
-    """AI 返回的严格 JSON 结构"""
-    summary_report: dict
-    full_report: dict
-
-
-class MyReportResponse(BaseModel):
-    """我的报告 — 报告卡片"""
-    assessment_id: int
-    total_score: int
-    tag: str
+class UserReport(BaseModel):
+    feasibility_score: int
     display_score: int
-    is_unlocked: bool = False
-    completed_at: str | None = None
-    summary: dict | None = None
+    tag: str
+    tag_explanation: str
+    preliminary_judgment: str
+    strengths: list[str]
+    risks: list[str]
+    summary_conclusion: str
+    positioning_assessment: str
+    content_assessment: str
+    conversion_assessment: str
+    dimension_scores: list[DimensionScore]
+    recommended_path: str
+    risk_reminder: str
+    action_plan_30days: list[str] = Field(min_length=4, max_length=4)
+    consultant_guide: str
+    unlock_hint: str = "添加企业微信顾问解锁完整报告和1v1深度解读"
+
+
+class LeadReport(BaseModel):
+    lead_score: int
+    lead_priority: str
+    tag: str
+    company_name: str | None = None
+    industry: str | None = None
+    product: str | None = None
+    target_market: str | None = None
+    summary_conclusion: str = ""
+    sales_followup: str
+    consultant_notes: str
+    recommended_next_action: str = ""
+
+
+class ReportBundle(BaseModel):
+    raw_report: RawAIReport
+    user_report: UserReport
+    lead_report: LeadReport

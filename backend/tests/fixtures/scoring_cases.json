@@ -1,0 +1,297 @@
+{
+  "high_scorer": {
+    "company_name": "宁波力健健身器材有限公司",
+    "industry": "健身器材",
+    "product": "家用力量训练设备",
+    "target_market": "东南亚",
+    "feasibility_dimensions": {
+      "enterprise_base": 18,
+      "overseas_validation": 18,
+      "product_supply_chain": 13,
+      "path_clarity": 9,
+      "content_fitness": 18,
+      "conversion_readiness": 8,
+      "action_readiness": 5
+    },
+    "lead_dimensions": {
+      "enterprise_base": 18,
+      "overseas_validation": 13,
+      "product_supply_chain": 10,
+      "path_clarity": 7,
+      "content_fitness": 13,
+      "conversion_readiness": 13,
+      "action_readiness": 13
+    }
+  },
+  "low_scorer": {
+    "company_name": "小厂",
+    "industry": "五金配件",
+    "product": "螺丝",
+    "target_market": null,
+    "feasibility_dimensions": {
+      "enterprise_base": 3,
+      "overseas_validation": 2,
+      "product_supply_chain": 2,
+      "path_clarity": 1,
+      "content_fitness": 2,
+      "conversion_readiness": 1,
+      "action_readiness": 1
+    },
+    "lead_dimensions": {
+      "enterprise_base": 3,
+      "overseas_validation": 2,
+      "product_supply_chain": 2,
+      "path_clarity": 1,
+      "content_fitness": 2,
+      "conversion_readiness": 3,
+      "action_readiness": 3
+    }
+  },
+  "missing_dimension": {
+    "company_name": null,
+    "industry": null,
+    "product": null,
+    "target_market": null,
+    "feasibility_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 10,
+      "path_clarity": 10,
+      "content_fitness": 10,
+      "conversion_readiness": 10
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 10,
+      "path_clarity": 10,
+      "content_fitness": 10,
+      "conversion_readiness": 10,
+      "action_readiness": 10
+    }
+  },
+  "tag_boundary_25": {
+    "company_name": null,
+    "industry": null,
+    "product": null,
+    "target_market": null,
+    "feasibility_dimensions": {
+      "enterprise_base": 5,
+      "overseas_validation": 5,
+      "product_supply_chain": 4,
+      "path_clarity": 3,
+      "content_fitness": 5,
+      "conversion_readiness": 2,
+      "action_readiness": 1
+    },
+    "lead_dimensions": {
+      "enterprise_base": 2,
+      "overseas_validation": 2,
+      "product_supply_chain": 2,
+      "path_clarity": 1,
+      "content_fitness": 2,
+      "conversion_readiness": 2,
+      "action_readiness": 2
+    }
+  },
+  "tag_boundary_26": {
+    "company_name": null,
+    "industry": null,
+    "product": null,
+    "target_market": null,
+    "feasibility_dimensions": {
+      "enterprise_base": 6,
+      "overseas_validation": 5,
+      "product_supply_chain": 4,
+      "path_clarity": 3,
+      "content_fitness": 5,
+      "conversion_readiness": 2,
+      "action_readiness": 1
+    },
+    "lead_dimensions": {
+      "enterprise_base": 3,
+      "overseas_validation": 3,
+      "product_supply_chain": 2,
+      "path_clarity": 2,
+      "content_fitness": 3,
+      "conversion_readiness": 3,
+      "action_readiness": 3
+    }
+  },
+  "tag_boundary_45": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 7,
+      "path_clarity": 5,
+      "content_fitness": 8,
+      "conversion_readiness": 3,
+      "action_readiness": 2
+    },
+    "lead_dimensions": {
+      "enterprise_base": 5,
+      "overseas_validation": 5,
+      "product_supply_chain": 4,
+      "path_clarity": 3,
+      "content_fitness": 5,
+      "conversion_readiness": 5,
+      "action_readiness": 5
+    }
+  },
+  "tag_boundary_46": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 7,
+      "path_clarity": 5,
+      "content_fitness": 9,
+      "conversion_readiness": 3,
+      "action_readiness": 2
+    },
+    "lead_dimensions": {
+      "enterprise_base": 5,
+      "overseas_validation": 5,
+      "product_supply_chain": 5,
+      "path_clarity": 3,
+      "content_fitness": 5,
+      "conversion_readiness": 5,
+      "action_readiness": 5
+    }
+  },
+  "tag_boundary_65": {
+    "feasibility_dimensions": {
+      "enterprise_base": 17,
+      "overseas_validation": 16,
+      "product_supply_chain": 10,
+      "path_clarity": 7,
+      "content_fitness": 10,
+      "conversion_readiness": 3,
+      "action_readiness": 2
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 8,
+      "path_clarity": 5,
+      "content_fitness": 10,
+      "conversion_readiness": 10,
+      "action_readiness": 10
+    }
+  },
+  "tag_boundary_66": {
+    "feasibility_dimensions": {
+      "enterprise_base": 17,
+      "overseas_validation": 16,
+      "product_supply_chain": 10,
+      "path_clarity": 8,
+      "content_fitness": 10,
+      "conversion_readiness": 3,
+      "action_readiness": 2
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 8,
+      "path_clarity": 5,
+      "content_fitness": 10,
+      "conversion_readiness": 10,
+      "action_readiness": 11
+    }
+  },
+  "unknown_feasibility_dimension": {
+    "company_name": null,
+    "industry": null,
+    "product": null,
+    "target_market": null,
+    "feasibility_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 10,
+      "path_clarity": 10,
+      "content_fitness": 10,
+      "conversion_readiness": 10,
+      "action_readiness": 10,
+      "unknown_extra": 5
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10,
+      "overseas_validation": 10,
+      "product_supply_chain": 10,
+      "path_clarity": 10,
+      "content_fitness": 10,
+      "conversion_readiness": 10,
+      "action_readiness": 10
+    }
+  },
+  "lead_boundary_20": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 7,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 5, "action_readiness": 3
+    },
+    "lead_dimensions": {
+      "enterprise_base": 5, "overseas_validation": 4, "product_supply_chain": 3,
+      "path_clarity": 2, "content_fitness": 3, "conversion_readiness": 2, "action_readiness": 1
+    }
+  },
+  "lead_boundary_21": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 7,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 5, "action_readiness": 3
+    },
+    "lead_dimensions": {
+      "enterprise_base": 5, "overseas_validation": 4, "product_supply_chain": 3,
+      "path_clarity": 2, "content_fitness": 4, "conversion_readiness": 2, "action_readiness": 1
+    }
+  },
+  "lead_boundary_40": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 7,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 5, "action_readiness": 3
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 7, "product_supply_chain": 5,
+      "path_clarity": 3, "content_fitness": 7, "conversion_readiness": 5, "action_readiness": 3
+    }
+  },
+  "lead_boundary_41": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 7,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 5, "action_readiness": 3
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 7, "product_supply_chain": 5,
+      "path_clarity": 3, "content_fitness": 8, "conversion_readiness": 5, "action_readiness": 3
+    }
+  },
+  "lead_boundary_60": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 7,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 5, "action_readiness": 3
+    },
+    "lead_dimensions": {
+      "enterprise_base": 15, "overseas_validation": 10, "product_supply_chain": 8,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 7, "action_readiness": 5
+    }
+  },
+  "lead_boundary_61": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 7,
+      "path_clarity": 5, "content_fitness": 10, "conversion_readiness": 5, "action_readiness": 3
+    },
+    "lead_dimensions": {
+      "enterprise_base": 15, "overseas_validation": 10, "product_supply_chain": 8,
+      "path_clarity": 5, "content_fitness": 11, "conversion_readiness": 7, "action_readiness": 5
+    }
+  },
+  "unknown_lead_dimension": {
+    "feasibility_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 10,
+      "path_clarity": 10, "content_fitness": 10, "conversion_readiness": 10, "action_readiness": 10
+    },
+    "lead_dimensions": {
+      "enterprise_base": 10, "overseas_validation": 10, "product_supply_chain": 10,
+      "path_clarity": 10, "content_fitness": 10, "conversion_readiness": 10,
+      "action_readiness": 10, "extra_unknown": 5
+    }
+  }
+}

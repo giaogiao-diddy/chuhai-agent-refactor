@@ -1,20 +1,26 @@
-from __future__ import annotations
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON, func
+import uuid
+from datetime import datetime, timezone as tz
 
-from app.core.database import Base
+from sqlalchemy import DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base
 
 
-class Report(Base):
-    __tablename__ = "reports"
+class UserReport(Base):
+    __tablename__ = "user_reports"
 
-    id = Column(Integer, primary_key=True)
-    assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False, unique=True)
-    summary_report_json = Column(JSON, nullable=True)
-    full_report_json = Column(JSON, nullable=True)
-    is_unlocked = Column(Boolean, default=False)
-    generation_type = Column(String(16), default="ai")  # ai / template
-    ai_model = Column(String(64), nullable=True)
-    prompt_version = Column(String(32), nullable=True)
-    generation_status = Column(String(16), default="pending")  # pending / generating / success / failed
-    generation_error = Column(String(512), nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    assessment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessments.id"), unique=True)
+    report_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz.utc))
+
+
+class LeadReport(Base):
+    __tablename__ = "lead_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    assessment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessments.id"), unique=True)
+    report_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz.utc))

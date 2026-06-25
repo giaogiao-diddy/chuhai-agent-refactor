@@ -34,5 +34,6 @@
   "appid": "wx7ed6bdb5ed913fa9",
   "projectname": "深度未来",
   "editorSetting": {},
-  "libVersion": "3.16.1"
+  "libVersion": "3.16.1",
+  "cloudfunctionTemplateRoot": "cloudfunctionTemplate/"
 }
