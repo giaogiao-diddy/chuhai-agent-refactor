@@ -1,33 +1,49 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStreaming } from "@/hooks/useStreaming";
+import { getReportDetail } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
+import AuthBar from "@/components/AuthBar";
+import UserReportCard from "@/components/UserReportCard";
+import type { UserReport } from "@/lib/api";
 
 export default function ChatPage() {
   const {
     state, messages, input, isStarting, isStreaming, isFinishing, isCompleted,
-    report, assessmentId, usedTemplateReport, error, start, setInput, send, finish, restart,
+    report, assessmentId, usedTemplateReport, wechatQrUrl, error, start, setInput, send, finish, restart,
   } = useStreaming();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [fullReport, setFullReport] = useState<UserReport | null>(null);
+
+  const handleUnlocked = useCallback(async () => {
+    if (!assessmentId) return;
+    try {
+      const d = await getReportDetail(assessmentId);
+      if (d.is_unlocked && d.user_report) setFullReport(d.user_report);
+    } catch { /* unlock check silently fails */ }
+  }, [assessmentId]);
+
+  const displayReport = fullReport || report;
+  const reportSafe = displayReport && validateRenderedReport(displayReport);
 
   useEffect(() => { start(); }, []); // eslint-disable-line
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, report]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, displayReport]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  const showFinish = state && state.conversation_round >= 1 && !isCompleted;
+  const showFinish = state && state.conversation_round >= 3 && !isCompleted;
   const busy = isStreaming || isFinishing || isStarting;
-  const reportSafe = report && validateRenderedReport(report);
 
   return (
     <div style={s.page}>
+      <AuthBar />
       <header style={s.header}>
         <span style={s.title}>出海诊断顾问</span>
         <span style={s.round}>
-          {state ? `${state.conversation_round} / 8 轮` : ""}
+          {state ? `${state.conversation_round} 轮` : ""}
           {isCompleted ? " · " : ""}
         </span>
       </header>
@@ -40,25 +56,19 @@ export default function ChatPage() {
         {isStarting && <div style={s.status}>正在连接...</div>}
         {error && <div style={s.error}>{error}</div>}
         {reportSafe && (
-          <div style={s.reportCard}>
+          <>
             <h3 style={s.reportTitle}>诊断报告</h3>
-            {usedTemplateReport && <p style={s.templateNote}>本次报告由保守模板生成</p>}
-            <p><b>总分：</b>{report.feasibility_score} / 100（{report.tag}）</p>
-            <p style={{ color: "#666" }}>{report.tag_explanation}</p>
-            <p>{report.preliminary_judgment}</p>
-            <h4>优势</h4><ul>{report.strengths.map((t,i) => <li key={i}>{t}</li>)}</ul>
-            <h4>风险</h4><ul>{report.risks.map((t,i) => <li key={i}>{t}</li>)}</ul>
-            <h4>综合结论</h4><p>{report.summary_conclusion}</p>
-            <h4>推荐路径</h4><p>{report.recommended_path}</p>
-            <h4>风险提醒</h4><p>{report.risk_reminder}</p>
-            <h4>30天行动计划</h4>
-            <ol>{report.action_plan_30days.map((a,i) => <li key={i}>{a}</li>)}</ol>
-            <p style={{ color: "#999" }}>{report.unlock_hint}</p>
-            {assessmentId && <p style={s.assessmentId}>报告编号：{assessmentId}</p>}
-            <p style={{ marginTop: 8 }}><a href="/reports" style={{ color: "#0D9488", fontSize: 14 }}>查看我的报告</a></p>
-          </div>
+            <UserReportCard
+              report={displayReport}
+              usedTemplateReport={usedTemplateReport}
+              assessmentId={assessmentId}
+              showReportsLink
+              onUnlocked={handleUnlocked}
+              wechatQrUrl={wechatQrUrl}
+            />
+          </>
         )}
-        {report && !reportSafe && <div style={s.error}>报告内容校验失败，请联系管理员</div>}
+        {displayReport && !reportSafe && <div style={s.error}>报告内容校验失败，请联系管理员</div>}
         <div ref={bottomRef} />
       </div>
       <div style={s.inputRow}>
@@ -94,10 +104,7 @@ const s: Record<string, React.CSSProperties> = {
   assistantBubble: { maxWidth: "80%", padding: "8px 14px", borderRadius: 16, borderBottomLeftRadius: 4, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", fontSize: 15, lineHeight: 1.5, whiteSpace: "pre-wrap" },
   status: { textAlign: "center", color: "#999", padding: 8 },
   error: { textAlign: "center", color: "#d32f2f", padding: 8 },
-  reportCard: { background: "#fff", borderRadius: 12, padding: 16, marginBottom: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" },
   reportTitle: { fontSize: 18, marginBottom: 8 },
-  templateNote: { background: "#fff8e1", padding: "4px 10px", borderRadius: 6, fontSize: 13, color: "#795548", marginBottom: 8 },
-  assessmentId: { fontSize: 11, color: "#aaa", marginTop: 8, wordBreak: "break-all" },
   inputRow: { display: "flex", padding: "8px 12px", borderTop: "1px solid #e0e0e0", background: "#fff", gap: 8 },
   input: { flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc", fontSize: 15, outline: "none", resize: "none" as const, fontFamily: "inherit" },
   btn: { padding: "8px 20px", borderRadius: 8, border: "none", background: "#0D9488", color: "#fff", fontSize: 15, cursor: "pointer" },

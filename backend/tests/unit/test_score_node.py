@@ -63,6 +63,45 @@ def test_score_node_skips_when_validation_errors_exist():
     assert result.scoring_error
 
 
+def test_score_node_scores_with_nonfatal_extraction_warnings():
+    state = _state(
+        branch="experienced",
+        slots={
+            "industry": SlotValue(value="健身器材", confidence=0.9),
+            "main_product": SlotValue(value="力量训练设备", confidence=0.9),
+        },
+        answers={
+            "Q2a": ["A"], "Q2b": ["B"], "Q3a": ["B"], "Q3b": ["B"],
+            "Q4": ["A"], "Q5": ["C"], "Q6": ["B", "C"], "Q7": ["C"],
+        },
+        validation_errors=[
+            "低置信答案(未写入): Q9 confidence=0.3",
+            "忽略槽位: ['unknown_field']",
+        ],
+    )
+    result = score_node(state)
+    assert result.scoring_result is not None
+    assert result.scoring_error is None
+
+
+def test_score_node_rejects_q5_extraction_errors():
+    state = _state(
+        branch="experienced",
+        slots={
+            "industry": SlotValue(value="健身器材", confidence=0.9),
+            "main_product": SlotValue(value="力量训练设备", confidence=0.9),
+        },
+        answers={
+            "Q2a": ["A"], "Q2b": ["B"], "Q3a": ["B"], "Q3b": ["B"],
+            "Q4": ["A"], "Q5": ["C"], "Q6": ["B", "C"], "Q7": ["C"],
+        },
+        validation_errors=["Q5 是单选题，期望 1 个选项，实际 2"],
+    )
+    result = score_node(state)
+    assert result.scoring_result is None
+    assert result.scoring_error
+
+
 def test_score_node_records_invalid_answer_error():
     # 需要 >=8 答案越过 is_ready_to_score，才能触发 build_scoring_input 的报错
     state = _state(

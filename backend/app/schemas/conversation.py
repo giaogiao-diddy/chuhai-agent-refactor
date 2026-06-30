@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.agent_state import AgentBranch, AgentMessage, AgentState, AgentStatus
+from app.schemas.anonymous import validate_anonymous_user_id
 from app.schemas.report import UserReport
+from app.schemas.report_history import PublicReportSummary
 from app.schemas.slots import CompanySlots
 
 
@@ -26,7 +28,7 @@ class ConversationClientState(BaseModel):
             status=self.status,
             conversation_round=self.conversation_round,
             ai_failure_count=self.ai_failure_count,
-            validation_errors=self.validation_errors,
+            validation_errors=[],
             answers=self.answers,
             used_template_report=self.used_template_report,
         )
@@ -111,10 +113,17 @@ class ConversationStreamRequest(BaseModel):
 
 class ConversationFinishRequest(BaseModel):
     state: ConversationClientState
+    anonymous_user_id: str | None = Field(default=None, min_length=8, max_length=100)
+
+    @field_validator("anonymous_user_id")
+    @classmethod
+    def validate_anonymous_id(cls, v: str | None) -> str | None:
+        return validate_anonymous_user_id(v)
 
 
 class ConversationFinishResponse(BaseModel):
     assessment_id: str
     state: ConversationClientState
-    user_report: UserReport
+    report_summary: PublicReportSummary
     used_template_report: bool
+    wechat_qr_url: str | None = None

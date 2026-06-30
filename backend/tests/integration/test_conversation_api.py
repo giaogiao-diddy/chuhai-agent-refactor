@@ -1,8 +1,13 @@
+import uuid
+from sqlalchemy import delete
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.db.session import async_session, get_db
-from app.models import LeadReport, UserReport
+from app.models import Assessment, LeadReport, UserReport
+from app.models.message import Message
+from app.models.user import User as UserModel
 from config import get_settings
 from main import app
 
@@ -94,6 +99,25 @@ async def test_continue_malicious_state_no_leak():
             assert word not in text, f"响应泄露了: {word}"
 
 
+# ── finish 无身份拒绝 ───────────────────────────────────────────
+
+async def test_finish_without_identity_returns_401():
+    """有 user message 但没有 JWT 也没有 anonymous_user_id → 401"""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "test"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                }
+            },
+        )
+    assert resp.status_code == 401
+
+
 # ── 空对话 finish 拒绝 ──────────────────────────────────────────
 
 async def test_finish_empty_conversation_returns_400():
@@ -109,6 +133,89 @@ async def test_finish_empty_conversation_returns_400():
         )
     assert resp.status_code == 400
     assert "不足" in resp.text
+
+
+# ── 对话无轮次上限 ─────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_continue_after_eight_rounds_still_allowed(monkeypatch):
+    from app.agent.state_machine import append_assistant_message
+    import app.api.conversation as conversation_api
+
+    async def fake_run_dialogue_graph(state):
+        return append_assistant_message(state, "继续补充问题")
+
+    async def fake_extract_answers_node(state):
+        return state
+
+    monkeypatch.setattr(conversation_api, "run_dialogue_graph", fake_run_dialogue_graph)
+    monkeypatch.setattr(conversation_api, "extract_answers_node", fake_extract_answers_node)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue",
+            json={
+                "state": {
+                    "messages": [
+                        {"role": "user", "content": "你好"},
+                        {"role": "assistant", "content": "你好"},
+                    ],
+                    "conversation_round": 8,
+                    "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["state"]["conversation_round"] == 9
+    assert data["should_stop"] is False
+
+
+# ── wechat_qr_url ──────────────────────────────────────────────────
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_finish_returns_wechat_qr_url_when_configured():
+    """branch=None 走模板兜底 + DB 写入，验证 wechat_qr_url 返回配置值"""
+    settings = get_settings()
+    if not settings.DATABASE_URL or "postgresql" not in settings.DATABASE_URL:
+        pytest.skip("DATABASE_URL 未配置 PostgreSQL")
+    old_qr = settings.WECHAT_QR_URL
+    settings.WECHAT_QR_URL = "https://example.com/wechat-qr.png"
+
+    anon_id = f"test-qr-url-{uuid.uuid4().hex[:12]}"
+    app_with_db = await _app_with_db()
+    transport = ASGITransport(app=app_with_db)
+    assessment_id = None
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/conversation/finish",
+                json={
+                    "state": {
+                        "messages": [{"role": "user", "content": "test"}],
+                        "conversation_round": 1,
+                        "branch": None,
+                        "answers": {},
+                    },
+                    "anonymous_user_id": anon_id,
+                },
+            )
+        assert resp.status_code == 200, f"status={resp.status_code} body={resp.text[:300]}"
+        data = resp.json()
+        assert data["wechat_qr_url"] == "https://example.com/wechat-qr.png"
+        assessment_id = data["assessment_id"]
+    finally:
+        settings.WECHAT_QR_URL = old_qr
+        if assessment_id is not None:
+            async with async_session() as _db:
+                await _db.execute(delete(LeadReport).where(LeadReport.assessment_id == uuid.UUID(assessment_id)))
+                await _db.execute(delete(UserReport).where(UserReport.assessment_id == uuid.UUID(assessment_id)))
+                await _db.execute(delete(Message).where(Message.assessment_id == uuid.UUID(assessment_id)))
+                await _db.execute(delete(Assessment).where(Assessment.id == uuid.UUID(assessment_id)))
+                await _db.execute(delete(UserModel).where(UserModel.wechat_openid == f"anonymous:{anon_id}"))
+                await _db.commit()
 
 
 # ── finish 模板兜底安全扫描 ─────────────────────────────────────
@@ -133,7 +240,8 @@ async def test_finish_template_fallback_response_safe():
                     "conversation_round": 1,
                     "branch": None,
                     "answers": {},
-                }
+                },
+                "anonymous_user_id": "test-safety-user-000000",
             },
         )
 
@@ -182,6 +290,8 @@ async def test_conversation_finish_real_pipeline_persists_assessment():
 
     app_with_db = await _app_with_db()
     transport = ASGITransport(app=app_with_db)
+    import uuid
+    anonymous_user_id = f"test-ai-finish-{uuid.uuid4()}"
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # start → 长消息 continue → 用长消息 state 调 finish
@@ -192,18 +302,20 @@ async def test_conversation_finish_real_pipeline_persists_assessment():
             "/conversation/continue",
             json={"state": start_state, "message": "我们是成立10年以上的健身器材源头工厂，团队100人左右，销售团队10人，去年营收5000万到1亿，毛利率25%-40%。有少量东南亚客户，主要通过阿里国际站和老客户介绍，想开发东南亚市场，因为已有询盘。单笔海外订单大概10万到40万，有复购。产品有部分认证和英文资料，交付比较稳定。有国内新媒体经验，但海外社媒还没系统做。预算每月2到5万，愿意先看报告再预约咨询。"},
         )
+        assert long_continue.status_code == 200
         cont_state = long_continue.json()["state"]
 
         response = await client.post(
             "/conversation/finish",
-            json={"state": cont_state},
+            json={"state": cont_state, "anonymous_user_id": anonymous_user_id},
         )
 
     assert response.status_code == 200
     data = response.json()
     assert data["assessment_id"]
-    assert data["user_report"] is not None
-    assert len(data["user_report"]["action_plan_30days"]) == 4
+    assert data["report_summary"] is not None
+    assert data["report_summary"]["tag"]
+    assert data["report_summary"]["display_score"] > 0
     assert data["state"]["status"] == "completed"
 
     text = response.text
@@ -212,7 +324,6 @@ async def test_conversation_finish_real_pipeline_persists_assessment():
 
     # 验证 DB
     from sqlalchemy import select
-    import uuid
     assessment_id = data["assessment_id"]
     async with async_session() as db:
         aid = uuid.UUID(assessment_id)

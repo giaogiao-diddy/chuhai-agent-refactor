@@ -25,13 +25,21 @@ class Settings(BaseSettings):
 
     # ── 鉴权 ──
     JWT_SECRET_KEY: str = ""
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 天
     WECHAT_APP_ID: str = ""
     WECHAT_APP_SECRET: str = ""
+    WECHAT_REDIRECT_URI: str = ""
+    WECHAT_QR_URL: str = ""
+
+    # ── Admin ──
+    ADMIN_API_KEY: str = ""
 
     # ── AI ──
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_MODEL: str = "deepseek-v4-flash"
-    DEEPSEEK_EMBEDDING_MODEL: str = ""
+    DEEPSEEK_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_BASE_URL: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
 

@@ -23,7 +23,29 @@ def append_assistant_message(state: AgentState, content: str) -> AgentState:
 
 
 def should_stop_conversation(state: AgentState) -> bool:
-    return state.conversation_round >= state.max_rounds
+    return False
+
+
+def is_nonfatal_validation_error(message: str) -> bool:
+    if message.startswith("Q5 "):
+        return False
+    if (
+        message.startswith("低置信槽位")
+        or message.startswith("忽略槽位")
+        or message.startswith("低置信答案")
+        or message.startswith("未知题号")
+        or message.startswith("开放题不允许")
+        or message.startswith("分支不允许")
+        or "单选题" in message
+    ):
+        return True
+    if "无效选项" in message and not message.startswith("Q5 "):
+        return True
+    return False
+
+
+def has_blocking_validation_errors(state: AgentState) -> bool:
+    return any(not is_nonfatal_validation_error(e) for e in state.validation_errors)
 
 
 def register_ai_failure(state: AgentState, error_message: str) -> AgentState:
@@ -60,7 +82,7 @@ def is_ready_to_score(state: AgentState) -> bool:
         return False
     if state.branch != "experienced":
         return False
-    if len(state.validation_errors) > 0:
+    if has_blocking_validation_errors(state):
         return False
     selected = state.answers.get("Q5", [])
     if selected != ["A"] and selected != ["B"] and selected != ["C"]:

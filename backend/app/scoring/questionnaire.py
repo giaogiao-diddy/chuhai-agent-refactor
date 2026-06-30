@@ -423,8 +423,8 @@ Q26 = Question(
         QuestionOption(id="H", text="客户案例", feasibility_score=0.3, lead_score=0.4),
         QuestionOption(id="I", text="展会素材", feasibility_score=0.3, lead_score=0.4),
     ], max_feasibility_score=3, max_lead_score=4,
-    cap_note="每项 0.3F/0.4L，9 项全选 = F≈3/L≈4。企业出海可行性评估智能体（内容选项）.md Q15 有 10 项（含「海外订单」），有出海经验题目.md 和 scoring-design Q26 各 9 项，待确认是否补齐。",
-    conflict_note="内容选项.md Q15 拍摄场景有 10 项，有出海经验题目.md 和 scoring-design 均为 9 项（缺「海外订单」），待产品确认",
+    cap_note="每项 0.3F/0.4L，9 项全选 = F≈3/L≈4。已裁决保持 9 项，不补「海外订单」。",
+    conflict_note="内容选项.md Q15 拍摄场景有 10 项（含「海外订单」），有出海经验题目.md 和 scoring-design 均为 9 项。已裁决：保持 9 项，不补。决议来源: docs/questionnaire-canonical.md",
 )
 
 # ── 维度六：销转承接能力（F:10 / L:15）──

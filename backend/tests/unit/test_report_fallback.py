@@ -88,3 +88,29 @@ def test_template_fallback_sets_warning_audit_result(monkeypatch):
     assert result.audit_result is not None
     assert result.audit_result.severity == "warning"
     assert result.audit_result.issues == ["使用模板兜底"]
+
+
+def test_report_node_uses_template_when_rag_fails(monkeypatch):
+    """RAG 检索失败应直接走模板兜底，不尝试生成报告"""
+    monkeypatch.setattr("app.agent.nodes.search_rag_context", _fail_rag)
+
+    state = AgentState()
+    state.scoring_result = ScoringResult(
+        feasibility_score=30, lead_score=20, display_score=30,
+        tag="轻量试探型", tag_explanation="x", preliminary_judgment="x",
+        dimension_scores=[
+            DimensionScore(name="x", raw_score=5, max_score=20, normalized_score=25),
+        ],
+        strengths=["x"], risks=["x"], lead_priority="P3",
+    )
+    result = asyncio.run(report_node(state))
+    assert result.status == "completed"
+    assert result.used_template_report is True
+    assert result.user_report is not None
+    assert result.raw_report is not None
+    assert result.lead_report is not None
+    assert "RAG 检索失败" in (result.report_error or "")
+
+
+async def _fail_rag(*args, **kwargs):
+    raise RuntimeError("embedding down")

@@ -6,13 +6,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import run_dialogue_graph, run_report_pipeline, run_scoring_pipeline
-from app.agent.prompts import SYSTEM_DIALOGUE
+from app.agent.nodes import extract_answers_node
+from app.agent.prompts import build_dialogue_system_prompt
 from app.agent.state_machine import (
     append_assistant_message,
     append_user_message,
     register_ai_failure,
     should_stop_conversation,
-    trim_message_history,
 )
 from app.db.session import get_db
 from app.schemas.agent_state import AgentState
@@ -26,8 +26,12 @@ from app.schemas.conversation import (
     ConversationStreamRequest,
 )
 from app.schemas.llm import LLMMessage
+from app.api.auth_deps import get_current_user_optional
+from app.models import User
 from app.services.assessment_repository import save_completed_assessment
 from app.services.deepseek_client import DeepSeekClient
+from app.services.user_repository import get_or_create_anonymous_user
+from config import get_settings
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
@@ -50,6 +54,7 @@ async def continue_conversation(request: ConversationContinueRequest):
     state = request.state.to_agent_state()
     state = append_user_message(state, request.message)
     state = await run_dialogue_graph(state)
+    state = await extract_answers_node(state)
     last_assistant = None
     for msg in reversed(state.messages):
         if msg.role == "assistant":
@@ -77,7 +82,7 @@ async def continue_conversation_stream(request: ConversationStreamRequest):
         nonlocal state
         try:
             client = DeepSeekClient()
-            llm_messages = [LLMMessage(role="system", content=SYSTEM_DIALOGUE)]
+            llm_messages = [LLMMessage(role="system", content=build_dialogue_system_prompt(state))]
             for msg in state.messages[-12:]:
                 llm_messages.append(LLMMessage(role=msg.role, content=msg.content))
 
@@ -89,7 +94,7 @@ async def continue_conversation_stream(request: ConversationStreamRequest):
             if not assistant_text.strip():
                 raise ValueError("模型未返回最终 content")
             state = append_assistant_message(state, assistant_text)
-            state = trim_message_history(state, max_messages=12)
+            state = await extract_answers_node(state)
             client_state = ConversationClientState.from_agent_state(state)
             yield _sse_event({"type": "done", "state": client_state.model_dump()})
         except Exception as e:
@@ -104,6 +109,7 @@ async def continue_conversation_stream(request: ConversationStreamRequest):
 async def finish_conversation(
     request: ConversationFinishRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     state = request.state.to_agent_state()
 
@@ -116,12 +122,33 @@ async def finish_conversation(
     if state.user_report is None or state.lead_report is None:
         raise HTTPException(status_code=500, detail="报告生成失败")
 
-    assessment = await save_completed_assessment(db, state)
+    if current_user is not None:
+        user_id = current_user.id
+    elif request.anonymous_user_id:
+        user = await get_or_create_anonymous_user(db, request.anonymous_user_id)
+        user_id = user.id
+    else:
+        raise HTTPException(status_code=401, detail="请先登录")
+
+    assessment = await save_completed_assessment(db, state, user_id=user_id)
     client_state = ConversationClientState.from_agent_state(state)
 
+    from app.schemas.report_history import PublicReportSummary
+    ur = state.user_report
+    settings = get_settings()
     return ConversationFinishResponse(
         assessment_id=str(assessment.id),
         state=client_state,
-        user_report=state.user_report,
+        report_summary=PublicReportSummary(
+            feasibility_score=ur.feasibility_score,
+            display_score=ur.display_score,
+            tag=ur.tag,
+            tag_explanation=ur.tag_explanation,
+            preliminary_judgment=ur.preliminary_judgment,
+            strengths=ur.strengths,
+            risks=ur.risks,
+            unlock_hint=ur.unlock_hint,
+        ),
         used_template_report=state.used_template_report,
+        wechat_qr_url=settings.WECHAT_QR_URL or None,
     )

@@ -13,6 +13,7 @@ class DeepSeekClient:
         settings = get_settings()
         self.api_key = settings.DEEPSEEK_API_KEY
         self.model = settings.DEEPSEEK_MODEL
+        self.embedding_model = settings.DEEPSEEK_EMBEDDING_MODEL
         self.base_url = settings.DEEPSEEK_BASE_URL.rstrip("/")
         if not self.api_key:
             raise ValueError("DEEPSEEK_API_KEY 未配置，请在 .env 中设置")
@@ -137,3 +138,29 @@ class DeepSeekClient:
                                 yield text
                         except (json.JSONDecodeError, KeyError, IndexError):
                             continue
+
+    async def embed_text(self, text: str) -> list[float]:
+        settings = get_settings()
+        emb_api_key = settings.EMBEDDING_API_KEY or self.api_key
+        emb_base_url = (settings.EMBEDDING_BASE_URL or self.base_url).rstrip("/")
+        headers = {
+            "Authorization": f"Bearer {emb_api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.embedding_model,
+            "input": text,
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                f"{emb_base_url}/embeddings",
+                headers=headers,
+                json=payload,
+            )
+        if response.status_code != 200:
+            snippet = response.text[:300]
+            raise RuntimeError(
+                f"Embedding API 返回 {response.status_code}: {snippet}"
+            )
+        data = response.json()
+        return data["data"][0]["embedding"]

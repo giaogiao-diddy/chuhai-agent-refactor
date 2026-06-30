@@ -39,11 +39,13 @@ def test_append_assistant_does_not_increment_round():
     assert new_state.messages[-1].role == "assistant"
 
 
-def test_should_stop_at_max_rounds():
+def test_should_stop_conversation_is_unlimited():
     state = _fresh_state(conversation_round=7, max_rounds=8)
     assert not should_stop_conversation(state)
     state = _fresh_state(conversation_round=8, max_rounds=8)
-    assert should_stop_conversation(state)
+    assert not should_stop_conversation(state)
+    state = _fresh_state(conversation_round=80, max_rounds=8)
+    assert not should_stop_conversation(state)
 
 
 # ── 不可变性 ───────────────────────────────────────────────────

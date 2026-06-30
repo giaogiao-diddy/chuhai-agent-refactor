@@ -50,10 +50,8 @@ async def run_dialogue_graph(state: AgentState) -> AgentState:
 
 async def run_scoring_pipeline(state: AgentState | dict) -> AgentState:
     graph = StateGraph(AgentState)
-    graph.add_node("extract_answers", extract_answers_node)
     graph.add_node("score", score_node)
-    graph.set_entry_point("extract_answers")
-    graph.add_edge("extract_answers", "score")
+    graph.set_entry_point("score")
     graph.add_edge("score", END)
     compiled = graph.compile()
     raw = await compiled.ainvoke(

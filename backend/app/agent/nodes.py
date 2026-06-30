@@ -1,10 +1,13 @@
 from app.agent.extraction import extract_from_messages
-from app.agent.prompts import OPENING_MESSAGE, SYSTEM_DIALOGUE
+from app.agent.prompts import OPENING_MESSAGE, build_dialogue_system_prompt
 from app.agent.audit import audit_report_bundle
 from app.agent.reporting import generate_raw_report
+from app.db.session import async_session
+from app.services.rag_repository import search_rag_context
 from app.agent.state_machine import (
     append_assistant_message,
     decide_branch_from_q5,
+    has_blocking_validation_errors,
     is_ready_to_score,
     register_ai_failure,
     trim_message_history,
@@ -45,7 +48,7 @@ async def dialogue_node(state: AgentState) -> AgentState:
     try:
         client = DeepSeekClient()
         recent = state.messages[-12:]
-        llm_messages = [LLMMessage(role="system", content=SYSTEM_DIALOGUE)]
+        llm_messages = [LLMMessage(role="system", content=build_dialogue_system_prompt(state))]
         for msg in recent:
             llm_messages.append(LLMMessage(role=msg.role, content=msg.content))
 
@@ -155,7 +158,7 @@ def score_node(state: AgentState) -> AgentState:
         new_state.validation_errors.append("score_node: 非 experienced 分支，跳过评分")
         return new_state
 
-    if new_state.validation_errors:
+    if has_blocking_validation_errors(new_state):
         new_state.scoring_error = "存在 validation_errors，跳过评分"
         return new_state
 
@@ -240,10 +243,26 @@ async def report_node(state: AgentState) -> AgentState:
     if new_state.scoring_result is None:
         return _apply_template_fallback(new_state, "缺少 scoring_result")
 
+    # RAG 检索
+    rag_context = None
+    try:
+        rag_query_parts = []
+        if new_state.slots.industry and new_state.slots.industry.value:
+            rag_query_parts.append(str(new_state.slots.industry.value))
+        if new_state.slots.main_product and new_state.slots.main_product.value:
+            rag_query_parts.append(str(new_state.slots.main_product.value))
+        if new_state.slots.target_market and new_state.slots.target_market.value:
+            rag_query_parts.append(str(new_state.slots.target_market.value))
+        rag_query = " ".join(rag_query_parts) if rag_query_parts else "B2B工厂出海"
+        async with async_session() as rag_db:
+            rag_context = await search_rag_context(rag_db, rag_query, top_k=3)
+    except Exception as e:
+        return _apply_template_fallback(new_state, f"RAG 检索失败: {e}")
+
     last_error = ""
     for _ in range(new_state.max_report_retries + 1):
         try:
-            raw = await generate_raw_report(new_state)
+            raw = await generate_raw_report(new_state, rag_context=rag_context)
             bundle = split_report(raw, new_state)
             assert_user_report_safe(bundle.user_report)
             audit = await audit_report_bundle(bundle)
@@ -269,4 +288,4 @@ async def report_node(state: AgentState) -> AgentState:
 
 
 def trim_history_node(state: AgentState) -> AgentState:
-    return trim_message_history(state, max_messages=12)
+    return state.model_copy(deep=True)

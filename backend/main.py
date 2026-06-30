@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.admin_leads import router as admin_leads_router
+from app.api.auth import router as auth_router
 from app.api.conversation import router as conversation_router
 from app.api.health import router as health_router
+from app.api.lead_submission import router as lead_submission_router
 from app.api.reports import router as reports_router
 from config import get_settings
 
@@ -36,8 +39,11 @@ def create_app() -> FastAPI:
 
     # 路由挂载
     app.include_router(health_router)
+    app.include_router(auth_router)
     app.include_router(conversation_router)
     app.include_router(reports_router)
+    app.include_router(lead_submission_router)
+    app.include_router(admin_leads_router)
 
     return app
 

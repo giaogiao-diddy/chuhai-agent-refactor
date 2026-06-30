@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "node ./scripts/next-build.cjs",
     "start": "next start",
-    "test:parser": "tsx ./scripts/test-streaming-parser.ts"
+    "test:parser": "tsx ./scripts/test-streaming-parser.ts",
+    "test:report-safety": "tsx ./scripts/test-report-safety.ts",
+    "test:auth": "tsx ./scripts/test-auth-api.ts",
+    "test:admin-api": "tsx ./scripts/test-admin-api.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "^14.2.0",

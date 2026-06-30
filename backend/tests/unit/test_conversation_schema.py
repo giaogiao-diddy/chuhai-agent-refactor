@@ -87,3 +87,78 @@ def test_client_state_sanitizes_validation_errors_without_echoing_raw_values():
     assert "模拟内部异常" not in payload
     assert "Traceback" not in payload
     assert "123456" not in payload
+
+
+def test_client_state_does_not_restore_validation_errors_to_agent_state():
+    client = ConversationClientState(
+        messages=[],
+        validation_errors=["部分内部验证信息已过滤"],
+    )
+    restored = client.to_agent_state()
+    assert restored.validation_errors == []
+
+
+# ── anonymous_user_id 校验 ─────────────────────────────────────────
+
+def test_anonymous_user_id_accepts_valid_ids():
+    from app.schemas.anonymous import validate_anonymous_user_id
+    assert validate_anonymous_user_id("abcDEF_123-xyz") == "abcDEF_123-xyz"
+    assert validate_anonymous_user_id("12345678") == "12345678"
+    assert validate_anonymous_user_id(None) is None
+
+
+def test_anonymous_user_id_rejects_spaces():
+    from app.schemas.anonymous import validate_anonymous_user_id
+    import pytest
+    with pytest.raises(ValueError):
+        validate_anonymous_user_id("abc def 1234")
+
+
+def test_anonymous_user_id_rejects_colons():
+    from app.schemas.anonymous import validate_anonymous_user_id
+    import pytest
+    with pytest.raises(ValueError):
+        validate_anonymous_user_id("bad:id:here")
+
+
+def test_anonymous_user_id_rejects_chinese():
+    from app.schemas.anonymous import validate_anonymous_user_id
+    import pytest
+    with pytest.raises(ValueError):
+        validate_anonymous_user_id("中文测试1234")
+
+
+def test_anonymous_user_id_rejects_too_short():
+    from app.schemas.anonymous import validate_anonymous_user_id
+    import pytest
+    with pytest.raises(ValueError):
+        validate_anonymous_user_id("short")
+
+
+def test_anonymous_user_id_rejects_slashes():
+    from app.schemas.anonymous import validate_anonymous_user_id
+    import pytest
+    with pytest.raises(ValueError):
+        validate_anonymous_user_id("bad/slash")
+
+
+def test_anonymous_user_id_conversation_finish_request_validates():
+    from app.schemas.conversation import ConversationFinishRequest
+    from app.schemas.agent_state import AgentState
+    from app.schemas.conversation import ConversationClientState
+    # 有效 ID 通过
+    state = AgentState()
+    client = ConversationClientState.from_agent_state(state)
+    req = ConversationFinishRequest(state=client, anonymous_user_id="validID_123-test")
+    assert req.anonymous_user_id == "validID_123-test"
+
+
+def test_anonymous_user_id_conversation_finish_request_rejects_bad():
+    from app.schemas.conversation import ConversationFinishRequest
+    from app.schemas.agent_state import AgentState
+    from app.schemas.conversation import ConversationClientState
+    import pytest
+    state = AgentState()
+    client = ConversationClientState.from_agent_state(state)
+    with pytest.raises(Exception):
+        ConversationFinishRequest(state=client, anonymous_user_id="bad:id")

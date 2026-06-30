@@ -112,4 +112,21 @@ async def test_dialogue_graph_real_deepseek():
     assert len(result.messages) >= 2
     assert result.messages[-1].role == "assistant"
     assert result.messages[-1].content
-    assert len(result.messages) <= 12
+
+
+def test_dialogue_graph_preserves_full_message_history(monkeypatch):
+    async def fake_dialogue_node(state):
+        return append_assistant_message(state, "继续追问")
+
+    monkeypatch.setattr("app.agent.graph.dialogue_node", fake_dialogue_node)
+
+    state = _new_state()
+    for i in range(14):
+        state = append_user_message(state, f"用户消息 {i}")
+        state = append_assistant_message(state, f"顾问消息 {i}")
+    state = append_user_message(state, "继续")
+
+    result = asyncio.run(run_dialogue_graph(state))
+
+    assert len(result.messages) == len(state.messages) + 1
+    assert result.messages[0].content == "用户消息 0"

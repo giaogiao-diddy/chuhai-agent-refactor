@@ -128,8 +128,76 @@ FORBIDDEN_IN_STREAM = [
 ]
 
 
-@pytest.mark.ai
 @pytest.mark.integration
+@pytest.mark.asyncio
+async def test_continue_stream_after_eight_rounds_still_allowed(monkeypatch):
+    async def _stream(*args, **kwargs):
+        yield "继续提问"
+
+    async def fake_extract_answers_node(state):
+        return state
+
+    monkeypatch.setattr("app.services.deepseek_client.DeepSeekClient.stream_chat", _stream)
+    monkeypatch.setattr("app.api.conversation.extract_answers_node", fake_extract_answers_node)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {
+                    "messages": [
+                        {"role": "user", "content": "你好"},
+                        {"role": "assistant", "content": "你好"},
+                    ],
+                    "conversation_round": 8,
+                    "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    text = (await resp.aread()).decode()
+    assert '"type": "done"' in text
+    lines = [l for l in text.split("\n") if l.startswith("data: ")]
+    done = json.loads(lines[-1][6:])
+    assert done["state"]["conversation_round"] == 9
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_continue_stream_preserves_full_message_history(monkeypatch):
+    async def _stream(*args, **kwargs):
+        yield "继续提问"
+
+    async def fake_extract_answers_node(state):
+        return state
+
+    monkeypatch.setattr("app.services.deepseek_client.DeepSeekClient.stream_chat", _stream)
+    monkeypatch.setattr("app.api.conversation.extract_answers_node", fake_extract_answers_node)
+    messages = []
+    for i in range(14):
+        messages.append({"role": "user", "content": f"用户消息 {i}"})
+        messages.append({"role": "assistant", "content": f"顾问消息 {i}"})
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {"messages": messages, "conversation_round": 14, "answers": {}},
+                "message": "继续",
+            },
+        )
+    text = (await resp.aread()).decode()
+    lines = [l for l in text.split("\n") if l.startswith("data: ")]
+    done = json.loads(lines[-1][6:])
+    assert done["state"]["messages"][0]["content"] == "用户消息 0"
+    assert len(done["state"]["messages"]) == len(messages) + 2
+
+
+@pytest.mark.integration
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_continue_stream_real_deepseek():
     from config import get_settings
     settings = get_settings()
