@@ -363,3 +363,19 @@ npm run dev
 # ── Docker ──
 docker build -t chuhai-agent .
 ```
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `NingBoDeepFuture/luobin-abroad-agent`. External PRs are treated as a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Defaults: `needs-triage` → `needs-info` → `ready-for-agent` | `ready-for-human` | `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. `CONTEXT.md` will be created lazily by `/domain-modeling`. `docs/adr/` has 7 ADRs. See `docs/agents/domain.md`.
