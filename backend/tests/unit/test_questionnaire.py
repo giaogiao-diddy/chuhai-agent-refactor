@@ -1,3 +1,5 @@
+import pytest
+
 from app.scoring.questionnaire import (
     ALL_QUESTIONS,
     EXPERIENCED_BRANCH,
@@ -176,6 +178,28 @@ def test_option_ids_are_unique_within_each_question():
 
 
 # ── display mapping ──
+
+def test_question_requires_display_fields():
+    from pydantic import ValidationError
+    from app.schemas.questionnaire import Question
+
+    with pytest.raises(ValidationError):
+        Question(
+            id="QX", text="x", dimension="enterprise_base",
+            kind="single_choice", options=[],
+            max_feasibility_score=0, max_lead_score=0,
+        )
+
+    q = Question(
+        id="QX", text="x", dimension="enterprise_base",
+        kind="single_choice", options=[],
+        max_feasibility_score=0, max_lead_score=0,
+        display_id="QX", display_order=99,
+    )
+    assert q.sub_order == 1
+
+
+
 
 def test_question_display_ids_cover_q1_to_q31():
     display_ids = {q.display_id for q in ALL_QUESTIONS}

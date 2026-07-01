@@ -46,9 +46,6 @@ def score_q1_information_completeness(
         return (0.0, 0.0)
 
 
-EXPERIENCED_QUESTION_IDS = {q.id for q in ALL_QUESTIONS if q.branch == "experienced"}
-
-
 def score_answers(
     answers: dict[str, list[str]],
     branch: str = "experienced",
