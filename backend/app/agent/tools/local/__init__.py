@@ -22,6 +22,14 @@ from app.agent.tools.local.report_tools import (
     ReportSplitInput,
     ReportSplitOutput,
 )
+from app.agent.tools.local.memory import (
+    memory_recall_handler,
+    memory_save_handler,
+    MemoryRecallInput,
+    MemoryRecallOutput,
+    MemorySaveInput,
+    MemorySaveOutput,
+)
 from app.agent.tools.registry import ToolRegistry
 
 
@@ -70,4 +78,22 @@ def register_local_tools(registry: ToolRegistry) -> None:
         handler=report_guard_handler,
         is_read_only=True,
         is_concurrency_safe=True,
+    ))
+    registry.register(ToolDefinition(
+        name="memory.recall",
+        description="关键词检索 Memory 目录中的相关记忆",
+        input_model=MemoryRecallInput,
+        output_model=MemoryRecallOutput,
+        handler=memory_recall_handler,
+        is_read_only=True,
+        is_concurrency_safe=True,
+    ))
+    registry.register(ToolDefinition(
+        name="memory.save",
+        description="将一条记忆写入 Markdown 文件并更新 MEMORY.md 索引",
+        input_model=MemorySaveInput,
+        output_model=MemorySaveOutput,
+        handler=memory_save_handler,
+        is_read_only=False,
+        is_concurrency_safe=False,
     ))

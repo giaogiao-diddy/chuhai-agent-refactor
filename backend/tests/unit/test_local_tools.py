@@ -28,17 +28,30 @@ def test_register_local_tools_registers_expected_tools():
         "score.calculate",
         "report.split",
         "report.guard",
+        "memory.recall",
+        "memory.save",
     }
 
 
 def test_local_tools_are_read_only_and_concurrency_safe():
     r = ToolRegistry()
     register_local_tools(r)
+    # memory.save is a write tool — skip it
+    read_only_names = {
+        "question_catalog.read", "readiness.check", "score.calculate",
+        "report.split", "report.guard", "memory.recall",
+    }
     for t in r.list_all():
+        if t.name not in read_only_names:
+            continue
         assert t.is_read_only is True, f"{t.name} should be read_only"
         assert t.is_concurrency_safe is True, f"{t.name} should be concurrency_safe"
         assert t.is_destructive is False, f"{t.name} should not be destructive"
         assert t.max_retries == 0, f"{t.name} should have max_retries=0"
+    # memory.save should be write tool
+    save_tool = r.get("memory.save")
+    assert save_tool.is_read_only is False
+    assert save_tool.is_concurrency_safe is False
 
 
 def test_register_local_tools_does_not_create_global_registry():
@@ -46,15 +59,15 @@ def test_register_local_tools_does_not_create_global_registry():
     r2 = ToolRegistry()
     register_local_tools(r1)
     register_local_tools(r2)
-    assert len(r2.list_all()) == 5
-    assert len(r1.list_all()) == 5
+    assert len(r2.list_all()) == 7
+    assert len(r1.list_all()) == 7
     r2.register(ToolDefinition(
         name="extra", description="e",
         input_model=QuestionCatalogInput,
         handler=lambda i, c: None,
     ))
-    assert len(r2.list_all()) == 6
-    assert len(r1.list_all()) == 5
+    assert len(r2.list_all()) == 8
+    assert len(r1.list_all()) == 7
 
 
 # ── external 工具元数据 ──
