@@ -76,21 +76,15 @@ async def test_max_steps_zero_returns_exceeded():
     assert result.state.conversation_round == 0
 
 
-# ── finish_requested: ready 但本 Phase 不继续 ──
+# ── finish_requested: missing_info 不需要 full registry ──
 
 @pytest.mark.asyncio
-async def test_finish_requested_ready_but_phase_does_not_continue():
-    answers = {
-        "Q5": ["A"], "Q6": ["A"], "Q8": ["A"], "Q11": ["A"],
-        "Q17": ["A"], "Q19": ["A"], "Q22": ["A"], "Q30": ["A"],
-        "Q31": ["A"],
-    }
-    state = AgentState(answers=answers, branch="experienced")
+async def test_finish_requested_missing_q5_no_registry_needed():
+    """无 Q5 时 finish 直接返回 missing_info，不需要额外工具。"""
+    state = AgentState(answers={}, branch=None)
     result = await run_agent_event(
         state, AgentEvent(type="finish_requested"),
     )
-    assert result.terminal == TerminalState.AWAITING_USER
-    assert result.response is not None
-    assert result.response["ready"] is True
+    assert result.terminal == TerminalState.MISSING_INFO
     assert result.state.scoring_result is None
     assert result.state.user_report is None

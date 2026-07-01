@@ -152,6 +152,32 @@ async def test_continue_stream_client_init_error_yields_safe_sse_error(monkeypat
     assert "顾问备注" not in text
 
 
+# ── AgentEvent-only ──
+
+async def test_continue_stream_uses_runner_stream_only(monkeypatch):
+    """API 层只转发 runner stream event，不直接调 DeepSeek。"""
+    async def _fake_stream(state, event, registry=None):
+        yield {"type": "delta", "content": "test"}
+        from app.schemas.conversation import ConversationClientState
+        cc = ConversationClientState.from_agent_state(state)
+        yield {"type": "done", "state": cc.model_dump()}
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event_stream", _fake_stream)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {"messages": [{"role": "user", "content": "hi"}], "conversation_round": 0, "answers": {}},
+                "message": "test",
+            },
+        )
+    text = (await resp.aread()).decode()
+    assert '"type": "delta"' in text
+    assert '"type": "done"' in text
+
+
 # ── 流式：轮次无上限 + 历史不丢失 ──
 
 @pytest.mark.asyncio

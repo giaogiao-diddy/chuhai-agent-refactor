@@ -6,6 +6,7 @@ from app.agent.tools.executor import ToolExecutor
 from app.agent.tools.external import register_external_tools
 from app.agent.tools.external.dialogue import DialogueDeepSeekInput
 from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
+from app.agent.tools.base import ToolErrorCode
 from app.agent.tools.local import register_local_tools
 from app.agent.tools.local.readiness import ReadinessCheckInput, ReadinessResult
 from app.agent.tools.registry import ToolRegistry
@@ -120,33 +121,198 @@ async def _handle_finish_requested(
     registry: ToolRegistry,
 ) -> AgentRunResult:
     executor = ToolExecutor(registry)
+
+    # 1. readiness
     result = await executor.execute(
         "readiness.check",
         ReadinessCheckInput(answers=state.answers, branch=state.branch),
     )
     if result.error is not None:
         return AgentRunResult(state=state, terminal=TerminalState.FAILED)
-
     readiness = result.data
     if not isinstance(readiness, ReadinessResult):
         return AgentRunResult(state=state, terminal=TerminalState.FAILED)
 
-    new_state = state.model_copy(deep=True)
-    new_state.readiness_result = readiness
+    current = state.model_copy(deep=True)
+    current.readiness_result = readiness
 
     if readiness.unsupported_branch:
-        return AgentRunResult(state=new_state, terminal=TerminalState.UNSUPPORTED_BRANCH)
+        return AgentRunResult(state=current, terminal=TerminalState.UNSUPPORTED_BRANCH)
     if not readiness.ready:
         return AgentRunResult(
-            state=new_state,
+            state=current,
             terminal=TerminalState.MISSING_INFO,
             response={"missing_items": [m.model_dump() for m in readiness.missing_items]},
         )
-    return AgentRunResult(
-        state=new_state,
-        terminal=TerminalState.AWAITING_USER,
-        response={"ready": True},
+
+    # 2. score
+    from app.agent.tools.local.scoring import ScoreCalculateInput
+    score_result = await executor.execute(
+        "score.calculate",
+        ScoreCalculateInput(answers=current.answers, branch=current.branch, q1_slots=current.slots),
     )
+    if score_result.error is not None:
+        return AgentRunResult(state=current, terminal=TerminalState.FAILED)
+    current = current.model_copy(deep=True)
+    current.scoring_result = score_result.data.scoring_result
+
+    # 3. RAG
+    rag_query_parts = []
+    if current.slots.industry and current.slots.industry.value:
+        rag_query_parts.append(str(current.slots.industry.value))
+    if current.slots.main_product and current.slots.main_product.value:
+        rag_query_parts.append(str(current.slots.main_product.value))
+    if current.slots.target_market and current.slots.target_market.value:
+        rag_query_parts.append(str(current.slots.target_market.value))
+    rag_query = " ".join(rag_query_parts) if rag_query_parts else "B2B工厂出海"
+
+    from app.agent.tools.external.rag import RagSearchInput
+    rag_result = await executor.execute("rag.search", RagSearchInput(query=rag_query))
+    rag_context = rag_result.data.matches if rag_result.error is None else []
+
+    # 4. report generation loop (max 3 attempts)
+    from app.agent.tools.external.report_generation import ReportGenerateInput
+    from app.agent.tools.external.report_audit import ReportAuditInput
+    from app.agent.tools.local.report_tools import ReportSplitInput as RSplitInput
+    from app.agent.tools.local.report_tools import ReportGuardInput as RGuardInput
+    from app.reports.template_report import build_template_raw_report
+    from app.schemas.audit import ReportAuditResult
+
+    MAX_REPORT_ATTEMPTS = 3
+    audit_feedback: list[str] = []
+    next_escalated = False
+    length_escalated_used = False
+    raw_report = None
+    user_report = None
+    lead_report = None
+    audit = None
+    audit_passed = False
+    current = current.model_copy(deep=True)
+    current.report_retry_count = 0
+
+    for attempt in range(1, MAX_REPORT_ATTEMPTS + 1):
+        escalated = next_escalated
+        next_escalated = False
+
+        gen_result = await executor.execute(
+            "report.generate.deepseek",
+            ReportGenerateInput(
+                state=current, rag_context=rag_context,
+                audit_feedback=audit_feedback, escalated=escalated,
+            ),
+        )
+        if gen_result.error is not None:
+            if attempt < MAX_REPORT_ATTEMPTS and gen_result.error.code in (
+                ToolErrorCode.TRANSIENT, ToolErrorCode.LENGTH_EXCEEDED,
+                ToolErrorCode.STRUCTURED_OUTPUT_ERROR,
+            ):
+                current.report_retry_count = attempt
+                if gen_result.error.code == ToolErrorCode.LENGTH_EXCEEDED:
+                    audit_feedback = [gen_result.error.message]
+                    if not length_escalated_used:
+                        next_escalated = True
+                        length_escalated_used = True
+                        continue
+                    # 已用过一次 length 升级 → 不再 retry，走模板兜底
+                    break
+                elif gen_result.error.code == ToolErrorCode.STRUCTURED_OUTPUT_ERROR:
+                    audit_feedback = [gen_result.error.message]
+                # TRANSIENT: 不改 audit_feedback, next_escalated stays False
+                continue
+            break
+
+        raw_report = gen_result.data.raw_report
+
+        # split via ToolExecutor
+        split_result = await executor.execute(
+            "report.split",
+            RSplitInput(raw_report=raw_report, scoring_result=current.scoring_result, slots=current.slots),
+        )
+        if split_result.error is not None:
+            current.report_retry_count = attempt
+            continue
+
+        user_report = split_result.data.user_report
+        lead_report = split_result.data.lead_report
+
+        # guard via ToolExecutor
+        guard_result = await executor.execute(
+            "report.guard",
+            RGuardInput(user_report=user_report),
+        )
+        if guard_result.error is not None:
+            audit_feedback = [guard_result.error.message]
+            current.report_retry_count = attempt
+            continue
+
+        # audit
+        audit_result = await executor.execute(
+            "report.audit.deepseek",
+            ReportAuditInput(
+                user_report=user_report,
+                lead_report=lead_report,
+                raw_report=raw_report,
+            ),
+        )
+        if audit_result.error is not None:
+            current.report_retry_count = attempt
+            continue
+
+        audit = audit_result.data.audit_result
+        current.report_retry_count = attempt
+
+        if audit.passed and not audit.rewrite_required and audit.severity in ("pass", "warning"):
+            audit_passed = True
+            break
+
+        if attempt < MAX_REPORT_ATTEMPTS:
+            audit_feedback = audit.issues
+
+    # 5. 判断结果
+    current = current.model_copy(deep=True)
+    if audit_passed and raw_report is not None:
+        current.raw_report = raw_report
+        current.user_report = user_report
+        current.lead_report = lead_report
+        current.audit_result = audit
+        current.status = "completed"
+        current.used_template_report = False
+        return AgentRunResult(
+            state=current,
+            terminal=TerminalState.COMPLETED,
+        )
+
+    # 模板兜底
+    try:
+        if current.scoring_result is None:
+            return AgentRunResult(state=current, terminal=TerminalState.FAILED)
+        raw = build_template_raw_report(current)
+
+        split_r = await executor.execute(
+            "report.split",
+            RSplitInput(raw_report=raw, scoring_result=current.scoring_result, slots=current.slots),
+        )
+        if split_r.error is not None:
+            return AgentRunResult(state=current, terminal=TerminalState.FAILED)
+
+        guard_r = await executor.execute("report.guard", RGuardInput(user_report=split_r.data.user_report))
+        if guard_r.error is not None:
+            return AgentRunResult(state=current, terminal=TerminalState.FAILED)
+
+        current.raw_report = raw
+        current.user_report = split_r.data.user_report
+        current.lead_report = split_r.data.lead_report
+        current.used_template_report = True
+        current.status = "completed"
+        current.audit_result = ReportAuditResult(
+            passed=True, issues=["使用模板兜底"], rewrite_required=False, severity="warning",
+        )
+        return AgentRunResult(
+            state=current,
+            terminal=TerminalState.COMPLETED_WITH_TEMPLATE,
+        )
+    except Exception:
+        return AgentRunResult(state=current, terminal=TerminalState.FAILED)
 
 
 async def run_agent_event_stream(

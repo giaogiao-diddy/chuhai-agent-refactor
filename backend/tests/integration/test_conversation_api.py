@@ -29,6 +29,36 @@ async def _skip_if_postgres_unreachable():
         pytest.skip(f"PostgreSQL 不可达: {type(e).__name__}")
 
 
+def _fake_light_scoring():
+    from app.schemas.scoring import DimensionScore, ScoringResult
+    return ScoringResult(
+        feasibility_score=50, lead_score=40, display_score=50,
+        tag="轻量试探型", tag_explanation="t", preliminary_judgment="p",
+        dimension_scores=[DimensionScore(name="d", raw_score=10, max_score=20, normalized_score=50)],
+        strengths=["s"], risks=["r"], lead_priority="P2",
+    )
+
+
+def _fake_light_user_report():
+    from app.schemas.report import UserReport
+    return UserReport(
+        feasibility_score=50, display_score=50, tag="t", tag_explanation="t",
+        preliminary_judgment="p", strengths=["s"], risks=["r"],
+        summary_conclusion="s", positioning_assessment="p",
+        content_assessment="c", conversion_assessment="v",
+        dimension_scores=[], recommended_path="r", risk_reminder="rr",
+        action_plan_30days=["1","2","3","4"], consultant_guide="g",
+    )
+
+
+def _fake_light_lead_report():
+    from app.schemas.report import LeadReport
+    return LeadReport(
+        lead_score=40, lead_priority="P2", tag="t",
+        sales_followup="sf", consultant_notes="cn",
+    )
+
+
 async def _override_get_db():
     async with async_session() as session:
         try:
@@ -161,8 +191,13 @@ async def test_continue_malicious_state_no_leak(monkeypatch):
 
 # ── finish 无身份拒绝 ───────────────────────────────────────────
 
-async def test_finish_without_identity_returns_401():
-    """有 user message 但没有 JWT 也没有 anonymous_user_id → 401"""
+async def test_finish_without_identity_does_not_call_runner(monkeypatch):
+    """无 JWT 无 anonymous_user_id → 401，且 runner 不被调用。"""
+    def _fail_runner(*args, **kwargs):
+        raise AssertionError("runner must not be called without identity")
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", _fail_runner)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
@@ -176,6 +211,71 @@ async def test_finish_without_identity_returns_401():
             },
         )
     assert resp.status_code == 401
+
+
+# ── finish missing_info ──────────────────────────────────────────
+
+async def test_finish_missing_info_returns_400_no_template(monkeypatch):
+    """信息不足时返回 400，不生成 0 分报告。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.MISSING_INFO)
+
+    class FakeUser:
+        id = "fake-uuid"
+    async def _fake_get_user(db, anon_id):
+        return FakeUser()
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+    monkeypatch.setattr("app.api.conversation.get_or_create_anonymous_user", _fake_get_user)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "test"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "anonymous_user_id": "test-missing-info-user-000",
+            },
+        )
+    assert resp.status_code == 400
+    assert "信息不足" in resp.text
+
+
+async def test_finish_unsupported_branch_returns_400(monkeypatch):
+    """inexperienced 分支返回 400，不评分。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.UNSUPPORTED_BRANCH)
+
+    class FakeUser:
+        id = "fake-uuid"
+    async def _fake_get_user(db, anon_id):
+        return FakeUser()
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+    monkeypatch.setattr("app.api.conversation.get_or_create_anonymous_user", _fake_get_user)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "test"}],
+                    "conversation_round": 1,
+                    "answers": {"Q5": ["D"]},
+                },
+                "anonymous_user_id": "test-unsupported-user-000",
+            },
+        )
+    assert resp.status_code == 400
 
 
 # ── 空对话 finish 拒绝 ──────────────────────────────────────────
@@ -293,9 +393,23 @@ async def test_continue_missing_assistant_message_returns_500(monkeypatch):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_finish_returns_wechat_qr_url_when_configured():
-    """branch=None 走模板兜底 + DB 写入，验证 wechat_qr_url 返回配置值"""
+async def test_finish_returns_wechat_qr_url_when_configured(monkeypatch):
+    """已完成的 finish 返回 wechat_qr_url（mock runner 避免真实 AI）。"""
     await _skip_if_postgres_unreachable()
+    from app.agent.state_machine import append_user_message
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        state = state.model_copy(deep=True)
+        state.scoring_result = _fake_light_scoring()
+        state.user_report = _fake_light_user_report()
+        state.lead_report = _fake_light_lead_report()
+        state.status = "completed"
+        state.used_template_report = False
+        return AgentRunResult(state=state, terminal=TerminalState.COMPLETED)
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+
     settings = get_settings()
     old_qr = settings.WECHAT_QR_URL
     settings.WECHAT_QR_URL = "https://example.com/wechat-qr.png"
@@ -312,7 +426,6 @@ async def test_finish_returns_wechat_qr_url_when_configured():
                     "state": {
                         "messages": [{"role": "user", "content": "test"}],
                         "conversation_round": 1,
-                        "branch": None,
                         "answers": {},
                     },
                     "anonymous_user_id": anon_id,
@@ -392,6 +505,147 @@ async def test_conversation_continue_real_deepseek():
     assert data["state"]["conversation_round"] == 1
     assert len(data["state"]["messages"]) >= 3
     assert data["state"]["ai_failure_count"] == 0
+
+
+# ── AgentEvent-only 架构 ────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_conversation_continue_uses_agent_event_only(monkeypatch):
+    """API 层只传 AgentEvent，不直接调 extraction/dialogue。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    captured_event = None
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        nonlocal captured_event
+        captured_event = event
+        state = state.model_copy(deep=True)
+        from app.agent.state_machine import append_assistant_message
+        state = append_assistant_message(state, "好的，继续。")
+        return AgentRunResult(
+            state=state, terminal=TerminalState.AWAITING_USER,
+            response={"assistant_message": "好的，继续。"},
+        )
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue",
+            json={
+                "state": {"messages": [{"role": "user", "content": "你好"}] * 2, "conversation_round": 1, "answers": {}},
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    assert captured_event is not None
+    assert captured_event.type == "user_message"
+    assert captured_event.message == "test"
+
+
+@pytest.mark.asyncio
+async def test_finish_uses_agent_event_only(monkeypatch):
+    """API 层只传 finish_requested 事件。mock DB 调用，不连真实 PostgreSQL。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    captured_event = None
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        nonlocal captured_event
+        captured_event = event
+        state = state.model_copy(deep=True)
+        state.scoring_result = _fake_light_scoring()
+        state.user_report = _fake_light_user_report()
+        state.lead_report = _fake_light_lead_report()
+        state.status = "completed"
+        return AgentRunResult(state=state, terminal=TerminalState.COMPLETED)
+
+    async def _fake_get_or_create_user(db, anon_id):
+        class FakeUser:
+            id = "fake-user-uuid-12345678"
+        return FakeUser()
+
+    async def _fake_save_assessment(db, state, user_id=None):
+        class FakeAssessment:
+            id = "fake-assessment-uuid-12345678"
+        return FakeAssessment()
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+    monkeypatch.setattr("app.api.conversation.get_or_create_anonymous_user", _fake_get_or_create_user)
+    monkeypatch.setattr("app.api.conversation.save_completed_assessment", _fake_save_assessment)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {"messages": [{"role": "user", "content": "test"}], "conversation_round": 1, "answers": {}},
+                "anonymous_user_id": "test-agent-event-user-000",
+            },
+        )
+    assert resp.status_code == 200
+    assert captured_event is not None
+    assert captured_event.type == "finish_requested"
+
+
+@pytest.mark.asyncio
+async def test_finish_missing_info_does_not_save_assessment(monkeypatch):
+    """MISSING_INFO → 400，不写 DB。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.MISSING_INFO)
+
+    class FakeUser:
+        id = "fake-uuid"
+    async def _fake_get_user(db, anon_id):
+        return FakeUser()
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+    monkeypatch.setattr("app.api.conversation.get_or_create_anonymous_user", _fake_get_user)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {"messages": [{"role": "user", "content": "test"}], "conversation_round": 1, "answers": {}},
+                "anonymous_user_id": "test-no-save-user-000",
+            },
+        )
+    assert resp.status_code == 400
+    assert "信息不足" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_finish_failed_terminal_returns_500(monkeypatch):
+    """runner 返回 FAILED → 500 安全文案。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.FAILED)
+
+    class FakeUser:
+        id = "fake-uuid"
+    async def _fake_get_user(db, anon_id):
+        return FakeUser()
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+    monkeypatch.setattr("app.api.conversation.get_or_create_anonymous_user", _fake_get_user)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {"messages": [{"role": "user", "content": "test"}], "conversation_round": 1, "answers": {}},
+                "anonymous_user_id": "test-fail-user-000",
+            },
+        )
+    assert resp.status_code == 500
+    for word in FORBIDDEN_IN_RESPONSE:
+        assert word not in resp.text, f"响应泄露了: {word}"
 
 
 # ── finish AI ───────────────────────────────────────────────────

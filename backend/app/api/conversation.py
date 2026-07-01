@@ -8,9 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.prompts import OPENING_MESSAGE
 from app.agent.runner import run_agent_event, run_agent_event_stream
 from app.agent.state_machine import append_assistant_message
-from app.agent.tools.external import register_external_tools
-from app.agent.tools.local import register_local_tools
-from app.agent.tools.registry import ToolRegistry
 from app.db.session import get_db
 from app.schemas.agent_protocol import AgentEvent, TerminalState
 from app.schemas.agent_state import AgentState
@@ -32,13 +29,6 @@ from config import get_settings
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 
-def _build_registry() -> ToolRegistry:
-    r = ToolRegistry()
-    register_local_tools(r)
-    register_external_tools(r)
-    return r
-
-
 def _has_user_message(state: AgentState) -> bool:
     return any(m.role == "user" for m in state.messages)
 
@@ -57,9 +47,8 @@ async def start_conversation():
 @router.post("/continue", response_model=ConversationContinueResponse)
 async def continue_conversation(request: ConversationContinueRequest):
     state = request.state.to_agent_state()
-    registry = _build_registry()
     event = AgentEvent(type="user_message", message=request.message)
-    result = await run_agent_event(state, event, registry)
+    result = await run_agent_event(state, event)
 
     if result.terminal == TerminalState.FAILED:
         raise HTTPException(status_code=500, detail=_safe_500_detail())
@@ -84,13 +73,11 @@ def _sse_event(data: dict) -> str:
 @router.post("/continue-stream")
 async def continue_conversation_stream(request: ConversationStreamRequest):
     state = request.state.to_agent_state()
-    registry = _build_registry()
 
     async def generate() -> AsyncGenerator[str, None]:
         async for event in run_agent_event_stream(
             state,
             AgentEvent(type="user_message", message=request.message),
-            registry,
         ):
             yield _sse_event(event)
 
@@ -108,13 +95,6 @@ async def finish_conversation(
     if state.conversation_round < 1 or not _has_user_message(state):
         raise HTTPException(status_code=400, detail="对话信息不足，无法生成报告")
 
-    from app.agent.graph import run_report_pipeline, run_scoring_pipeline
-    state = await run_scoring_pipeline(state)
-    state = await run_report_pipeline(state)
-
-    if state.user_report is None or state.lead_report is None:
-        raise HTTPException(status_code=500, detail="报告生成失败")
-
     if current_user is not None:
         user_id = current_user.id
     elif request.anonymous_user_id:
@@ -122,6 +102,22 @@ async def finish_conversation(
         user_id = user.id
     else:
         raise HTTPException(status_code=401, detail="请先登录")
+
+    result = await run_agent_event(
+        state,
+        AgentEvent(type="finish_requested"),
+    )
+    state = result.state
+
+    if result.terminal == TerminalState.MISSING_INFO:
+        raise HTTPException(status_code=400, detail="信息不足，请继续补充企业情况")
+    if result.terminal == TerminalState.UNSUPPORTED_BRANCH:
+        raise HTTPException(status_code=400, detail="深度诊断优先支持已有出海经验企业")
+    if result.terminal == TerminalState.FAILED:
+        raise HTTPException(status_code=500, detail="报告生成失败，请稍后重试")
+
+    if state.user_report is None or state.lead_report is None:
+        raise HTTPException(status_code=500, detail="报告生成失败")
 
     assessment = await save_completed_assessment(db, state, user_id=user_id)
     client_state = ConversationClientState.from_agent_state(state)

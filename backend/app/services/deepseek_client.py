@@ -94,6 +94,12 @@ class DeepSeekClient:
         payload = self._build_payload(modified, max_tokens, temperature, stream=False)
         response = await self._request(payload)
         data = response.json()
+
+        choice = data["choices"][0]
+        finish_reason = choice.get("finish_reason")
+        if finish_reason == "length":
+            raise ValueError("finish_reason=length: 模型输出被截断")
+
         content = self._extract_content(data)
         if content.startswith("```"):
             content = content.split("\n", 1)[-1]
