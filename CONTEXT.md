@@ -90,8 +90,7 @@
 
 ### Agent 架构
 
-> ⚠️ 2026-06-27 架构裁决：API handler 不应直接编排业务。见 ADR-0009。
-> **当前实现仍存在 API handler 编排 scoring/report 的历史路径；ADR-0009 为目标架构，尚未完全落地。**
+> ✅ 2026-07-01 ADR-0009 已完全落地。API handler 只传 AgentEvent，AgentGraph 拥有业务流转。
 
 | 术语 | 定义 |
 |------|------|
@@ -100,18 +99,24 @@
 | **Readiness Check** | Agent 图内判断信息是否足够生成报告。最低条件：branch=experienced、Q5 有效、Q1 已提取、无阻塞错误。不满足 → 继续追问；满足 + finish_requested → 评分报告。 |
 | **模板兜底** | 仅用于 AI/服务故障（DeepSeek 失败、RAG 失败、审计多次失败）。**禁止**用于"信息不足"场景。信息不足是正常 Agent 状态，应返回缺失问题列表。 |
 
-### 当前迭代优先级
+### 当前迭代状态
 
-> 2026-06-27 裁决
+> 2026-07-01 全部 Phase 完成并合并到 main。
 
-1. **P0 安全**：API Key 轮换、JWT secret 校验、微信 OAuth state CSRF 修复
-2. **P1 前端发布底线**：生产 env、layout metadata、首页体验、基础测试
-3. **P1 审计重试**：`generate_raw_report()` 增加 `audit_feedback` 参数。不建复杂重试框架。
-4. **P1 硬编码抽配置**：`DIALOGUE_MAX_TOKENS` / `DIALOGUE_TEMPERATURE` / `DIALOGUE_HISTORY_WINDOW` → `config.py`。Phase 38.1。
-5. **P1 `Question.display_id`**：新增 `display_id` / `display_order` / `sub_order` 字段，加测试锁住 31 题映射。Phase 38.2。
-6. **P2 死代码清理**：删除 `trim_history_node` / `EXPERIENCED_QUESTION_IDS` / `require_admin` / `rag/` 空壳。
-7. **P2 无出海经验占位**：`inexperienced` 分支不生成 0 分模板，前端/后端返回明确提示文案："深度诊断优先支持已有出海经验企业"。
-8. **P3 AgentGraph 架构重构**：ADR-0009。详见 `docs/agent-engineering-plan.md`。
+| 优先级 | 事项 | 状态 |
+|:---:|------|:---:|
+| P0 | API Key 轮换、JWT secret 校验、微信 OAuth state CSRF 修复 | ✅ Phase 38 |
+| P1 | 硬编码抽配置 | ✅ Phase 39.7 |
+| P1 | Question.display_id 映射 | ✅ Phase 39.8 |
+| P2 | 死代码清理 | ✅ Phase 39.9 |
+| P2 | 无出海经验占位 | ✅ unsupported_branch 终态 |
+| P3 | AgentGraph 架构重构（ADR-0009） | ✅ Phase 39.3-39.6 |
+| P3 | Memory 系统 | ✅ Phase 40-41 |
+
+后续迭代：
+- memory.save 自动保存时机
+- AgentState 拆分（DiagnosticState / ConversationSession / AgentExecutionContext）
+- Memory 新鲜度与 LLM 语义选择升级
 
 ### Agent 工具系统
 
@@ -138,10 +143,10 @@
 | **记忆文件** | 一个 Markdown 文件，包含 YAML frontmatter（`name` / `description` / `type`）和正文。存储在 `.claude/memory/` 目录下。 |
 | **记忆类型** | 四种：`user`（用户偏好）、`feedback`（工作方式指导）、`project`（项目状态/目标）、`reference`（外部系统链接）。 |
 | **MEMORY.md** | 记忆索引文件，每行一个 `- [Title](file.md) — one-line hook`。上限 200 行 / 25KB。 |
-| **记忆召回** | `memory.recall` 工具：扫描所有 frontmatter → 格式化文本清单 → 轻量级 LLM 选择 ≤5 个最相关文件 → 注入系统提示。不使用向量检索。 |
-| **记忆保存** | `memory.save` 工具：两步原子写入——先写主题文件 → 再更新 MEMORY.md 索引。已有文件更新而非重复创建。 |
-| **记忆新鲜度** | 超过 N 天的记忆在注入时附带 `<system-reminder>` 警告。防止过期信息误导 Agent。 |
+| **记忆召回** | `memory.recall` 工具：关键词 substring 匹配 name/description/content → 返回前 3 条匹配。runner user_message 路径自动调用，结果注入 dialogue prompt。不使用向量检索。 |
+| **记忆保存** | `memory.save` 工具：两步原子写入——先写主题文件 → 再更新 MEMORY.md 索引。已有文件更新而非重复创建。当前手动调用，自动保存时机待后续迭代。 |
+| **记忆新鲜度** | 暂未实现。后续迭代可增加时间戳检查。 |
 
 ---
 
-*最后更新：2026-06-30。此文件由 /domain-modeling 维护。*
+*最后更新：2026-07-01。Phase 38-41 全部完成。此文件由 /domain-modeling 维护。*
