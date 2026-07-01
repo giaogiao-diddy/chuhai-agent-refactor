@@ -337,7 +337,7 @@ async def test_create_lead_submission_with_jwt_user_unlocks_report():
     if not settings.DATABASE_URL or "postgresql" not in settings.DATABASE_URL:
         pytest.skip("DATABASE_URL 未配置 PostgreSQL")
     from app.auth.jwt import create_access_token
-    get_settings().JWT_SECRET_KEY = "test-jwt-lead-key"
+    get_settings().JWT_SECRET_KEY = "test-jwt-lead-key-thirty-two-chars-plus"
 
     anon_id = f"test-jwt-lead-{uuid.uuid4().hex[:12]}"
     assessment = await _save_report(anon_id)
@@ -377,7 +377,7 @@ async def test_create_lead_submission_with_jwt_rejects_other_user_report():
     if not settings.DATABASE_URL or "postgresql" not in settings.DATABASE_URL:
         pytest.skip("DATABASE_URL 未配置 PostgreSQL")
     from app.auth.jwt import create_access_token
-    get_settings().JWT_SECRET_KEY = "test-jwt-lead-key-2"
+    get_settings().JWT_SECRET_KEY = "test-jwt-lead-key-2-thirty-two-plus-chars"
 
     anon_a = f"test-jwt-a-{uuid.uuid4().hex[:12]}"
     anon_b = f"test-jwt-b-{uuid.uuid4().hex[:12]}"

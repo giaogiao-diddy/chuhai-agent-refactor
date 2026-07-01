@@ -16,8 +16,52 @@ def _restore_secret():
     get_settings().JWT_SECRET_KEY = old
 
 
+# ── JWT secret 强校验 ──
+
+def test_secret_empty_raises():
+    _set_secret("")
+    from app.auth.jwt import validate_jwt_secret
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        validate_jwt_secret()
+
+
+def test_secret_change_me_raises():
+    _set_secret("change_me")
+    from app.auth.jwt import validate_jwt_secret
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        validate_jwt_secret()
+
+
+def test_secret_your_jwt_secret_here_raises():
+    _set_secret("your_jwt_secret_here")
+    from app.auth.jwt import validate_jwt_secret
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        validate_jwt_secret()
+
+
+def test_secret_too_short_raises():
+    _set_secret("short")  # < 32 chars
+    from app.auth.jwt import validate_jwt_secret
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        validate_jwt_secret()
+
+
+def test_secret_exactly_32_chars_passes():
+    _set_secret("a" * 32)
+    from app.auth.jwt import validate_jwt_secret
+    validate_jwt_secret()  # should not raise
+
+
+def test_secret_long_passes():
+    _set_secret("a" * 64)
+    from app.auth.jwt import validate_jwt_secret
+    validate_jwt_secret()  # should not raise
+
+
+# ── 原有 JWT 签发/解码测试 ──
+
 def test_create_and_decode_token():
-    _set_secret("test-secret-key-for-jwt")
+    _set_secret("test-secret-key-for-jwt-unit-test-thirty-two-plus")
     from app.auth.jwt import create_access_token, decode_access_token
 
     user_id = str(uuid.uuid4())
@@ -40,7 +84,7 @@ def test_missing_secret_raises():
 
 
 def test_invalid_token_fails():
-    _set_secret("test-secret-key-for-jwt")
+    _set_secret("test-secret-key-for-jwt-unit-test-thirty-two-plus")
     from app.auth.jwt import decode_access_token
 
     with pytest.raises(ValueError, match="无效 token"):
@@ -48,7 +92,7 @@ def test_invalid_token_fails():
 
 
 def test_expired_token_fails():
-    _set_secret("test-secret-key-for-jwt")
+    _set_secret("test-secret-key-for-jwt-unit-test-thirty-two-plus")
     from app.auth.jwt import create_access_token, decode_access_token
     from config import get_settings as gs
 

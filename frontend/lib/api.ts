@@ -66,6 +66,7 @@ export type FinishConversationResponse = {
 
 const ANON_KEY = "anonymous_user_id";
 const AUTH_TOKEN_KEY = "auth_token";
+const OAUTH_STATE_KEY = "oauth_state";
 
 export function getAuthToken(): string {
   if (typeof window === "undefined") return "";
@@ -84,6 +85,21 @@ export function clearAuthToken(): void {
 
 export function isLoggedIn(): boolean {
   return !!getAuthToken();
+}
+
+function getOAuthState(): string {
+  if (typeof window === "undefined") return "";
+  return sessionStorage.getItem(OAUTH_STATE_KEY) || "";
+}
+
+function setOAuthState(state: string): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(OAUTH_STATE_KEY, state);
+}
+
+function clearOAuthState(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(OAUTH_STATE_KEY);
 }
 
 function authHeaders(): Record<string, string> {
@@ -248,19 +264,36 @@ export async function updateAdminLeadFollowup(
   return res.json();
 }
 
-export async function getWechatLoginUrl(): Promise<string> {
+export type WechatLoginUrlResponse = {
+  url: string;
+  state: string;
+};
+
+export async function getWechatLoginUrl(): Promise<WechatLoginUrlResponse> {
   const res = await fetch(`${API_BASE}/auth/wechat/login-url`);
   if (res.status === 503) throw new Error("微信登录未配置");
   if (!res.ok) throw new Error("获取登录链接失败");
   const data = await res.json();
-  return data.url;
+  // 保存 state 到 sessionStorage 用于 callback 比对
+  setOAuthState(data.state);
+  return { url: data.url, state: data.state };
 }
 
 export async function handleWechatCallback(code: string, state: string): Promise<AuthCallbackResponse> {
+  // 先和 sessionStorage 中保存的 state 比对，防 CSRF
+  const savedState = getOAuthState();
+  if (!savedState || savedState !== state) {
+    throw new Error("安全校验失败，请重新登录");
+  }
+  // 比对通过后清除
+  clearOAuthState();
+
   const params = new URLSearchParams({ code, state });
   const res = await fetch(`${API_BASE}/auth/wechat/callback?${params}`);
   if (!res.ok) throw new Error("微信登录失败");
-  return res.json();
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
 }
 
 export type AuthUser = {

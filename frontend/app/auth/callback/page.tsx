@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { handleWechatCallback, setAuthToken } from "@/lib/api";
+import { handleWechatCallback } from "@/lib/api";
 
 function CallbackContent() {
   const params = useSearchParams();
@@ -18,16 +18,20 @@ function CallbackContent() {
       setStatus("微信登录参数缺失");
       return;
     }
-    handleWechatCallback(code, state).then(data => {
-      setAuthToken(data.access_token);
+    handleWechatCallback(code, state).then(() => {
       window.location.href = "/chat";
-    }).catch(() => {
-      setStatus("微信登录失败，请返回重试");
+    }).catch((e: Error) => {
+      // 使用安全文案，不暴露技术细节
+      if (e.message.includes("安全校验")) {
+        setStatus("登录校验失败，请返回重新扫码");
+      } else {
+        setStatus("微信登录失败，请返回重试");
+      }
     });
   }, [params]);
 
   return (
-    <p style={{ fontSize: 16, color: status.includes("失败") || status.includes("缺失") ? "#d32f2f" : "#666" }}>
+    <p style={{ fontSize: 16, color: status.includes("失败") || status.includes("缺失") || status.includes("校验失败") ? "#d32f2f" : "#666" }}>
       {status}
     </p>
   );

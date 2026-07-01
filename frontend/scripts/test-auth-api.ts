@@ -1,4 +1,4 @@
-// 测试 setAuthToken/getAuthToken/clearAuthToken（模拟 sessionStorage）
+// 测试 setAuthToken/getAuthToken/clearAuthToken + OAuth state 流程
 
 let passed = 0;
 let failed = 0;
@@ -36,30 +36,63 @@ async function run() {
   assert(mod.getAuthToken() === "", "clearAuthToken 后返回空");
   assert(mod.isLoggedIn() === false, "clearAuthToken 后 isLoggedIn 为 false");
 
-  // 4. handleWechatCallback URL 拼接
-  const originalFetch = (globalThis as any).fetch;
+  // ── OAuth state 流程 ──
+
+  // 4. getWechatLoginUrl 保存 state
+  (globalThis as any).fetch = async (url: string) => ({
+    ok: true,
+    json: async () => ({ url: "https://open.weixin.qq.com/connect/qrconnect?appid=wx&state=test-oauth-state-456#wechat_redirect", state: "test-oauth-state-456" }),
+  });
+
+  const loginData = await mod.getWechatLoginUrl();
+  assert(typeof loginData.url === "string", "getWechatLoginUrl 返回 url");
+  assert(typeof loginData.state === "string", "getWechatLoginUrl 返回 state");
+  assert(store.get("oauth_state") === "test-oauth-state-456", "getWechatLoginUrl 将 state 保存到 sessionStorage");
+
+  // 5. handleWechatCallback state 一致时调后端 callback 且成功后清除 state
   let capturedUrl = "";
   (globalThis as any).fetch = async (url: string) => {
     capturedUrl = url.toString();
     return { ok: true, json: async () => ({ access_token: "mock-jwt", token_type: "bearer", user: { id: "1", nickname: "test", role: "user" } }) };
   };
 
-  const cb = await mod.handleWechatCallback("auth-code-123", "state-456");
+  const cb = await mod.handleWechatCallback("auth-code-123", "test-oauth-state-456");
   assert(capturedUrl.includes("code=auth-code-123"), "handleWechatCallback URL 包含 code");
-  assert(capturedUrl.includes("state=state-456"), "handleWechatCallback URL 包含 state");
+  assert(capturedUrl.includes("state=test-oauth-state-456"), "handleWechatCallback URL 包含 state");
   assert(cb.access_token === "mock-jwt", "handleWechatCallback 返回 token");
+  assert(store.get("auth_token") === "mock-jwt", "handleWechatCallback 成功后保存 token");
+  assert(store.get("oauth_state") === null || store.get("oauth_state") === undefined, "handleWechatCallback 成功后清除 oauth_state");
 
-  // 5. handleWechatCallback 失败不泄露原始错误
+  // 6. handleWechatCallback state 不一致时抛安全错误（不调后端）
+  // 重新保存一个不同的 state
+  store.set("oauth_state", "expected-state");
+  (globalThis as any).fetch = async () => ({ ok: true, json: async () => ({}) });
+  try {
+    await mod.handleWechatCallback("code", "wrong-state");
+    assert(false, "handleWechatCallback state 不一致应抛错");
+  } catch (e: any) {
+    assert(e.message === "安全校验失败，请重新登录", "state 不一致抛固定安全文案");
+  }
+
+  // 7. handleWechatCallback 没有保存 state 时抛安全错误
+  store.delete("oauth_state");
+  try {
+    await mod.handleWechatCallback("code", "any-state");
+    assert(false, "handleWechatCallback 无保存 state 应抛错");
+  } catch (e: any) {
+    assert(e.message === "安全校验失败，请重新登录", "无保存 state 时抛固定安全文案");
+  }
+
+  // 8. handleWechatCallback 后端失败不泄露原始错误
+  store.set("oauth_state", "state-match");
   (globalThis as any).fetch = async () => ({ ok: false, status: 400 });
   try {
-    await mod.handleWechatCallback("code", "state");
+    await mod.handleWechatCallback("code", "state-match");
     assert(false, "handleWechatCallback 失败应抛错");
   } catch (e: any) {
     assert(e.message === "微信登录失败", "handleWechatCallback 失败抛固定文案");
     assert(!e.message.includes("400"), "失败不泄露状态码");
   }
-
-  (globalThis as any).fetch = originalFetch;
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

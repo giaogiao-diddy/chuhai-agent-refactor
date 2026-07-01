@@ -1,11 +1,11 @@
-import uuid
 from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import create_access_token
+from app.auth.jwt import create_access_token, validate_jwt_secret
+from app.auth.oauth_state import generate_oauth_state, verify_oauth_state
 from app.db.session import get_db
 from app.services.user_repository import get_or_create_wechat_user
 from config import get_settings
@@ -15,18 +15,23 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.get("/wechat/login-url")
 async def wechat_login_url():
+    """生成微信扫码登录 URL，附带签名 state 用于防 CSRF。"""
     settings = get_settings()
     if not settings.WECHAT_APP_ID or not settings.WECHAT_REDIRECT_URI:
         raise HTTPException(status_code=503, detail="微信登录未配置")
+
+    validate_jwt_secret()  # state 签名依赖 JWT_SECRET_KEY
+
+    state = generate_oauth_state()
     params = {
         "appid": settings.WECHAT_APP_ID,
         "redirect_uri": settings.WECHAT_REDIRECT_URI,
         "response_type": "code",
         "scope": "snsapi_login",
-        "state": uuid.uuid4().hex,
+        "state": state,
     }
     url = f"https://open.weixin.qq.com/connect/qrconnect?{urlencode(params)}#wechat_redirect"
-    return {"url": url}
+    return {"url": url, "state": state}
 
 
 @router.get("/wechat/callback")
@@ -35,11 +40,18 @@ async def wechat_callback(
     state: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
+    """微信 OAuth 回调：校验 state → 换 access_token → 获取用户信息 → 签发 JWT。"""
     settings = get_settings()
+
+    # Step 1: 校验 state，防 CSRF
+    if not state or not verify_oauth_state(state):
+        raise HTTPException(status_code=400, detail="登录校验失败，请重新扫码")
+
+    # Step 2: 校验微信配置
     if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
         raise HTTPException(status_code=503, detail="微信登录未配置")
 
-    # 换 access_token
+    # Step 3: 换 access_token
     async with httpx.AsyncClient(timeout=15) as client:
         token_resp = await client.get(
             "https://api.weixin.qq.com/sns/oauth2/access_token",
@@ -60,7 +72,7 @@ async def wechat_callback(
     if not access_token or not openid:
         raise HTTPException(status_code=502, detail="微信返回数据不完整")
 
-    # 获取用户信息
+    # Step 4: 获取用户信息
     async with httpx.AsyncClient(timeout=15) as client:
         user_resp = await client.get(
             "https://api.weixin.qq.com/sns/userinfo",

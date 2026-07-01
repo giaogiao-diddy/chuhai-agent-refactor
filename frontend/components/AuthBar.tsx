@@ -9,8 +9,8 @@ export default function AuthBar() {
   async function handleLogin() {
     setError(null);
     try {
-      const url = await getWechatLoginUrl();
-      window.location.href = url;
+      const data = await getWechatLoginUrl();
+      window.location.href = data.url;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "获取登录链接失败");
     }
