@@ -2,6 +2,7 @@ import pytest
 
 from app.agent.tools.base import ToolDefinition, ToolErrorCode
 from app.agent.tools.executor import ToolExecutor
+from app.agent.tools.external import register_external_tools
 from app.agent.tools.local import register_local_tools
 from app.agent.tools.local.question_catalog import (
     DIMENSION_NAMES,
@@ -54,6 +55,16 @@ def test_register_local_tools_does_not_create_global_registry():
     ))
     assert len(r2.list_all()) == 6
     assert len(r1.list_all()) == 5
+
+
+# ── external 工具元数据 ──
+
+def test_external_deepseek_tools_are_read_only_not_concurrency_safe():
+    r = ToolRegistry()
+    register_external_tools(r)
+    for t in r.list_all():
+        assert t.is_read_only is True, f"{t.name} should be read_only"
+        assert t.is_concurrency_safe is False, f"{t.name} should NOT be concurrency_safe"
 
 
 # ── question_catalog.read ──

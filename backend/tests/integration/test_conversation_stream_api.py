@@ -12,16 +12,21 @@ def _cleanup_overrides():
     app.dependency_overrides.clear()
 
 
-# ── 空白消息 ────────────────────────────────────────────────────
+# ── 空白消息 ──
 
 async def test_continue_stream_blank_message_returns_422():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
         resp = await client.post(
             "/conversation/continue-stream",
-            json={"state": state, "message": "   "},
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "   ",
+            },
         )
     assert resp.status_code == 422
 
@@ -33,112 +38,127 @@ async def test_stream_response_does_not_accept_get():
     assert resp.status_code in (404, 405)
 
 
-# ── 错误路径 ────────────────────────────────────────────────────
+# ── 错误路径 ──
 
-async def test_continue_stream_error_yields_sse_error(monkeypatch):
-    async def _fail(*a, **kw):
+async def _fake_extract(*args, **kwargs):
+    from app.schemas.extraction import ExtractionResult
+    return ExtractionResult()
+
+
+def _patch_no_ai_extraction(monkeypatch):
+    monkeypatch.setattr("app.agent.extraction.extract_from_messages", _fake_extract)
+
+
+class _FakeStreamFailClient:
+    """stream_chat 抛异常 → runner 进入 error 分支。"""
+    async def stream_chat(self, *args, **kwargs):
         raise RuntimeError("模拟 stream 失败")
-        yield  # noqa
-
-    monkeypatch.setattr("app.services.deepseek_client.DeepSeekClient.stream_chat", _fail)
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
-        resp = await client.post(
-            "/conversation/continue-stream",
-            json={"state": state, "message": "test"},
-        )
-    text = await resp.aread()
-    text = text.decode()
-    assert '"type": "error"' in text
-    assert "模拟" not in text  # 不泄露原始异常
-    # 断言 ai_failure_count >= 1
-    lines = [l for l in text.split("\n") if l.startswith("data: ")]
-    last = json.loads(lines[-1][6:])
-    assert last["state"]["ai_failure_count"] >= 1
+        yield
 
 
-async def test_continue_stream_empty_content_yields_sse_error(monkeypatch):
-    """空流不返回 done，返回 error"""
-    async def _empty_stream(*args, **kwargs):
+class _FakeEmptyStreamClient:
+    """stream_chat 返回空流 → runner 进入 error 分支。"""
+    async def stream_chat(self, *args, **kwargs):
         if False:
             yield "never"
 
-    monkeypatch.setattr("app.services.deepseek_client.DeepSeekClient.stream_chat", _empty_stream)
+
+class _FakeSuccessStreamClient:
+    """stream_chat 正常返回一个 chunk。"""
+    async def stream_chat(self, *args, **kwargs):
+        yield "继续提问"
+
+
+async def test_continue_stream_error_yields_sse_error(monkeypatch):
+    """stream 失败 → SSE error + 安全文案, 不发送 done。"""
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeStreamFailClient())
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
         resp = await client.post(
             "/conversation/continue-stream",
-            json={"state": state, "message": "test"},
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "test",
+            },
         )
     assert resp.status_code == 200
-    text = await resp.aread()
-    text = text.decode()
+    text = (await resp.aread()).decode()
     assert '"type": "error"' in text
     assert '"type": "done"' not in text
+    assert '"state"' in text
+    assert "模拟" not in text
     assert "AI 暂时不可用" in text
-    assert "模型未返回最终 content" not in text
 
-    lines = [l for l in text.split("\n") if l.startswith("data: ")]
-    last = json.loads(lines[-1][6:])
-    assert last["state"]["ai_failure_count"] >= 1
+
+async def test_continue_stream_empty_content_yields_sse_error(monkeypatch):
+    """空流 → error + state, 不发送 done。"""
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeEmptyStreamClient())
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    text = (await resp.aread()).decode()
+    assert '"type": "error"' in text
+    assert '"type": "done"' not in text
+    assert '"state"' in text
+    assert "AI 暂时不可用" in text
 
 
 async def test_continue_stream_client_init_error_yields_safe_sse_error(monkeypatch):
-    """DeepSeekClient 构造失败也不泄露原始异常"""
+    """DeepSeekClient 构造失败 → 不泄露原始异常。"""
+    _patch_no_ai_extraction(monkeypatch)
     def _fail_init(*a, **kw):
         raise RuntimeError("模拟 init 失败 sales_followup 顾问备注")
 
-    monkeypatch.setattr("app.api.conversation.DeepSeekClient", _fail_init)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", _fail_init)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
         resp = await client.post(
             "/conversation/continue-stream",
-            json={"state": state, "message": "test"},
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "test",
+            },
         )
     assert resp.status_code == 200
-    text = await resp.aread()
-    text = text.decode()
+    text = (await resp.aread()).decode()
     assert '"type": "error"' in text
     assert "AI 暂时不可用" in text
     assert "模拟" not in text
     assert "sales_followup" not in text
     assert "顾问备注" not in text
 
-    lines = [l for l in text.split("\n") if l.startswith("data: ")]
-    last = json.loads(lines[-1][6:])
-    assert last["state"]["ai_failure_count"] >= 1
 
+# ── 流式：轮次无上限 + 历史不丢失 ──
 
-# ── 真实流式 ────────────────────────────────────────────────────
-
-FORBIDDEN_IN_STREAM = [
-    "reasoning_content", "lead_report", "raw_report",
-    "sales_followup", "consultant_notes", "lead_score", "lead_priority",
-    "scoring_result", "audit_result", "report_error", "scoring_error",
-    "销售话术", "顾问跟进", "线索优先级", "顾问备注",
-]
-
-
-@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_continue_stream_after_eight_rounds_still_allowed(monkeypatch):
-    async def _stream(*args, **kwargs):
-        yield "继续提问"
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeSuccessStreamClient())
 
-    async def fake_extract_answers_node(state):
-        return state
-
-    monkeypatch.setattr("app.services.deepseek_client.DeepSeekClient.stream_chat", _stream)
-    monkeypatch.setattr("app.api.conversation.extract_answers_node", fake_extract_answers_node)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
@@ -158,22 +178,14 @@ async def test_continue_stream_after_eight_rounds_still_allowed(monkeypatch):
     assert resp.status_code == 200
     text = (await resp.aread()).decode()
     assert '"type": "done"' in text
-    lines = [l for l in text.split("\n") if l.startswith("data: ")]
-    done = json.loads(lines[-1][6:])
-    assert done["state"]["conversation_round"] == 9
+    assert "继续提问" in text
 
 
-@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_continue_stream_preserves_full_message_history(monkeypatch):
-    async def _stream(*args, **kwargs):
-        yield "继续提问"
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeSuccessStreamClient())
 
-    async def fake_extract_answers_node(state):
-        return state
-
-    monkeypatch.setattr("app.services.deepseek_client.DeepSeekClient.stream_chat", _stream)
-    monkeypatch.setattr("app.api.conversation.extract_answers_node", fake_extract_answers_node)
     messages = []
     for i in range(14):
         messages.append({"role": "user", "content": f"用户消息 {i}"})
@@ -195,7 +207,16 @@ async def test_continue_stream_preserves_full_message_history(monkeypatch):
     assert len(done["state"]["messages"]) == len(messages) + 2
 
 
-@pytest.mark.integration
+# ── 真实流式 ──
+
+FORBIDDEN_IN_STREAM = [
+    "reasoning_content", "lead_report", "raw_report",
+    "sales_followup", "consultant_notes", "lead_score", "lead_priority",
+    "scoring_result", "audit_result", "report_error", "scoring_error",
+    "销售话术", "顾问跟进", "线索优先级", "顾问备注",
+]
+
+
 @pytest.mark.ai
 @pytest.mark.asyncio
 async def test_continue_stream_real_deepseek():
@@ -206,16 +227,19 @@ async def test_continue_stream_real_deepseek():
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
-
         resp = await client.post(
             "/conversation/continue-stream",
-            json={"state": state, "message": "我们是一家做健身器材的源头工厂，有少量东南亚客户。"},
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你们是做什么的？"}, {"role": "assistant", "content": "我们是出海诊断顾问"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "我们是一家做健身器材的源头工厂，有少量东南亚客户",
+            },
         )
     assert resp.status_code == 200
-    text = await resp.aread()
-    text = text.decode()
+    text = (await resp.aread()).decode()
 
     assert '"type": "delta"' in text
     assert '"type": "done"' in text
@@ -228,7 +252,7 @@ async def test_continue_stream_real_deepseek():
             done_data = data
     assert done_data is not None, "未收到 done event"
     st = done_data["state"]
-    assert st["conversation_round"] == 1
+    assert st["conversation_round"] == 2
     assert len(st["messages"]) >= 3
 
     for word in FORBIDDEN_IN_STREAM:

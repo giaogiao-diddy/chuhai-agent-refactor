@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -16,6 +16,17 @@ def _skip_if_no_ai_key():
     settings = get_settings()
     if not settings.DEEPSEEK_API_KEY:
         pytest.skip("DEEPSEEK_API_KEY 未配置")
+
+
+async def _skip_if_postgres_unreachable():
+    settings = get_settings()
+    if not settings.DATABASE_URL or "postgresql" not in settings.DATABASE_URL:
+        pytest.skip("DATABASE_URL 未配置 PostgreSQL")
+    try:
+        async with async_session() as db:
+            await db.execute(text("select 1"))
+    except Exception as e:
+        pytest.skip(f"PostgreSQL 不可达: {type(e).__name__}")
 
 
 async def _override_get_db():
@@ -50,6 +61,7 @@ FORBIDDEN_IN_RESPONSE = [
 # ── start ───────────────────────────────────────────────────────
 
 async def test_conversation_start_returns_opening_message():
+    """start 不应调用 DeepSeek，conversation_round == 0，messages 只含 assistant 开场白。"""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/conversation/start")
@@ -57,10 +69,35 @@ async def test_conversation_start_returns_opening_message():
     data = response.json()
     assert data["assistant_message"]
     assert len(data["state"]["messages"]) >= 1
+    assert data["state"]["conversation_round"] == 0
+    # 不应包含 user 消息
+    for m in data["state"]["messages"]:
+        assert m["role"] != "user", "start 不应包含 user message"
     text = response.text
     assert "lead_report" not in text
     assert "raw_report" not in text
     assert "lead_score" not in text
+
+
+async def test_conversation_start_does_not_call_runner_or_deepseek(monkeypatch):
+    """start 轻量开场白，不调 runner/DeepSeek。monkeypatch 为异常后仍应 200。"""
+    async def _fail_runner(*args, **kwargs):
+        raise AssertionError("start must not call runner")
+
+    def _fail_deepseek(*args, **kwargs):
+        raise AssertionError("start must not init DeepSeek")
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", _fail_runner)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", _fail_deepseek)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/conversation/start")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["state"]["conversation_round"] == 0
+    for m in data["state"]["messages"]:
+        assert m["role"] != "user", "start 不应包含 user message"
 
 
 # ── 空白消息 ────────────────────────────────────────────────────
@@ -68,26 +105,49 @@ async def test_conversation_start_returns_opening_message():
 async def test_continue_blank_message_returns_422():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
         resp = await client.post(
             "/conversation/continue",
-            json={"state": state, "message": "   "},
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "   ",
+            },
         )
     assert resp.status_code == 422
 
 
 # ── 恶意注入 ────────────────────────────────────────────────────
 
-async def test_continue_malicious_state_no_leak():
+async def test_continue_malicious_state_no_leak(monkeypatch):
     """恶意注入不会泄露顾问字段（ConversationClientState 白名单阻止注入）"""
+    from app.agent.state_machine import append_assistant_message, append_user_message
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        new_state = append_user_message(state, event.message)
+        new_state = append_assistant_message(new_state, "好的，继续。")
+        return AgentRunResult(
+            state=new_state,
+            terminal=TerminalState.AWAITING_USER,
+            response={"assistant_message": "好的，继续。"},
+        )
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state_data = start.json()["state"]
+        state_data = {
+            "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+            "conversation_round": 1,
+            "answers": {},
+            "slots": {},
+        }
         # 注入恶意字段 — ConversationClientState 会忽略额外字段
         state_data["lead_report"] = {"lead_score": 99, "lead_priority": "P0", "tag": "x", "sales_followup": "秘密话术", "consultant_notes": "秘密"}
-        state_data["raw_report"] = {"summary_conclusion": "x", "positioning_assessment": "x", "content_assessment": "x", "conversion_assessment": "x", "recommended_path": "x", "risk_reminder": "x", "action_plan_30days": ["1","2","3","4"], "consultant_guide": "x", "sales_followup": "秘密", "consultant_notes": "秘密"}
+        state_data["raw_report"] = {"summary_conclusion": "x"}
 
         resp = await client.post(
             "/conversation/continue",
@@ -121,15 +181,14 @@ async def test_finish_without_identity_returns_401():
 # ── 空对话 finish 拒绝 ──────────────────────────────────────────
 
 async def test_finish_empty_conversation_returns_400():
-    """start 后直接 finish 应拒绝，无 user 消息"""
+    """无 user 消息直接 finish 应拒绝"""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        start = await client.post("/conversation/start")
-        state = start.json()["state"]
-
         resp = await client.post(
             "/conversation/finish",
-            json={"state": state},
+            json={
+                "state": {"messages": [], "conversation_round": 0, "answers": {}},
+            },
         )
     assert resp.status_code == 400
     assert "不足" in resp.text
@@ -139,17 +198,19 @@ async def test_finish_empty_conversation_returns_400():
 
 @pytest.mark.asyncio
 async def test_continue_after_eight_rounds_still_allowed(monkeypatch):
-    from app.agent.state_machine import append_assistant_message
-    import app.api.conversation as conversation_api
+    from app.agent.state_machine import append_assistant_message, append_user_message
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
 
-    async def fake_run_dialogue_graph(state):
-        return append_assistant_message(state, "继续补充问题")
+    async def fake_run_agent_event(state, event, registry=None, max_steps=16):
+        new_state = append_user_message(state, event.message)
+        new_state = append_assistant_message(new_state, "继续补充问题")
+        return AgentRunResult(
+            state=new_state,
+            terminal=TerminalState.AWAITING_USER,
+            response={"assistant_message": "继续补充问题"},
+        )
 
-    async def fake_extract_answers_node(state):
-        return state
-
-    monkeypatch.setattr(conversation_api, "run_dialogue_graph", fake_run_dialogue_graph)
-    monkeypatch.setattr(conversation_api, "extract_answers_node", fake_extract_answers_node)
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_run_agent_event)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
@@ -172,15 +233,70 @@ async def test_continue_after_eight_rounds_still_allowed(monkeypatch):
     assert data["should_stop"] is False
 
 
+# ── continue failed terminal ─────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_continue_failed_terminal_returns_500(monkeypatch):
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.FAILED, response=None)
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 500
+    text = resp.text
+    assert "AI 暂时不可用" in text
+    for word in FORBIDDEN_IN_RESPONSE:
+        assert word not in text, f"响应泄露了: {word}"
+
+
+@pytest.mark.asyncio
+async def test_continue_missing_assistant_message_returns_500(monkeypatch):
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.AWAITING_USER, response={})
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 500
+
+
 # ── wechat_qr_url ──────────────────────────────────────────────────
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_finish_returns_wechat_qr_url_when_configured():
     """branch=None 走模板兜底 + DB 写入，验证 wechat_qr_url 返回配置值"""
+    await _skip_if_postgres_unreachable()
     settings = get_settings()
-    if not settings.DATABASE_URL or "postgresql" not in settings.DATABASE_URL:
-        pytest.skip("DATABASE_URL 未配置 PostgreSQL")
     old_qr = settings.WECHAT_QR_URL
     settings.WECHAT_QR_URL = "https://example.com/wechat-qr.png"
 

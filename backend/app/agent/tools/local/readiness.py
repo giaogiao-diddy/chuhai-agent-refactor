@@ -3,24 +3,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.agent.tools.base import ToolContext, ToolResult
-
-
-class MissingItem(BaseModel):
-    question_id: str
-    label: str
-    reason: str
+from app.schemas.readiness import MissingItem, ReadinessResult
 
 
 class ReadinessCheckInput(BaseModel):
     answers: dict[str, list[str]]
     branch: Literal["experienced", "inexperienced"] | None = None
-
-
-class ReadinessResult(BaseModel):
-    ready: bool
-    missing_items: list[MissingItem] = []
-    next_questions: list[str] = []
-    unsupported_branch: bool = False
 
 
 # 生成报告的最低 answers 数量（含 Q5）

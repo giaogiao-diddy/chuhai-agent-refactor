@@ -5,16 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.graph import run_dialogue_graph, run_report_pipeline, run_scoring_pipeline
-from app.agent.nodes import extract_answers_node
-from app.agent.prompts import build_dialogue_system_prompt
-from app.agent.state_machine import (
-    append_assistant_message,
-    append_user_message,
-    register_ai_failure,
-    should_stop_conversation,
-)
+from app.agent.prompts import OPENING_MESSAGE
+from app.agent.runner import run_agent_event, run_agent_event_stream
+from app.agent.state_machine import append_assistant_message
+from app.agent.tools.external import register_external_tools
+from app.agent.tools.local import register_local_tools
+from app.agent.tools.registry import ToolRegistry
 from app.db.session import get_db
+from app.schemas.agent_protocol import AgentEvent, TerminalState
 from app.schemas.agent_state import AgentState
 from app.schemas.conversation import (
     ConversationClientState,
@@ -25,47 +23,57 @@ from app.schemas.conversation import (
     ConversationStartResponse,
     ConversationStreamRequest,
 )
-from app.schemas.llm import LLMMessage
 from app.api.auth_deps import get_current_user_optional
 from app.models import User
 from app.services.assessment_repository import save_completed_assessment
-from app.services.deepseek_client import DeepSeekClient
 from app.services.user_repository import get_or_create_anonymous_user
 from config import get_settings
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
 
+def _build_registry() -> ToolRegistry:
+    r = ToolRegistry()
+    register_local_tools(r)
+    register_external_tools(r)
+    return r
+
+
 def _has_user_message(state: AgentState) -> bool:
     return any(m.role == "user" for m in state.messages)
 
 
+def _safe_500_detail() -> str:
+    return "AI 暂时不可用，请稍后重试"
+
+
 @router.post("/start", response_model=ConversationStartResponse)
 async def start_conversation():
-    state = AgentState()
-    state = await run_dialogue_graph(state)
-    assistant_message = state.messages[-1].content if state.messages else ""
+    state = append_assistant_message(AgentState(), OPENING_MESSAGE)
     client_state = ConversationClientState.from_agent_state(state)
-    return ConversationStartResponse(state=client_state, assistant_message=assistant_message)
+    return ConversationStartResponse(state=client_state, assistant_message=OPENING_MESSAGE)
 
 
 @router.post("/continue", response_model=ConversationContinueResponse)
 async def continue_conversation(request: ConversationContinueRequest):
     state = request.state.to_agent_state()
-    state = append_user_message(state, request.message)
-    state = await run_dialogue_graph(state)
-    state = await extract_answers_node(state)
-    last_assistant = None
-    for msg in reversed(state.messages):
-        if msg.role == "assistant":
-            last_assistant = msg.content
-            break
-    client_state = ConversationClientState.from_agent_state(state)
+    registry = _build_registry()
+    event = AgentEvent(type="user_message", message=request.message)
+    result = await run_agent_event(state, event, registry)
+
+    if result.terminal == TerminalState.FAILED:
+        raise HTTPException(status_code=500, detail=_safe_500_detail())
+
+    assistant_message = result.response.get("assistant_message", "") if result.response else ""
+    if not assistant_message:
+        raise HTTPException(status_code=500, detail=_safe_500_detail())
+
+    client_state = ConversationClientState.from_agent_state(result.state)
     return ConversationContinueResponse(
         state=client_state,
-        assistant_message=last_assistant,
-        conversation_round=state.conversation_round,
-        should_stop=should_stop_conversation(state),
+        assistant_message=assistant_message,
+        conversation_round=result.state.conversation_round,
+        should_stop=False,
     )
 
 
@@ -76,31 +84,15 @@ def _sse_event(data: dict) -> str:
 @router.post("/continue-stream")
 async def continue_conversation_stream(request: ConversationStreamRequest):
     state = request.state.to_agent_state()
-    state = append_user_message(state, request.message)
+    registry = _build_registry()
 
     async def generate() -> AsyncGenerator[str, None]:
-        nonlocal state
-        try:
-            client = DeepSeekClient()
-            llm_messages = [LLMMessage(role="system", content=build_dialogue_system_prompt(state))]
-            for msg in state.messages[-12:]:
-                llm_messages.append(LLMMessage(role=msg.role, content=msg.content))
-
-            assistant_text = ""
-            async for chunk in client.stream_chat(llm_messages, max_tokens=256, temperature=0.2):
-                assistant_text += chunk
-                yield _sse_event({"type": "delta", "content": chunk})
-
-            if not assistant_text.strip():
-                raise ValueError("模型未返回最终 content")
-            state = append_assistant_message(state, assistant_text)
-            state = await extract_answers_node(state)
-            client_state = ConversationClientState.from_agent_state(state)
-            yield _sse_event({"type": "done", "state": client_state.model_dump()})
-        except Exception as e:
-            state = register_ai_failure(state, f"continue_stream: {e}")
-            client_state = ConversationClientState.from_agent_state(state)
-            yield _sse_event({"type": "error", "message": "AI 暂时不可用，请稍后重试", "state": client_state.model_dump()})
+        async for event in run_agent_event_stream(
+            state,
+            AgentEvent(type="user_message", message=request.message),
+            registry,
+        ):
+            yield _sse_event(event)
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -116,6 +108,7 @@ async def finish_conversation(
     if state.conversation_round < 1 or not _has_user_message(state):
         raise HTTPException(status_code=400, detail="对话信息不足，无法生成报告")
 
+    from app.agent.graph import run_report_pipeline, run_scoring_pipeline
     state = await run_scoring_pipeline(state)
     state = await run_report_pipeline(state)
 

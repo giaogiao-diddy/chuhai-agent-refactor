@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.audit import ReportAuditResult
+from app.schemas.readiness import ReadinessResult
 from app.schemas.report import LeadReport, RawAIReport, UserReport
 from app.schemas.scoring import ScoringResult
 from app.schemas.slots import CompanySlots
@@ -48,4 +49,5 @@ class AgentState(BaseModel):
     report_retry_count: int = 0
     max_report_retries: int = 2
     used_template_report: bool = False
+    readiness_result: ReadinessResult | None = None
 
