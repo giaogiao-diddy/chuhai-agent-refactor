@@ -70,6 +70,26 @@ def test_external_deepseek_tools_are_read_only_not_concurrency_safe():
 # ── question_catalog.read ──
 
 @pytest.mark.asyncio
+async def test_question_catalog_includes_display_mapping():
+    r = ToolRegistry()
+    register_local_tools(r)
+    ex = ToolExecutor(r)
+    result = await ex.execute("question_catalog.read", QuestionCatalogInput(branch=None))
+    assert result.error is None
+    for item in result.data.questions:
+        assert hasattr(item, "display_id")
+        assert hasattr(item, "display_order")
+        assert hasattr(item, "sub_order")
+    q_map = {item.id: item for item in result.data.questions}
+    assert q_map["Q2a"].display_id == "Q2"
+    assert q_map["Q2a"].display_order == 2
+    assert q_map["Q2b"].display_id == "Q2"
+    assert q_map["Q3a"].display_id == "Q3"
+
+
+
+
+@pytest.mark.asyncio
 async def test_question_catalog_returns_questions():
     r = ToolRegistry()
     register_local_tools(r)

@@ -173,3 +173,58 @@ def test_option_ids_are_unique_within_each_question():
         option_ids = [opt.id for opt in q.options]
         duplicates = sorted({oid for oid in option_ids if option_ids.count(oid) > 1})
         assert not duplicates, f"{q.id} 存在重复 option_id: {duplicates}"
+
+
+# ── display mapping ──
+
+def test_question_display_ids_cover_q1_to_q31():
+    display_ids = {q.display_id for q in ALL_QUESTIONS}
+    expected = {f"Q{n}" for n in range(1, 32)}
+    assert display_ids == expected, f"display_id 应覆盖 Q1-Q31, 实际: {sorted(display_ids ^ expected)}"
+    assert len(set(q.display_id for q in ALL_QUESTIONS)) == 31
+
+
+def test_subquestions_share_display_id():
+    q_map = {q.id: q for q in ALL_QUESTIONS}
+    for qid in ("Q2a", "Q2b", "Q2c"):
+        assert q_map[qid].display_id == "Q2"
+        assert q_map[qid].display_order == 2
+    assert q_map["Q2a"].sub_order == 1
+    assert q_map["Q2b"].sub_order == 2
+    assert q_map["Q2c"].sub_order == 3
+
+    for qid in ("Q3a", "Q3b", "Q3c"):
+        assert q_map[qid].display_id == "Q3"
+        assert q_map[qid].display_order == 3
+    assert q_map["Q3a"].sub_order == 1
+    assert q_map["Q3b"].sub_order == 2
+    assert q_map["Q3c"].sub_order == 3
+
+    for qid in ("Q10a", "Q10b", "Q10c"):
+        assert q_map[qid].display_id == "Q10"
+        assert q_map[qid].display_order == 10
+    assert q_map["Q10a"].sub_order == 1
+    assert q_map["Q10b"].sub_order == 2
+    assert q_map["Q10c"].sub_order == 3
+
+
+def test_regular_questions_have_matching_display_id():
+    sub_ids = {"Q2a","Q2b","Q2c","Q3a","Q3b","Q3c","Q10a","Q10b","Q10c"}
+    for q in ALL_QUESTIONS:
+        if q.id in sub_ids:
+            continue
+        assert q.display_id == q.id, f"{q.id} display_id 应为 {q.id}"
+        assert q.sub_order == 1, f"{q.id} sub_order 应为 1"
+        # display_order 应为题号数字
+        num = int(q.id[1:])
+        assert q.display_order == num, f"{q.id} display_order 应为 {num}"
+
+
+def test_questions_sorted_by_display_order_then_sub_order():
+    sorted_qs = sorted(ALL_QUESTIONS, key=lambda q: (q.display_order, q.sub_order))
+    actual_order = [q.id for q in ALL_QUESTIONS]
+    expected_order = [q.id for q in sorted_qs]
+    assert actual_order == expected_order, (
+        f"题目顺序应与 (display_order, sub_order) 一致\n"
+        f"期望: {expected_order}\n实际: {actual_order}"
+    )

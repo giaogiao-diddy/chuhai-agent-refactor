@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     EMBEDDING_BASE_URL: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
+    # ── Agent Runtime ──
+    DIALOGUE_MAX_TOKENS: int = 256
+    DIALOGUE_TEMPERATURE: float = 0.2
+    DIALOGUE_HISTORY_WINDOW: int = 12
+    REPORT_MAX_TOKENS: int = 4000
+    REPORT_ESCALATED_MAX_TOKENS: int = 8000
+    MAX_AGENT_STEPS: int = 16
+
 
 @lru_cache
 def get_settings() -> Settings:

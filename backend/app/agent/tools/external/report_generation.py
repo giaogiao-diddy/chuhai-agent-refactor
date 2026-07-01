@@ -7,6 +7,7 @@ from app.schemas.llm import LLMMessage
 from app.schemas.rag import RagDocumentMatch
 from app.schemas.report import RawAIReport
 from app.services.deepseek_client import DeepSeekClient
+from config import get_settings
 
 
 class ReportGenerateInput(BaseModel):
@@ -67,7 +68,8 @@ async def report_generate_deepseek_handler(
     inp: ReportGenerateInput,
     ctx: ToolContext,
 ) -> ToolResult:
-    max_tokens = 8000 if inp.escalated else 4000
+    settings = get_settings()
+    max_tokens = settings.REPORT_ESCALATED_MAX_TOKENS if inp.escalated else settings.REPORT_MAX_TOKENS
     try:
         if inp.audit_feedback or inp.escalated:
             prompt = _build_feedback_prompt(inp.state, inp.rag_context, inp.audit_feedback)

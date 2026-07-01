@@ -15,6 +15,7 @@ Q1 = Question(
     dimension="enterprise_base", kind="open_text", branch="common",
     options=[],
     max_feasibility_score=2, max_lead_score=3, is_scored=True,
+    display_id="Q1", display_order=1, sub_order=1,
     notes="信息完整度评分：industry + main_product 都有值 → F=2/L=3；只有一个 → F=1/L=1；都没有 → 0。不评价行业好坏，只评价信息是否完整。",
 )
 
@@ -27,6 +28,7 @@ Q2a = Question(
         QuestionOption(id="C", text="成立3-5年", feasibility_score=1, lead_score=1),
         QuestionOption(id="D", text="成立1-3年", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=2,
+    display_id="Q2", display_order=2, sub_order=1,
 )
 
 Q2b = Question(
@@ -38,6 +40,7 @@ Q2b = Question(
         QuestionOption(id="C", text="21-99人", feasibility_score=1, lead_score=1),
         QuestionOption(id="D", text="20人以下", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=3,
+    display_id="Q2", display_order=2, sub_order=2,
 )
 
 Q2c = Question(
@@ -49,6 +52,7 @@ Q2c = Question(
         QuestionOption(id="C", text="1-5人", feasibility_score=1, lead_score=1),
         QuestionOption(id="D", text="无", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=3,
+    display_id="Q2", display_order=2, sub_order=3,
 )
 
 Q3a = Question(
@@ -61,6 +65,7 @@ Q3a = Question(
         QuestionOption(id="D", text="500-1000万", feasibility_score=1, lead_score=1),
         QuestionOption(id="E", text="500万以下", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=3,
+    display_id="Q3", display_order=3, sub_order=1,
 )
 
 Q3b = Question(
@@ -74,6 +79,7 @@ Q3b = Question(
         QuestionOption(id="E", text="10%以下", feasibility_score=0, lead_score=0),
         QuestionOption(id="F", text="不清楚毛利率", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=1,
+    display_id="Q3", display_order=3, sub_order=2,
 )
 
 Q3c = Question(
@@ -86,6 +92,7 @@ Q3c = Question(
         QuestionOption(id="F", text="不清楚问题在哪里，只是想试试出海", feasibility_score=1, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=2,
     cap_note="多选取最高分，封顶 F:2 / L:2",
+    display_id="Q3", display_order=3, sub_order=3,
 )
 
 Q4 = Question(
@@ -100,6 +107,7 @@ Q4 = Question(
         QuestionOption(id="G", text="解决方案公司", feasibility_score=2, lead_score=2),
         QuestionOption(id="H", text="海外IP", feasibility_score=2, lead_score=1),
     ], max_feasibility_score=3, max_lead_score=3,
+    display_id="Q4", display_order=4, sub_order=1,
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -117,7 +125,7 @@ Q5 = Question(
     ], max_feasibility_score=5, max_lead_score=5,
     notes="A/B/C → experienced；D → inexperienced（题库尚未提供）",
     conflict_note="选 D 时 Q6-Q10 跳过。无出海经验题库待提供。",
-)
+    display_id="Q5", display_order=5, sub_order=1)
 
 # ═══════════════════════════════════════════════════════════════
 # 有出海经验分支（Q6-Q31）
@@ -140,7 +148,7 @@ Q6 = Question(
         QuestionOption(id="H", text="外贸业务员主动开发", feasibility_score=1, lead_score=1),
     ], max_feasibility_score=3, max_lead_score=2,
     cap_note="多选累加，封顶 F:3 / L:2",
-)
+    display_id="Q6", display_order=6, sub_order=1)
 
 Q7 = Question(
     id="Q7", text="你的海外客户主要分布在哪些国家或地区？（多选）",
@@ -157,7 +165,7 @@ Q7 = Question(
         QuestionOption(id="I", text="澳洲/新西兰", feasibility_score=2, lead_score=1),
     ], max_feasibility_score=3, max_lead_score=2,
     cap_note="多选累加，封顶 F:3 / L:2",
-)
+    display_id="Q7", display_order=7, sub_order=1)
 
 Q8 = Question(
     id="Q8", text="你最想开发的市场是？",
@@ -170,7 +178,7 @@ Q8 = Question(
         QuestionOption(id="E", text="全球同步推进", feasibility_score=0, lead_score=1),
     ], max_feasibility_score=1, max_lead_score=2,
     conflict_note="企业出海可行性评估智能体（内容选项）.md 中 Q8 合并了市场选择/原因/订单；有出海经验题目.md 和 scoring-design 已拆为 Q8/Q9/Q10",
-)
+    display_id="Q8", display_order=8, sub_order=1)
 
 Q9 = Question(
     id="Q9", text="选择该市场的原因？",
@@ -182,7 +190,7 @@ Q9 = Question(
         QuestionOption(id="D", text="同行已经在做", feasibility_score=1, lead_score=1),
         QuestionOption(id="E", text="不清楚，只是凭感觉", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=2,
-)
+    display_id="Q9", display_order=9, sub_order=1)
 
 Q10a = Question(
     id="Q10a", text="单笔海外订单金额（人民币）？",
@@ -194,7 +202,7 @@ Q10a = Question(
         QuestionOption(id="D", text="5000元-3万元", feasibility_score=0, lead_score=0),
         QuestionOption(id="E", text="5000元以下", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=2,
-)
+    display_id="Q10", display_order=10, sub_order=1)
 
 Q10b = Question(
     id="Q10b", text="客户复购情况？",
@@ -205,7 +213,7 @@ Q10b = Question(
         QuestionOption(id="C", text="偶尔复购", feasibility_score=1, lead_score=0),
         QuestionOption(id="D", text="基本一次性采购", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=1,
-)
+    display_id="Q10", display_order=10, sub_order=2)
 
 Q10c = Question(
     id="Q10c", text="你最主要的海外订单类型？",
@@ -217,7 +225,7 @@ Q10c = Question(
         QuestionOption(id="D", text="C端消费者，低客单走量", feasibility_score=0, lead_score=0),
         QuestionOption(id="E", text="不确定客户类型", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=1,
-)
+    display_id="Q10", display_order=10, sub_order=3)
 
 # ── 维度三：产品与供应链竞争力（F:15 / L:12）──
 
@@ -233,7 +241,7 @@ Q11 = Question(
         QuestionOption(id="F", text="售后服务好", feasibility_score=1, lead_score=1),
         QuestionOption(id="G", text="品牌影响力强", feasibility_score=3, lead_score=2),
     ], max_feasibility_score=3, max_lead_score=2, cap_note="多选累加，封顶 F:3 / L:2",
-)
+    display_id="Q11", display_order=11, sub_order=1)
 
 Q12 = Question(
     id="Q12", text="你认为海外客户最在意什么？",
@@ -249,7 +257,7 @@ Q12 = Question(
         QuestionOption(id="H", text="品牌背书", feasibility_score=1, lead_score=1),
         QuestionOption(id="I", text="不清楚", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=1, max_lead_score=1,
-)
+    display_id="Q12", display_order=12, sub_order=1)
 
 Q13 = Question(
     id="Q13", text="你的产品是否具备出口资质、认证、检测或合规基础？",
@@ -261,7 +269,7 @@ Q13 = Question(
         QuestionOption(id="D", text="不清楚目标市场需要什么认证", feasibility_score=0, lead_score=0),
         QuestionOption(id="E", text="产品可能存在合规风险", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=2,
-)
+    display_id="Q13", display_order=13, sub_order=1)
 
 Q14 = Question(
     id="Q14", text="目前已具备材料有哪些？（多选）",
@@ -272,7 +280,7 @@ Q14 = Question(
         QuestionOption(id="C", text="英文产品目录及报价", feasibility_score=1, lead_score=1),
         QuestionOption(id="D", text="有成熟合作的货代/报关机构", feasibility_score=1, lead_score=1),
     ], max_feasibility_score=2, max_lead_score=1, cap_note="多选累加，封顶 F:2 / L:1",
-)
+    display_id="Q14", display_order=14, sub_order=1)
 
 Q15 = Question(
     id="Q15", text="你的交付能力是否稳定？",
@@ -284,7 +292,7 @@ Q15 = Question(
         QuestionOption(id="D", text="旺季或大单容易出问题", feasibility_score=0, lead_score=0),
         QuestionOption(id="E", text="交付周期、质量或售后存在明显不确定性", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=2,
-)
+    display_id="Q15", display_order=15, sub_order=1)
 
 Q16 = Question(
     id="Q16", text="公司是否有标准化的业务流程SOP（如报价、打样、跟单、发货等）？",
@@ -295,7 +303,7 @@ Q16 = Question(
         QuestionOption(id="C", text="正在建立或打算建立", feasibility_score=1, lead_score=0),
         QuestionOption(id="D", text="没有标准流程，主要靠人协调", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=2,
-)
+    display_id="Q16", display_order=16, sub_order=1)
 
 # ── 维度四：出海路径清晰度（F:10 / L:8）──
 
@@ -312,7 +320,7 @@ Q17 = Question(
         QuestionOption(id="G", text="Google/Facebook广告投放", feasibility_score=1, lead_score=1),
         QuestionOption(id="H", text="还不知道怎么选", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=2, cap_note="多选累加，封顶 F:2 / L:2",
-)
+    display_id="Q17", display_order=17, sub_order=1)
 
 Q18 = Question(
     id="Q18", text="企业出海中，你最担心什么？",
@@ -325,7 +333,7 @@ Q18 = Question(
         QuestionOption(id="E", text="担心海外客户不成交", feasibility_score=1, lead_score=2),
         QuestionOption(id="F", text="不知道第一步怎么做", feasibility_score=0, lead_score=3),
     ], max_feasibility_score=2, max_lead_score=3,
-)
+    display_id="Q18", display_order=18, sub_order=1)
 
 Q19 = Question(
     id="Q19", text="你能接受的每月出海试错成本是多少？",
@@ -337,7 +345,7 @@ Q19 = Question(
         QuestionOption(id="D", text="5000元-2万元", feasibility_score=1, lead_score=0),
         QuestionOption(id="E", text="暂时没有明确预算", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=2,
-)
+    display_id="Q19", display_order=19, sub_order=1)
 
 Q20 = Question(
     id="Q20", text="你更倾向的投入方式？",
@@ -349,7 +357,7 @@ Q20 = Question(
         QuestionOption(id="D", text="预算有限，只能小步快跑", feasibility_score=0, lead_score=0),
         QuestionOption(id="E", text="先了解，不一定投入", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=2, max_lead_score=1,
-)
+    display_id="Q20", display_order=20, sub_order=1)
 
 Q21 = Question(
     id="Q21", text="你愿意把出海预算花在哪里？",
@@ -360,7 +368,7 @@ Q21 = Question(
         QuestionOption(id="C", text="展会/独立站/B2B平台", feasibility_score=1, lead_score=2),
         QuestionOption(id="D", text="还没想清楚", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=1, max_lead_score=2,
-)
+    display_id="Q21", display_order=21, sub_order=1)
 
 # ── 维度五：短视频获客适配度（F:20 / L:15）──
 
@@ -374,7 +382,7 @@ Q22 = Question(
         QuestionOption(id="D", text="没有团队，但老板愿意亲自参与", feasibility_score=1, lead_score=1),
         QuestionOption(id="E", text="完全没有新媒体基础，也没人负责", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=5, max_lead_score=3,
-)
+    display_id="Q22", display_order=22, sub_order=1)
 
 Q23 = Question(
     id="Q23", text="你现在是否做过海外社媒或短视频？",
@@ -384,7 +392,7 @@ Q23 = Question(
         QuestionOption(id="B", text="已经做了，没有形成体系，有少量询盘", feasibility_score=3, lead_score=2),
         QuestionOption(id="C", text="想做，不知道拍什么内容和选哪个平台", feasibility_score=1, lead_score=1),
     ], max_feasibility_score=5, max_lead_score=3,
-)
+    display_id="Q23", display_order=23, sub_order=1)
 
 Q24 = Question(
     id="Q24", text="目前做过哪些社媒平台？（多选）",
@@ -395,7 +403,7 @@ Q24 = Question(
         QuestionOption(id="C", text="其他海外非主流平台", feasibility_score=1, lead_score=0),
         QuestionOption(id="D", text="都没做过", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=2, cap_note="多选累加，封顶 F:3 / L:2",
-)
+    display_id="Q24", display_order=24, sub_order=1)
 
 Q25 = Question(
     id="Q25", text="当前新媒体平台内容创造能力？",
@@ -407,7 +415,7 @@ Q25 = Question(
         QuestionOption(id="D", text="外包做过，但效果一般", feasibility_score=1, lead_score=0),
         QuestionOption(id="E", text="完全没有内容能力", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=4, max_lead_score=3,
-)
+    display_id="Q25", display_order=25, sub_order=1)
 
 Q26 = Question(
     id="Q26", text="你们可以支持的拍摄场景？（多选）",
@@ -425,7 +433,7 @@ Q26 = Question(
     ], max_feasibility_score=3, max_lead_score=4,
     cap_note="每项 0.3F/0.4L，9 项全选 = F≈3/L≈4。已裁决保持 9 项，不补「海外订单」。",
     conflict_note="内容选项.md Q15 拍摄场景有 10 项（含「海外订单」），有出海经验题目.md 和 scoring-design 均为 9 项。已裁决：保持 9 项，不补。决议来源: docs/questionnaire-canonical.md",
-)
+    display_id="Q26", display_order=26, sub_order=1)
 
 # ── 维度六：销转承接能力（F:10 / L:15）──
 
@@ -439,7 +447,7 @@ Q27 = Question(
         QuestionOption(id="D", text="暂时没有承接路径", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=5, cap_note="多选累加，封顶 F:3 / L:5",
     conflict_note="内容选项.md 中 Q17 重复编号（承接渠道+销售资料 / 外贸团队+语言能力），有出海经验题目.md 和 scoring-design 已拆为 Q27/Q28/Q29",
-)
+    display_id="Q27", display_order=27, sub_order=1)
 
 Q28 = Question(
     id="Q28", text="目前的外贸团队情况？",
@@ -450,7 +458,7 @@ Q28 = Question(
         QuestionOption(id="C", text="有销售团队，但主要做内销", feasibility_score=1, lead_score=1),
         QuestionOption(id="E", text="没有销售团队", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=5,
-)
+    display_id="Q28", display_order=28, sub_order=1)
 
 Q29 = Question(
     id="Q29", text="外贸团队语言能力？",
@@ -461,7 +469,7 @@ Q29 = Question(
         QuestionOption(id="C", text="英语一般，但能基础回复", feasibility_score=1, lead_score=1),
         QuestionOption(id="D", text="需要翻译工具辅助", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=4, max_lead_score=5,
-)
+    display_id="Q29", display_order=29, sub_order=1)
 
 # ── 维度七：企业出海行动力（F:5 / L:15）──
 
@@ -475,7 +483,7 @@ Q30 = Question(
         QuestionOption(id="D", text="给到海外客户画像建议", feasibility_score=1, lead_score=5),
         QuestionOption(id="E", text="不确定，希望顾问帮我整体诊断", feasibility_score=1, lead_score=7),
     ], max_feasibility_score=2, max_lead_score=7,
-)
+    display_id="Q30", display_order=30, sub_order=1)
 
 Q31 = Question(
     id="Q31", text="是否愿意预约50分钟1V1咨询？",
@@ -486,7 +494,7 @@ Q31 = Question(
         QuestionOption(id="C", text="可以考虑，先简单了解", feasibility_score=1, lead_score=3),
         QuestionOption(id="D", text="暂时不考虑", feasibility_score=0, lead_score=0),
     ], max_feasibility_score=3, max_lead_score=8,
-)
+    display_id="Q31", display_order=31, sub_order=1)
 
 # ═══════════════════════════════════════════════════════════════
 # 分支定义

@@ -3,6 +3,7 @@ from app.schemas.llm import LLMMessage
 from app.schemas.rag import RagDocumentMatch
 from app.schemas.report import RawAIReport
 from app.services.deepseek_client import DeepSeekClient
+from config import get_settings
 
 SYSTEM_REPORT_GENERATION = """你是出海咨询公司的资深顾问。
 
@@ -68,11 +69,12 @@ Q5分支: {state.branch}
         rag_block = "\n".join(rag_lines)
         prompt += f"\n\n参考知识:\n{rag_block}"
 
+    settings = get_settings()
     client = DeepSeekClient()
     return await client.chat_json(
         [LLMMessage(role="system", content=SYSTEM_REPORT_GENERATION),
          LLMMessage(role="user", content=prompt)],
         response_model=RawAIReport,
-        max_tokens=4000,
+        max_tokens=settings.REPORT_MAX_TOKENS,
         temperature=0.2,
     )

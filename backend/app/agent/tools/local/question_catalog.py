@@ -27,20 +27,11 @@ KEY_QUESTION_IDS = [
 ]
 
 
-def _derive_display_id(question_id: str) -> str | None:
-    """从内部 id 推导用户可见 display_id。
-
-    Q2a/Q2b/Q2c → Q2, Q3a/Q3b/Q3c → Q3, Q10a/Q10b/Q10c → Q10.
-    其他直接用原 id（除去末尾字母）。
-    """
-    if len(question_id) > 1 and question_id[-1].isalpha() and question_id[-1].islower():
-        return question_id[:-1]
-    return question_id
-
-
 class QuestionCatalogItem(BaseModel):
     id: str
-    display_id: str | None
+    display_id: str
+    display_order: int
+    sub_order: int
     text: str
     kind: str
     branch: str | None
@@ -67,7 +58,9 @@ def question_catalog_handler(
             continue
         items.append(QuestionCatalogItem(
             id=q.id,
-            display_id=_derive_display_id(q.id),
+            display_id=q.display_id,
+            display_order=q.display_order,
+            sub_order=q.sub_order,
             text=q.text,
             kind=q.kind,
             branch=q.branch,

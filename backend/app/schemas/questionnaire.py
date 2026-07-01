@@ -19,6 +19,9 @@ class Question(BaseModel):
     max_lead_score: float
     is_scored: bool = True
     branch: str = "common"  # common / experienced / inexperienced / branch_decision
+    display_id: str = ""
+    display_order: int = 0
+    sub_order: int = 1
     notes: str | None = None
     cap_note: str | None = None
     conflict_note: str | None = None

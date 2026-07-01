@@ -16,8 +16,11 @@ from app.schemas.conversation import ConversationClientState
 from app.schemas.extraction import ExtractionResult
 from app.schemas.llm import LLMMessage
 from app.services.deepseek_client import DeepSeekClient
+from config import get_settings
 
-MAX_AGENT_STEPS = 16
+
+def _default_max_agent_steps() -> int:
+    return get_settings().MAX_AGENT_STEPS
 
 
 def _build_tool_registry() -> ToolRegistry:
@@ -36,9 +39,10 @@ async def run_agent_event(
     state: AgentState,
     event: AgentEvent,
     registry: ToolRegistry | None = None,
-    max_steps: int = MAX_AGENT_STEPS,
+    max_steps: int | None = None,
 ) -> AgentRunResult:
-    if max_steps <= 0:
+    effective_max_steps = max_steps if max_steps is not None else _default_max_agent_steps()
+    if effective_max_steps <= 0:
         return AgentRunResult(
             state=state,
             terminal=TerminalState.MAX_STEPS_EXCEEDED,
@@ -363,14 +367,19 @@ async def run_agent_event_stream(
         missing_items=missing_items,
         next_questions=next_qs,
     ))
+    settings = get_settings()
     llm_messages = [LLMMessage(role="system", content=system_prompt)]
-    for msg in current.messages[-12:]:
+    for msg in current.messages[-settings.DIALOGUE_HISTORY_WINDOW:]:
         llm_messages.append(LLMMessage(role=msg.role, content=msg.content))
 
     assistant_text = ""
     try:
         client = DeepSeekClient()
-        async for chunk in client.stream_chat(llm_messages, max_tokens=256, temperature=0.2):
+        async for chunk in client.stream_chat(
+            llm_messages,
+            max_tokens=settings.DIALOGUE_MAX_TOKENS,
+            temperature=settings.DIALOGUE_TEMPERATURE,
+        ):
             assistant_text += chunk
             yield {"type": "delta", "content": chunk}
     except Exception:

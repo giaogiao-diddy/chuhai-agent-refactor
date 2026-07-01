@@ -5,6 +5,7 @@ from app.agent.tools.base import ToolContext, ToolError, ToolErrorCode, ToolResu
 from app.schemas.agent_state import AgentMessage
 from app.schemas.llm import LLMMessage
 from app.services.deepseek_client import DeepSeekClient
+from config import get_settings
 
 
 class DialogueDeepSeekInput(BaseModel):
@@ -34,14 +35,18 @@ async def dialogue_deepseek_handler(
     ctx: ToolContext,
 ) -> ToolResult:
     try:
+        settings = get_settings()
         client = DeepSeekClient()
         system_prompt = _build_dialogue_prompt(inp)
         llm_messages = [LLMMessage(role="system", content=system_prompt)]
-        # LLM 输入只取最近 12 条
-        for msg in inp.messages[-12:]:
+        for msg in inp.messages[-settings.DIALOGUE_HISTORY_WINDOW:]:
             llm_messages.append(LLMMessage(role=msg.role, content=msg.content))
 
-        response = await client.chat(llm_messages, max_tokens=256, temperature=0.2)
+        response = await client.chat(
+            llm_messages,
+            max_tokens=settings.DIALOGUE_MAX_TOKENS,
+            temperature=settings.DIALOGUE_TEMPERATURE,
+        )
         assistant_text = response.content.strip()
         if not assistant_text:
             return ToolResult(error=ToolError(
