@@ -35,6 +35,28 @@ def _safe_error(msg: str) -> str:
     return "AI 暂时不可用，请稍后重试"
 
 
+def _build_memory_query(state: AgentState, user_message: str) -> str:
+    parts = [user_message]
+    if state.slots.industry and state.slots.industry.value:
+        parts.append(str(state.slots.industry.value))
+    if state.slots.main_product and state.slots.main_product.value:
+        parts.append(str(state.slots.main_product.value))
+    return " ".join(parts)
+
+
+async def _recall_memory_entries(
+    executor: ToolExecutor,
+    state: AgentState,
+    user_message: str,
+) -> list:
+    query = _build_memory_query(state, user_message)
+    from app.schemas.memory import MemoryRecallInput
+    result = await executor.execute("memory.recall", MemoryRecallInput(query=query, limit=3))
+    if result.error is None and result.data is not None:
+        return getattr(result.data, "entries", [])
+    return []
+
+
 async def run_agent_event(
     state: AgentState,
     event: AgentEvent,
@@ -87,7 +109,10 @@ async def _handle_user_message(
         current = current.model_copy(deep=True)
         current.readiness_result = readiness
 
-    # Step 3: dialogue
+    # Step 3: memory recall
+    memory_entries = await _recall_memory_entries(executor, current, event.message)
+
+    # Step 4: dialogue
     missing_items = [m.model_dump() for m in readiness.missing_items] if readiness else []
     next_qs = readiness.next_questions if readiness else []
     dialogue_result = await executor.execute(
@@ -96,6 +121,7 @@ async def _handle_user_message(
             messages=current.messages,
             missing_items=missing_items,
             next_questions=next_qs,
+            memory_entries=memory_entries,
         ),
     )
     if dialogue_result.error is not None:
@@ -356,6 +382,9 @@ async def run_agent_event_stream(
         current = current.model_copy(deep=True)
         current.readiness_result = readiness
 
+    # memory recall
+    memory_entries = await _recall_memory_entries(executor, current, event.message)
+
     # streaming dialogue
     missing_items = [m.model_dump() for m in readiness.missing_items] if readiness else []
     next_qs = readiness.next_questions if readiness else []
@@ -366,6 +395,7 @@ async def run_agent_event_stream(
         messages=current.messages,
         missing_items=missing_items,
         next_questions=next_qs,
+        memory_entries=memory_entries,
     ))
     settings = get_settings()
     llm_messages = [LLMMessage(role="system", content=system_prompt)]

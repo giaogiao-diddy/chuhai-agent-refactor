@@ -1,17 +1,19 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.agent.prompts import SYSTEM_DIALOGUE
 from app.agent.tools.base import ToolContext, ToolError, ToolErrorCode, ToolResult
 from app.schemas.agent_state import AgentMessage
 from app.schemas.llm import LLMMessage
+from app.schemas.memory import MemoryEntry
 from app.services.deepseek_client import DeepSeekClient
 from config import get_settings
 
 
 class DialogueDeepSeekInput(BaseModel):
     messages: list[AgentMessage]
-    missing_items: list[dict] = []
-    next_questions: list[str] = []
+    missing_items: list[dict] = Field(default_factory=list)
+    next_questions: list[str] = Field(default_factory=list)
+    memory_entries: list[MemoryEntry] = Field(default_factory=list)
 
 
 class DialogueDeepSeekOutput(BaseModel):
@@ -20,6 +22,15 @@ class DialogueDeepSeekOutput(BaseModel):
 
 def _build_dialogue_prompt(inp: DialogueDeepSeekInput) -> str:
     lines = [SYSTEM_DIALOGUE]
+
+    # Memory section (max 3 entries, 300 chars each)
+    if inp.memory_entries:
+        lines.append("\n已知长期记忆：")
+        for me in inp.memory_entries[:3]:
+            snippet = me.content[:300]
+            lines.append(f"- {me.frontmatter.name}: {me.frontmatter.description}")
+            lines.append(f"  {snippet}")
+
     if inp.missing_items:
         missing_labels = [m.get("label", m.get("question_id", "?")) for m in inp.missing_items]
         lines.append(f"当前缺失关键信息：{'、'.join(missing_labels[:4])}")

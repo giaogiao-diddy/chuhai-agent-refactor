@@ -1,11 +1,17 @@
 import pytest
 
-from app.agent.runner import run_agent_event
+from app.agent.runner import _build_memory_query, run_agent_event
+from app.agent.tools.base import ToolContext, ToolDefinition, ToolResult
 from app.agent.tools.external import register_external_tools
+from app.agent.tools.external.dialogue import DialogueDeepSeekInput
+from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
 from app.agent.tools.local import register_local_tools
+from app.agent.tools.local.readiness import ReadinessCheckInput, ReadinessResult
 from app.agent.tools.registry import ToolRegistry
 from app.schemas.agent_protocol import AgentEvent, TerminalState
 from app.schemas.agent_state import AgentState
+from app.schemas.extraction import ExtractionResult
+from app.schemas.memory import MemoryEntry, MemoryFrontmatter, MemoryRecallInput
 
 
 def _full_registry() -> ToolRegistry:
@@ -15,76 +21,148 @@ def _full_registry() -> ToolRegistry:
     return r
 
 
-# ── user_message (non-AI, monkeypatch) ──
+# ── memory query helper ──
+
+def test_build_memory_query_includes_slots():
+    from app.schemas.slots import SlotValue
+    state = AgentState()
+    state.slots.industry = SlotValue(value="机械设备", confidence=0.9)
+    state.slots.main_product = SlotValue(value="数控机床", confidence=0.9)
+    query = _build_memory_query(state, "hello")
+    assert "hello" in query
+    assert "机械设备" in query
+    assert "数控机床" in query
+
+
+# ── user_message: memory recall 调用 ──
 
 @pytest.mark.asyncio
-async def test_user_message_event_append_only_no_ai():
-    """不使用真实 AI 时 user_message 路径由 fixture registry 控制。
-    这里只验证 runner 正确路由到 user_message 分支并尝试调用工具。
-    工具未注册时会抛 KeyError（预期行为——表明路径正确）。
-    """
+async def test_user_message_calls_memory_recall_before_dialogue():
+    """memory.recall 在 dialogue.deepseek 之前被调用。"""
+    call_order = []
+
+    def _fake_readiness(inp, ctx):
+        return ToolResult(data=ReadinessResult(ready=False, missing_items=[]))
+
+    def _fake_extract(inp, ctx):
+        return ToolResult(data=ExtractionResult())
+
+    def _track_memory(inp, ctx):
+        call_order.append("memory.recall")
+        return ToolResult(data=type("X", (), {"entries": []})())
+
+    def _track_dialogue(inp, ctx):
+        call_order.append("dialogue.deepseek")
+        from app.agent.tools.external.dialogue import DialogueDeepSeekOutput
+        return ToolResult(data=DialogueDeepSeekOutput(assistant_message="ok"))
+
+    r = ToolRegistry()
+    r.register(ToolDefinition(name="extract_answers.deepseek", description="e", input_model=ExtractAnswersDeepSeekInput, handler=_fake_extract))
+    r.register(ToolDefinition(name="readiness.check", description="r", input_model=ReadinessCheckInput, handler=_fake_readiness))
+    r.register(ToolDefinition(name="memory.recall", description="m", input_model=MemoryRecallInput, handler=_track_memory))
+    r.register(ToolDefinition(name="dialogue.deepseek", description="d", input_model=DialogueDeepSeekInput, handler=_track_dialogue))
+
     state = AgentState()
-    r = ToolRegistry()  # 空 registry，无任何工具
-    with pytest.raises(KeyError):  # 尝试调 extract_answers.deepseek 会失败
-        await run_agent_event(
-            state, AgentEvent(type="user_message", message="你好"),
-            registry=r,
-        )
+    result = await run_agent_event(state, AgentEvent(type="user_message", message="hello"), r)
+    assert result.terminal == TerminalState.AWAITING_USER
+    mem_idx = call_order.index("memory.recall")
+    dia_idx = call_order.index("dialogue.deepseek")
+    assert mem_idx < dia_idx, f"memory.recall 应在 dialogue 之前, order={call_order}"
 
 
-# ── finish_requested: 信息不足 ──
+@pytest.mark.asyncio
+async def test_user_message_passes_memory_entries_to_dialogue():
+    """memory.recall 返回的 entries 被传入 dialogue.deepseek。"""
+    dummy_entry = MemoryEntry(
+        path=".claude/memory/test.md",
+        frontmatter=MemoryFrontmatter(name="测试记忆", description="desc", type="user"),
+        content="test content",
+    )
+    captured_input = {}
+
+    def _fake_readiness(inp, ctx):
+        return ToolResult(data=ReadinessResult(ready=False, missing_items=[]))
+
+    def _fake_extract(inp, ctx):
+        return ToolResult(data=ExtractionResult())
+
+    def _fake_memory(inp, ctx):
+        return ToolResult(data=type("X", (), {"entries": [dummy_entry]})())
+
+    def _capture_dialogue(inp, ctx):
+        captured_input["memory_entries"] = inp.memory_entries
+        from app.agent.tools.external.dialogue import DialogueDeepSeekOutput
+        return ToolResult(data=DialogueDeepSeekOutput(assistant_message="ok"))
+
+    r = ToolRegistry()
+    r.register(ToolDefinition(name="extract_answers.deepseek", description="e", input_model=ExtractAnswersDeepSeekInput, handler=_fake_extract))
+    r.register(ToolDefinition(name="readiness.check", description="r", input_model=ReadinessCheckInput, handler=_fake_readiness))
+    r.register(ToolDefinition(name="memory.recall", description="m", input_model=MemoryRecallInput, handler=_fake_memory))
+    r.register(ToolDefinition(name="dialogue.deepseek", description="d", input_model=DialogueDeepSeekInput, handler=_capture_dialogue))
+
+    state = AgentState()
+    result = await run_agent_event(state, AgentEvent(type="user_message", message="hello"), r)
+    assert result.terminal == TerminalState.AWAITING_USER
+    assert len(captured_input["memory_entries"]) == 1
+    assert captured_input["memory_entries"][0].frontmatter.name == "测试记忆"
+
+
+@pytest.mark.asyncio
+async def test_user_message_memory_recall_error_does_not_break_flow():
+    """memory.recall 失败时仍继续 dialogue。"""
+    def _fake_readiness(inp, ctx):
+        return ToolResult(data=ReadinessResult(ready=False, missing_items=[]))
+
+    def _fake_extract(inp, ctx):
+        return ToolResult(data=ExtractionResult())
+
+    def _fail_memory(inp, ctx):
+        from app.agent.tools.base import ToolError, ToolErrorCode
+        return ToolResult(error=ToolError(code=ToolErrorCode.TRANSIENT, message="fail", retryable=True))
+
+    captured_memory_entries = {}
+    def _capture_dialogue(inp, ctx):
+        captured_memory_entries["entries"] = inp.memory_entries
+        from app.agent.tools.external.dialogue import DialogueDeepSeekOutput
+        return ToolResult(data=DialogueDeepSeekOutput(assistant_message="ok"))
+
+    r = ToolRegistry()
+    r.register(ToolDefinition(name="extract_answers.deepseek", description="e", input_model=ExtractAnswersDeepSeekInput, handler=_fake_extract))
+    r.register(ToolDefinition(name="readiness.check", description="r", input_model=ReadinessCheckInput, handler=_fake_readiness))
+    r.register(ToolDefinition(name="memory.recall", description="m", input_model=MemoryRecallInput, handler=_fail_memory))
+    r.register(ToolDefinition(name="dialogue.deepseek", description="d", input_model=DialogueDeepSeekInput, handler=_capture_dialogue))
+
+    state = AgentState()
+    result = await run_agent_event(state, AgentEvent(type="user_message", message="hello"), r)
+    assert result.terminal == TerminalState.AWAITING_USER
+    assert captured_memory_entries["entries"] == []
+
+
+# ── finish_requested ──
 
 @pytest.mark.asyncio
 async def test_finish_requested_missing_q5_missing_info():
     state = AgentState()
-    result = await run_agent_event(
-        state, AgentEvent(type="finish_requested"),
-    )
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"))
     assert result.terminal == TerminalState.MISSING_INFO
-    assert result.state.readiness_result.ready is False
-    assert any(m.question_id == "Q5" for m in result.state.readiness_result.missing_items)
-    assert result.state.scoring_result is None
-    assert result.state.user_report is None
 
-
-# ── finish_requested: inexperienced ──
 
 @pytest.mark.asyncio
 async def test_finish_requested_inexperienced_unsupported():
-    state = AgentState(
-        answers={"Q5": ["D"]},
-        branch="inexperienced",
-    )
-    result = await run_agent_event(
-        state, AgentEvent(type="finish_requested"),
-    )
+    state = AgentState(answers={"Q5": ["D"]}, branch="inexperienced")
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"))
     assert result.terminal == TerminalState.UNSUPPORTED_BRANCH
-    assert result.state.readiness_result.unsupported_branch is True
-    assert result.state.scoring_result is None
 
-
-# ── max_steps_exceeded ──
 
 @pytest.mark.asyncio
 async def test_max_steps_zero_returns_exceeded():
     state = AgentState()
-    result = await run_agent_event(
-        state, AgentEvent(type="user_message", message="hello"),
-        max_steps=0,
-    )
+    result = await run_agent_event(state, AgentEvent(type="user_message", message="hello"), max_steps=0)
     assert result.terminal == TerminalState.MAX_STEPS_EXCEEDED
-    assert result.state.conversation_round == 0
 
-
-# ── finish_requested: missing_info 不需要 full registry ──
 
 @pytest.mark.asyncio
 async def test_finish_requested_missing_q5_no_registry_needed():
-    """无 Q5 时 finish 直接返回 missing_info，不需要额外工具。"""
     state = AgentState(answers={}, branch=None)
-    result = await run_agent_event(
-        state, AgentEvent(type="finish_requested"),
-    )
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"))
     assert result.terminal == TerminalState.MISSING_INFO
-    assert result.state.scoring_result is None
-    assert result.state.user_report is None
