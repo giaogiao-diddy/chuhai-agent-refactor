@@ -66,13 +66,15 @@ async function run() {
   // 6. handleWechatCallback state 不一致时抛安全错误（不调后端）
   // 重新保存一个不同的 state
   store.set("oauth_state", "expected-state");
-  (globalThis as any).fetch = async () => ({ ok: true, json: async () => ({}) });
+  let fetchWasCalled = false;
+  (globalThis as any).fetch = async () => { fetchWasCalled = true; return { ok: true, json: async () => ({}) }; };
   try {
     await mod.handleWechatCallback("code", "wrong-state");
     assert(false, "handleWechatCallback state 不一致应抛错");
   } catch (e: any) {
     assert(e.message === "安全校验失败，请重新登录", "state 不一致抛固定安全文案");
   }
+  assert(!fetchWasCalled, "state 不一致时不调用后端");
 
   // 7. handleWechatCallback 没有保存 state 时抛安全错误
   store.delete("oauth_state");
@@ -83,7 +85,7 @@ async function run() {
     assert(e.message === "安全校验失败，请重新登录", "无保存 state 时抛固定安全文案");
   }
 
-  // 8. handleWechatCallback 后端失败不泄露原始错误
+  // 8. handleWechatCallback 后端失败不泄露原始错误（且不清除 oauth_state）
   store.set("oauth_state", "state-match");
   (globalThis as any).fetch = async () => ({ ok: false, status: 400 });
   try {
@@ -93,6 +95,8 @@ async function run() {
     assert(e.message === "微信登录失败", "handleWechatCallback 失败抛固定文案");
     assert(!e.message.includes("400"), "失败不泄露状态码");
   }
+  // 后端失败时不清除 oauth_state（用户可刷新 callback 页重试）
+  assert(store.get("oauth_state") === "state-match", "后端失败时保留 oauth_state 用于重试");
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

@@ -10,7 +10,7 @@
 | 术语 | 英文 key | 定义 |
 |------|---------|------|
 | **用户题号** | `display_id` | 用户可见的题号，如 `Q1`、`Q2`、`Q10`。共 31 个唯一值。 |
-| **计分单元 ID** | `scoring_question_id` / `Question.id` | 内部计分的最小单元。如 `Q2a`、`Q2b`、`Q2c`。共 33 个（Q2/Q3/Q10 各拆为多个子题）。 |
+| **计分单元 ID** | `scoring_question_id` / `Question.id` | 内部计分的最小单元。如 `Q2a`、`Q2b`、`Q2c`。共 37 个 Question 对象；用户可见题号为 Q1-Q31（31 个 display_id）。Q2/Q3/Q10 被拆为多个内部计分单元。 |
 | **展示顺序** | `display_order` | 用户看到"第几题"，1..31。 |
 | **子题顺序** | `sub_order` | 同一用户题号下的子题排位（如 Q2a=1, Q2b=2, Q2c=3）。 |
 | **维度** | `dimension` | 7 个评估维度：enterprise_base / overseas_validation / product_supply_chain / path_clarity / content_fitness / conversion_readiness / action_readiness。 |
@@ -52,7 +52,7 @@
 | **用户报告** | `UserReport` | 用户可见的诊断报告。**禁止**包含 `lead_score`、`lead_priority`、`sales_followup`、`consultant_notes`。 |
 | **顾问报告** | `LeadReport` | 内部销售使用的报告。包含线索分、销售话术、顾问备注。 |
 | **留资** | `LeadSubmission` | 用户填写联系方式以解锁完整报告的行为。包含姓名、手机号、微信、公司名。 |
-| **槽位** | `Slot` | 从对话中提取的结构化企业信息（行业、产品、营收等）。12 个字段定义见 `slots.py`。 |
+| **槽位** | `Slot` | 从对话中提取的结构化企业信息（行业、产品、营收等）。13 个字段定义见 `schemas/slots.py`。 |
 | **答案** | `Answer` | 用户对某一计分单元的选项选择，存储为 `{question_id: [option_ids]}`。 |
 | **题单** | `Question` | 一道计分单元。`Question.id` 是内部标识，`display_id` 是用户看到的题号。 |
 
@@ -85,6 +85,62 @@
 | **企业主** | 产品终端用户。通过微信扫码登录，完成诊断对话，查看报告，留资。 |
 | **顾问** | 出海咨询公司的销售/咨询师。查看线索列表、顾问报告、更新跟进状态。 |
 | **管理员** | 咨询公司内部管理。MVP 不做。 |
+
+---
+
+### Agent 架构
+
+> ⚠️ 2026-06-27 架构裁决：API handler 不应直接编排业务。见 ADR-0009。
+> **当前实现仍存在 API handler 编排 scoring/report 的历史路径；ADR-0009 为目标架构，尚未完全落地。**
+
+| 术语 | 定义 |
+|------|------|
+| **AgentEvent** | API 传入的用户事件：`user_message` 或 `finish_requested`。API 层只传递事件，不决定下一步。 |
+| **AgentGraph** | 单一 LangGraph 图，接收 AgentEvent → 提取 → 判断 readiness → 追问或评分 → 报告 → 审计。图中节点负责完整流转。 |
+| **Readiness Check** | Agent 图内判断信息是否足够生成报告。最低条件：branch=experienced、Q5 有效、Q1 已提取、无阻塞错误。不满足 → 继续追问；满足 + finish_requested → 评分报告。 |
+| **模板兜底** | 仅用于 AI/服务故障（DeepSeek 失败、RAG 失败、审计多次失败）。**禁止**用于"信息不足"场景。信息不足是正常 Agent 状态，应返回缺失问题列表。 |
+
+### 当前迭代优先级
+
+> 2026-06-27 裁决
+
+1. **P0 安全**：API Key 轮换、JWT secret 校验、微信 OAuth state CSRF 修复
+2. **P1 前端发布底线**：生产 env、layout metadata、首页体验、基础测试
+3. **P1 审计重试**：`generate_raw_report()` 增加 `audit_feedback` 参数。不建复杂重试框架。
+4. **P1 硬编码抽配置**：`DIALOGUE_MAX_TOKENS` / `DIALOGUE_TEMPERATURE` / `DIALOGUE_HISTORY_WINDOW` → `config.py`。Phase 38.1。
+5. **P1 `Question.display_id`**：新增 `display_id` / `display_order` / `sub_order` 字段，加测试锁住 31 题映射。Phase 38.2。
+6. **P2 死代码清理**：删除 `trim_history_node` / `EXPERIENCED_QUESTION_IDS` / `require_admin` / `rag/` 空壳。
+7. **P2 无出海经验占位**：`inexperienced` 分支不生成 0 分模板，前端/后端返回明确提示文案："深度诊断优先支持已有出海经验企业"。
+8. **P3 AgentGraph 架构重构**：ADR-0009。详见 `docs/agent-engineering-plan.md`。
+
+### Agent 工具系统
+
+> 参考：Claude Code 源码 `src/tools/Tool.ts`。原则：工具不是普通函数，而是带 `is_read_only / is_concurrency_safe / is_destructive / max_retries` 元数据的运行时协议对象。默认 fail-closed。
+
+| 术语 | 定义 |
+|------|------|
+| **ToolDefinition** | 工具定义基类。包含 `name` / `description` / `is_read_only` / `is_concurrency_safe` / `is_destructive` / `max_retries` / `retry_delay_seconds`。参考 Claude Code 的 `buildTool()` 工厂。 |
+| **ToolResult** | 工具执行结果。不抛异常——所有错误封装在 `error: ToolError` 字段中。包含 `data` / `error` / `new_messages` / `context_modifier`。 |
+| **ToolError** | 工具错误。`code` 区分 `TRANSIENT` / `PERMANENT` / `LENGTH_EXCEEDED` / `RATE_LIMITED` / `AUTH_FAILED`。`retryable` 决定执行器是否重试。 |
+| **ToolContext** | 工具运行时上下文。包含 `db_session` / `user_id` / `assessment_id` / `abort_signal`。由 ToolExecutor 在调用前注入。 |
+| **ToolRegistry** | 工具注册表。统一管理工具的注册、发现、重试策略查询。 |
+| **ToolExecutor** | 工具执行器。按 `is_concurrency_safe` 分区——并发安全的工具 `asyncio.gather()`；不安全的串行执行。每个工具按自身 `max_retries` 重试。 |
+| **AgentEvent** | API 传入的用户事件：`user_message` 或 `finish_requested`。API 层只传事件，不编排业务。 |
+| **TerminalState** | Agent 图的 8 个终止状态：`awaiting_user` / `missing_info` / `unsupported_branch` / `completed` / `completed_with_template` / `failed` / `aborted` / `max_steps_exceeded`。 |
+| **ReadinessResult** | 确定性节点 `readiness_check_node` 的输出。`ready` / `missing_items` / `next_questions`。LLM 可参与改写追问文案，但不能决定缺失项是什么。 |
+
+### Agent 记忆系统
+
+> 参考：Claude Code `src/memdir/`。文件系统 + frontmatter + LLM 语义选择，不用向量数据库。
+
+| 术语 | 定义 |
+|------|------|
+| **记忆文件** | 一个 Markdown 文件，包含 YAML frontmatter（`name` / `description` / `type`）和正文。存储在 `.claude/memory/` 目录下。 |
+| **记忆类型** | 四种：`user`（用户偏好）、`feedback`（工作方式指导）、`project`（项目状态/目标）、`reference`（外部系统链接）。 |
+| **MEMORY.md** | 记忆索引文件，每行一个 `- [Title](file.md) — one-line hook`。上限 200 行 / 25KB。 |
+| **记忆召回** | `memory.recall` 工具：扫描所有 frontmatter → 格式化文本清单 → 轻量级 LLM 选择 ≤5 个最相关文件 → 注入系统提示。不使用向量检索。 |
+| **记忆保存** | `memory.save` 工具：两步原子写入——先写主题文件 → 再更新 MEMORY.md 索引。已有文件更新而非重复创建。 |
+| **记忆新鲜度** | 超过 N 天的记忆在注入时附带 `<system-reminder>` 警告。防止过期信息误导 Agent。 |
 
 ---
 

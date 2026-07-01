@@ -285,14 +285,15 @@ export async function handleWechatCallback(code: string, state: string): Promise
   if (!savedState || savedState !== state) {
     throw new Error("安全校验失败，请重新登录");
   }
-  // 比对通过后清除
-  clearOAuthState();
 
   const params = new URLSearchParams({ code, state });
   const res = await fetch(`${API_BASE}/auth/wechat/callback?${params}`);
   if (!res.ok) throw new Error("微信登录失败");
   const data = await res.json();
+  // 后端成功后先保存 token，再清除 oauth_state
+  // （如果清除在前端，网络失败时用户刷新 callback 页无法重试）
   setAuthToken(data.access_token);
+  clearOAuthState();
   return data;
 }
 

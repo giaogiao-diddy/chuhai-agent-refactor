@@ -136,3 +136,57 @@ def test_verify_accepts_state_within_window():
     state = generate_oauth_state_for_test(nonce="recent", timestamp=recent_ts)
 
     assert verify_oauth_state(state, max_age_seconds=600) is True
+
+
+# ── JWT secret 强校验 ──
+
+def test_generate_state_rejects_weak_jwt_secret():
+    _set_secret("change_me")
+    from app.auth.oauth_state import generate_oauth_state
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        generate_oauth_state()
+
+
+def test_verify_state_rejects_weak_jwt_secret():
+    _set_secret("a" * 32)
+    from app.auth.oauth_state import generate_oauth_state_for_test
+    import time
+    state = generate_oauth_state_for_test(nonce="abc", timestamp=int(time.time()))
+
+    # 切换到弱密钥
+    _set_secret("change_me")
+    from app.auth.oauth_state import verify_oauth_state
+    with pytest.raises(ValueError, match="JWT_SECRET_KEY"):
+        verify_oauth_state(state)
+
+
+# ── nonce 校验 ──
+
+def test_verify_rejects_missing_nonce():
+    """payload 缺 nonce 字段时返回 False。"""
+    _set_secret("a" * 32)
+    from app.auth.oauth_state import _build_state, verify_oauth_state
+    import json, base64, hmac, hashlib
+
+    # 手工构建没有 nonce 的 payload
+    payload = json.dumps({"timestamp": int(time.time())}, separators=(",", ":"))
+    payload_bytes = payload.encode("utf-8")
+    key = get_settings().JWT_SECRET_KEY.encode("utf-8")
+    sig = base64.urlsafe_b64encode(
+        hmac.new(key, payload_bytes, hashlib.sha256).digest()
+    ).decode().rstrip("=")
+    payload_enc = base64.urlsafe_b64encode(payload_bytes).decode().rstrip("=")
+    state = f"{payload_enc}.{sig}"
+
+    assert verify_oauth_state(state) is False
+
+
+def test_verify_rejects_empty_nonce():
+    """payload 中 nonce 为空字符串时返回 False。"""
+    _set_secret("a" * 32)
+    import time
+    from app.auth.oauth_state import generate_oauth_state_for_test, verify_oauth_state
+
+    # 用空 nonce 生成 state
+    state = generate_oauth_state_for_test(nonce="", timestamp=int(time.time()))
+    assert verify_oauth_state(state) is False

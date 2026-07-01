@@ -28,7 +28,13 @@ from config import get_settings
 
 
 def _sign(payload_bytes: bytes) -> bytes:
-    """使用 JWT_SECRET_KEY 对 payload 做 HMAC-SHA256 签名。"""
+    """使用 JWT_SECRET_KEY 对 payload 做 HMAC-SHA256 签名。
+
+    强制校验 JWT_SECRET_KEY 安全性（不能为空/占位值/过短）。
+    generate 和 verify 都经过此函数，因此弱密钥时两者均不可用。
+    """
+    from app.auth.jwt import validate_jwt_secret  # 局部 import 避免循环依赖
+    validate_jwt_secret()
     settings = get_settings()
     key = settings.JWT_SECRET_KEY.encode("utf-8")
     return hmac.new(key, payload_bytes, hashlib.sha256).digest()
@@ -116,7 +122,12 @@ def verify_oauth_state(state: str, max_age_seconds: int = 600) -> bool:
     try:
         payload = json.loads(payload_bytes.decode("utf-8"))
         ts = int(payload["timestamp"])
+        nonce = payload["nonce"]
     except (json.JSONDecodeError, KeyError, ValueError):
+        return False
+
+    # 校验 nonce
+    if not isinstance(nonce, str) or not nonce:
         return False
 
     # 检查过期

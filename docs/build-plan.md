@@ -29,7 +29,7 @@
 | # | 任务 | 源文件（Node.js） | 产出 |
 |:--:|------|-------------------|------|
 | 2.1 | `services/scoring.py`：calculateScores + feasibilityTag + leadPriority | [scoring.js](cloudfunctions/shared/scoring.js) | 评分引擎 |
-| 2.2 | `services/agent_state.py`：槽位枚举 + 8 轮熔断 + 2 次失败兜底 + getMissingSlots | [agentState.js](cloudfunctions/shared/agentState.js) | 槽位状态机 |
+| 2.2 | `services/agent_state.py`：槽位枚举 + 轮次不限 + 2 次失败降级 + getMissingSlots（8 轮熔断已废弃，见 ADR-0008） | [agentState.js](cloudfunctions/shared/agentState.js) | 槽位状态机 |
 | 2.3 | `services/slot_cleaning.py`：置信度三级分流 + 槽位合并 + 数组去重 | [conversationSlots.js](cloudfunctions/shared/conversationSlots.js) | 槽位清洗 |
 | 2.4 | `services/report_guard.py`：24 字段审计 + 7 条违禁词 + 字数检查 + 报告拆分 | [reportGuard.js](cloudfunctions/shared/reportGuard.js) | 报告守卫 |
 | 2.5 | `services/default_policy.py`：缺失题保守补全 + imputed 标记 | [defaultAnswerPolicy.js](cloudfunctions/shared/defaultAnswerPolicy.js) | 缺题补全 |
@@ -65,7 +65,7 @@
 | 4.3 | `services/agent_graph.py`：LangGraph StateGraph 定义 | 状态图 |
 | 4.4 | 对话 Agent 节点：接收用户消息 → 调 DeepSeek → 提取槽位 → 调 Function Calling | 对话 Agent |
 | 4.5 | 报告 Agent 节点：消费完整槽位 + RAG 上下文 → 生成诊断报告 JSON | 报告 Agent |
-| 4.6 | 审计 Agent 节点：validateStructure → 不合格返回报告 Agent 重写（最多 2 次）→ 合格放行 | 审计反馈循环 |
+| 4.6 | 审计 Agent 节点：validateStructure → 不合格带 feedback 返回报告 Agent 重写（最多 3 次尝试）→ 合格放行 | 审计反馈循环 |
 | 4.7 | 兜底路径：审计 2 次不通过 → 切模板报告 | 降级策略 |
 
 **验证**：模拟完整槽位输入 → 报告 Agent 生成 → 审计 Agent 校验 → 通过或重写

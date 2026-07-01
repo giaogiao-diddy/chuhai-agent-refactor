@@ -96,6 +96,33 @@ async def test_wechat_login_url_requires_jwt_secret():
         pass
 
 
+# ── Monkeypatch 辅助：阻止真实微信 HTTP 请求 ──
+
+class _FakeWechatErrorTransport:
+    """模拟微信 API 返回错误（不发起真实网络请求）。"""
+
+    async def get(self, url: str, **kwargs):
+        raise AssertionError(f"测试不应发起真实 HTTP 请求: {url}")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+
+def _mock_httpx_async_client(monkeypatch):
+    """用 monkeypatch 替换 app.api.auth.httpx.AsyncClient 为假 client。
+    一旦被调用就 raise AssertionError，确保测试不访问外网。
+    """
+    import app.api.auth as auth_module
+
+    def _fake_client(*args, **kwargs):
+        return _FakeWechatErrorTransport()
+
+    monkeypatch.setattr(auth_module.httpx, "AsyncClient", _fake_client)
+
+
 # ── callback: state 校验 ──
 
 @pytest.mark.asyncio
@@ -171,11 +198,15 @@ async def test_callback_state_invalid_does_not_call_wechat():
 
 
 @pytest.mark.asyncio
-async def test_callback_with_valid_state_reaches_wechat_check():
-    """有效 state 通过校验后才会继续走微信 API 流程。
-    此时微信 API 不可用（fake code），返回微信相关的错误而非 state 错误。
+async def test_callback_with_valid_state_reaches_wechat_check(monkeypatch):
+    """有效 state 通过校验后继续走微信 API 流程。
+
+    用 monkeypatch 替换 httpx.AsyncClient，一旦被调用就 raise AssertionError。
+    state 校验通过后会尝试调用微信 API → 触发 AssertionError → 证明校验通过。
     """
     _configure_for_auth()
+    _mock_httpx_async_client(monkeypatch)
+
     from app.auth.oauth_state import generate_oauth_state_for_test
     import time
 
@@ -184,10 +215,45 @@ async def test_callback_with_valid_state_reaches_wechat_check():
     )
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.get(
-            f"/auth/wechat/callback?code=fake_code_123&state={valid_state}"
-        )
-    # state 校验通过 → 继续调微信 API
-    # fake code 会导致微信返回错误，但不会是 400 state 错误
-    assert resp.status_code != 400 or "state" not in resp.json().get("detail", "").lower()
+    wechat_was_called = False
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(
+                f"/auth/wechat/callback?code=fake_code_123&state={valid_state}"
+            )
+        # 如果走到这里（未抛异常），说明 mock 未被触发
+        # 可能是响应在 mock 之前就返回了
+        assert resp.status_code != 400 or "state" not in resp.json().get("detail", "").lower()
+    except AssertionError as e:
+        if "不应发起真实 HTTP 请求" in str(e):
+            wechat_was_called = True
+        else:
+            raise
+
+    assert wechat_was_called, "有效 state 应通过校验并尝试调用微信 API"
+
+
+@pytest.mark.asyncio
+async def test_callback_with_weak_jwt_secret_does_not_call_wechat(monkeypatch):
+    """JWT_SECRET_KEY="change_me" 时，callback 不应继续调用微信 API。
+
+    即使用弱密钥生成了一个 state，verify_oauth_state 中的 _sign()
+    会调用 validate_jwt_secret() 并抛出 ValueError。
+    """
+    settings = get_settings()
+    settings.WECHAT_APP_ID = "wx-test-appid"
+    settings.WECHAT_REDIRECT_URI = "https://example.com/callback"
+    settings.WECHAT_APP_SECRET = "test-wechat-secret-not-real"
+    settings.JWT_SECRET_KEY = "change_me"
+
+    _mock_httpx_async_client(monkeypatch)
+
+    transport = ASGITransport(app=app)
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/auth/wechat/callback?code=fake&state=some.state.here")
+        # 如果返回了响应，应是服务端错误（不是调了微信 API）
+        assert resp.status_code >= 400
+    except ValueError:
+        # ASGI transport 原样传播 ValueError → state 校验层面阻止了微信调用
+        pass
