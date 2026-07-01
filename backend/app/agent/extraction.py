@@ -33,9 +33,12 @@ SYSTEM_EXTRACT_ANSWERS = f"""{SYSTEM_DIALOGUE}
 """
 
 
-async def extract_from_messages(messages: list[AgentMessage]) -> ExtractionResult:
-    # 提取节点只在对话结束/准备评分时调用，不每轮调用
-    user_texts = [m.content for m in messages[-12:] if m.role in ("user", "assistant")]
+async def extract_from_messages(
+    messages: list[AgentMessage],
+    history_window: int | None = 12,
+) -> ExtractionResult:
+    selected = messages if history_window is None else messages[-history_window:]
+    user_texts = [m.content for m in selected if m.role in ("user", "assistant")]
     llm_messages = [
         LLMMessage(role="system", content=SYSTEM_EXTRACT_ANSWERS),
         LLMMessage(role="user", content="\n".join(user_texts)),

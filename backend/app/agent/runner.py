@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 
 from app.agent.nodes import apply_extraction_result
@@ -17,6 +18,8 @@ from app.schemas.extraction import ExtractionResult
 from app.schemas.llm import LLMMessage
 from app.services.deepseek_client import DeepSeekClient
 from config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _default_max_agent_steps() -> int:
@@ -169,11 +172,34 @@ async def _handle_finish_requested(
     if readiness.unsupported_branch:
         return AgentRunResult(state=current, terminal=TerminalState.UNSUPPORTED_BRANCH)
     if not readiness.ready:
-        return AgentRunResult(
-            state=current,
-            terminal=TerminalState.MISSING_INFO,
-            response={"missing_items": [m.model_dump() for m in readiness.missing_items]},
+        # Recovery: full-history extraction + re-check readiness
+        recovery_result = await executor.execute(
+            "extract_answers.deepseek",
+            ExtractAnswersDeepSeekInput(messages=state.messages, history_window=None),
         )
+        if recovery_result.error is None and isinstance(recovery_result.data, ExtractionResult):
+            current = apply_extraction_result(current, recovery_result.data)
+            # re-check
+            retry_readiness = await executor.execute(
+                "readiness.check",
+                ReadinessCheckInput(answers=current.answers, branch=current.branch),
+            )
+            if retry_readiness.error is None and isinstance(retry_readiness.data, ReadinessResult):
+                current = current.model_copy(deep=True)
+                current.readiness_result = retry_readiness.data
+                readiness = retry_readiness.data
+
+        if readiness.unsupported_branch:
+            return AgentRunResult(state=current, terminal=TerminalState.UNSUPPORTED_BRANCH)
+        if not readiness.ready:
+            return AgentRunResult(
+                state=current,
+                terminal=TerminalState.MISSING_INFO,
+                response={
+                    "missing_items": [m.model_dump() for m in readiness.missing_items],
+                    "next_questions": readiness.next_questions,
+                },
+            )
 
     # 2. score
     from app.agent.tools.local.scoring import ScoreCalculateInput
@@ -198,6 +224,8 @@ async def _handle_finish_requested(
 
     from app.agent.tools.external.rag import RagSearchInput
     rag_result = await executor.execute("rag.search", RagSearchInput(query=rag_query))
+    if rag_result.error is not None:
+        logger.warning("rag.search failed: %s %s", rag_result.error.code, rag_result.error.message)
     rag_context = rag_result.data.matches if rag_result.error is None else []
 
     # 4. report generation loop (max 3 attempts)
@@ -232,6 +260,8 @@ async def _handle_finish_requested(
             ),
         )
         if gen_result.error is not None:
+            logger.warning("report.generate.deepseek attempt=%d failed: %s %s",
+                           attempt, gen_result.error.code, gen_result.error.message[:200])
             if attempt < MAX_REPORT_ATTEMPTS and gen_result.error.code in (
                 ToolErrorCode.TRANSIENT, ToolErrorCode.LENGTH_EXCEEDED,
                 ToolErrorCode.STRUCTURED_OUTPUT_ERROR,
@@ -259,6 +289,8 @@ async def _handle_finish_requested(
             RSplitInput(raw_report=raw_report, scoring_result=current.scoring_result, slots=current.slots),
         )
         if split_result.error is not None:
+            logger.warning("report.split attempt=%d failed: %s %s",
+                           attempt, split_result.error.code, split_result.error.message)
             current.report_retry_count = attempt
             continue
 
@@ -271,6 +303,8 @@ async def _handle_finish_requested(
             RGuardInput(user_report=user_report),
         )
         if guard_result.error is not None:
+            logger.warning("report.guard attempt=%d failed: %s %s",
+                           attempt, guard_result.error.code, guard_result.error.message)
             audit_feedback = [guard_result.error.message]
             current.report_retry_count = attempt
             continue
@@ -285,6 +319,8 @@ async def _handle_finish_requested(
             ),
         )
         if audit_result.error is not None:
+            logger.warning("report.audit.deepseek attempt=%d failed: %s %s",
+                           attempt, audit_result.error.code, audit_result.error.message)
             current.report_retry_count = attempt
             continue
 
@@ -295,6 +331,8 @@ async def _handle_finish_requested(
             audit_passed = True
             break
 
+        logger.warning("report.audit rejected attempt=%d severity=%s issues=%s",
+                       attempt, audit.severity, audit.issues)
         if attempt < MAX_REPORT_ATTEMPTS:
             audit_feedback = audit.issues
 
@@ -313,6 +351,7 @@ async def _handle_finish_requested(
         )
 
     # 模板兜底
+    logger.warning("entering template fallback, report_retry_count=%d", current.report_retry_count)
     try:
         if current.scoring_result is None:
             return AgentRunResult(state=current, terminal=TerminalState.FAILED)
@@ -412,12 +451,14 @@ async def run_agent_event_stream(
         ):
             assistant_text += chunk
             yield {"type": "delta", "content": chunk}
-    except Exception:
+    except Exception as e:
+        logger.warning("stream dialogue failed: %s", e)
         cc = ConversationClientState.from_agent_state(current)
         yield {"type": "error", "message": _safe_error(""), "state": cc.model_dump()}
         return
 
     if not assistant_text.strip():
+        logger.warning("stream dialogue returned empty content")
         cc = ConversationClientState.from_agent_state(current)
         yield {"type": "error", "message": _safe_error(""), "state": cc.model_dump()}
         return

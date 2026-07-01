@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { startConversation, finishConversation } from "@/lib/api";
+import { startConversation, finishConversation, FinishMissingInfoError } from "@/lib/api";
 import { streamConversation } from "@/lib/streaming";
-import type { AgentMessage, ConversationClientState, PublicReportSummary } from "@/lib/api";
+import type { AgentMessage, ConversationClientState, PublicReportSummary, MissingItem } from "@/lib/api";
 
 export function useStreaming() {
   const [state, setState] = useState<ConversationClientState | null>(null);
@@ -17,6 +17,8 @@ export function useStreaming() {
   const [usedTemplateReport, setUsedTemplateReport] = useState(false);
   const [wechatQrUrl, setWechatQrUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
+  const [nextQuestions, setNextQuestions] = useState<string[]>([]);
   const startingRef = useRef(false);
   const streamingRef = useRef(false);
   const finishingRef = useRef(false);
@@ -44,6 +46,8 @@ export function useStreaming() {
     if (report || !input.trim() || streamingRef.current || !state) return;
     setInput("");
     setError(null);
+    setMissingItems([]);
+    setNextQuestions([]);
     streamingRef.current = true;
     setIsStreaming(true);
     const userMsg: AgentMessage = { role: "user", content: input.trim() };
@@ -88,7 +92,13 @@ export function useStreaming() {
       setUsedTemplateReport(resp.used_template_report);
       setWechatQrUrl(resp.wechat_qr_url);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "报告生成失败，请稍后重试");
+      if (e instanceof FinishMissingInfoError) {
+        setMissingItems(e.missingItems);
+        setNextQuestions(e.nextQuestions);
+        setError("信息还不够，请继续补充以下内容");
+      } else {
+        setError(e instanceof Error ? e.message : "报告生成失败，请稍后重试");
+      }
     } finally {
       finishingRef.current = false;
       setIsFinishing(false);
@@ -102,6 +112,8 @@ export function useStreaming() {
     setMessages([]);
     setInput("");
     setError(null);
+    setMissingItems([]);
+    setNextQuestions([]);
     setReport(null);
     setAssessmentId(null);
     setUsedTemplateReport(false);
@@ -120,6 +132,7 @@ export function useStreaming() {
     state, messages, input,
     isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error,
+    missingItems, nextQuestions,
     start, setInput, send, finish, restart,
   };
 }

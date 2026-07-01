@@ -33,8 +33,14 @@ def _build_dialogue_prompt(inp: DialogueDeepSeekInput) -> str:
 
     if inp.missing_items:
         missing_labels = [m.get("label", m.get("question_id", "?")) for m in inp.missing_items]
+        missing_asks = [m.get("ask", m.get("label", "?")) for m in inp.missing_items[:2]]
         lines.append(f"当前缺失关键信息：{'、'.join(missing_labels[:4])}")
-        lines.append("必须优先追问上述缺失信息，每轮最多问 1-2 个问题。")
+        lines.append(f"建议追问：{' / '.join(missing_asks)}")
+        lines.append("严格约束：")
+        lines.append("- 必须优先追问上述缺失信息，每轮最多问 1-2 个问题。")
+        lines.append("- 不允许声明'信息已齐''已安排顾问''24小时联系''请留意电话'。")
+        lines.append("- 不允许输出投流预算分配、运营方案、执行计划。")
+        lines.append("- 只允许围绕缺失项追问，直到所有关键信息补齐。")
         lines.append("不要在关键信息缺失时给详细投放计划、预算分配或运营执行建议。")
     if inp.next_questions:
         lines.append(f"建议追问方向：{' / '.join(inp.next_questions[:4])}")

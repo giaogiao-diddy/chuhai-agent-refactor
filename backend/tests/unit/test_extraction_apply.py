@@ -144,3 +144,47 @@ def test_low_confidence_q5_not_set_branch():
     assert "Q5" not in result.answers
     assert result.branch is None
 
+
+# ── extraction history_window ──
+import pytest
+from app.agent.extraction import extract_from_messages
+from app.schemas.agent_state import AgentMessage
+
+
+@pytest.mark.asyncio
+async def test_extract_from_messages_uses_default_history_window(monkeypatch):
+    """默认 history_window=12，只提取最近 12 条。"""
+    recorded_texts = []
+
+    class FakeClient:
+        async def chat_json(self, messages, response_model, max_tokens, temperature):
+            recorded_texts.append(messages[-1].content)
+            return ExtractionResult()
+
+    monkeypatch.setattr("app.agent.extraction.DeepSeekClient", lambda: FakeClient())
+
+    messages = [AgentMessage(role="user", content=f"msg{i}") for i in range(20)]
+    await extract_from_messages(messages)
+    user_text = recorded_texts[0]
+    assert "msg19" in user_text
+    assert "msg0" not in user_text  # 20 - 12 = 8, only msg8..msg19
+
+
+@pytest.mark.asyncio
+async def test_extract_from_messages_history_window_none_uses_all_messages(monkeypatch):
+    """history_window=None 使用完整 messages。"""
+    recorded_texts = []
+
+    class FakeClient:
+        async def chat_json(self, messages, response_model, max_tokens, temperature):
+            recorded_texts.append(messages[-1].content)
+            return ExtractionResult()
+
+    monkeypatch.setattr("app.agent.extraction.DeepSeekClient", lambda: FakeClient())
+
+    messages = [AgentMessage(role="user", content=f"msg{i}") for i in range(20)]
+    await extract_from_messages(messages, history_window=None)
+    user_text = recorded_texts[0]
+    assert "msg0" in user_text
+    assert "msg19" in user_text
+

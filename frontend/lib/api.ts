@@ -116,13 +116,49 @@ export function getAnonymousUserId(): string {
   return id;
 }
 
+export type MissingItem = {
+  question_id: string;
+  label: string;
+  reason: string;
+  ask?: string | null;
+};
+
+export class FinishMissingInfoError extends Error {
+  missingItems: MissingItem[];
+  nextQuestions: string[];
+  constructor(message: string, missingItems: MissingItem[], nextQuestions: string[]) {
+    super(message);
+    this.name = "FinishMissingInfoError";
+    this.missingItems = missingItems;
+    this.nextQuestions = nextQuestions;
+  }
+}
+
 export async function finishConversation(state: ConversationClientState): Promise<FinishConversationResponse> {
   const res = await fetch(`${API_BASE}/conversation/finish`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ state, anonymous_user_id: getAnonymousUserId() }),
   });
-  if (!res.ok) { if (res.status === 400) throw new Error("对话信息不足，请先补充企业情况"); throw new Error("报告生成失败，请稍后重试"); }
+  if (!res.ok) {
+    if (res.status === 400) {
+      try {
+        const body = await res.json();
+        const detail = body.detail;
+        if (detail && typeof detail === "object" && detail.missing_items) {
+          throw new FinishMissingInfoError(
+            detail.message || "信息不足，请继续补充企业情况",
+            detail.missing_items,
+            detail.next_questions || [],
+          );
+        }
+      } catch (e) {
+        if (e instanceof FinishMissingInfoError) throw e;
+      }
+      throw new Error("对话信息不足，请先补充企业情况");
+    }
+    throw new Error("报告生成失败，请稍后重试");
+  }
   return res.json();
 }
 

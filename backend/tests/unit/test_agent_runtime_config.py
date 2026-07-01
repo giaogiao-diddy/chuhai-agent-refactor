@@ -228,3 +228,9 @@ async def test_streaming_uses_configured_dialogue_values(monkeypatch):
     assert recorded["temperature"] == 0.9
     # system prompt + 3 history
     assert recorded["msg_count"] == 4
+
+
+def test_dialogue_max_tokens_default_is_1024():
+    from config import Settings
+    s = Settings()
+    assert s.DIALOGUE_MAX_TOKENS == 1024

@@ -36,6 +36,15 @@ _MISSING_REASONS: dict[str, str] = {
     "Q31": "预约意愿反映企业行动力与线索质量",
 }
 
+_MISSING_ASKS: dict[str, str] = {
+    "Q5": "目前海外订单或海外客户占比大概是多少？",
+    "Q8": "接下来最想重点开发哪个海外市场？",
+    "Q17": "你目前还考虑增加哪些出海方式？例如 TikTok Shop、海外短视频、B2B平台、独立站、展会等。",
+    "Q19": "每月能接受的出海试错预算大概是多少？",
+    "Q30": "最想让出海顾问帮你解决什么问题？",
+    "Q31": "如果报告显示适合出海，是否愿意预约 1V1 咨询？",
+}
+
 
 def readiness_check_handler(
     inp: ReadinessCheckInput,
@@ -49,6 +58,7 @@ def readiness_check_handler(
             question_id="Q5",
             label=_MISSING_LABELS["Q5"],
             reason=_MISSING_REASONS["Q5"],
+            ask=_MISSING_ASKS.get("Q5"),
         ))
         return ToolResult(data=ReadinessResult(
             ready=False,
@@ -89,6 +99,7 @@ def readiness_check_handler(
                 question_id=qid,
                 label=_MISSING_LABELS.get(qid, qid),
                 reason=_MISSING_REASONS.get(qid, "报告生成需要此项信息"),
+                ask=_MISSING_ASKS.get(qid),
             ))
 
     if valid_answers < _MIN_ANSWERS:
@@ -103,7 +114,7 @@ def readiness_check_handler(
             ready=False,
             missing_items=missing,
             next_questions=[
-                _MISSING_LABELS.get(m.question_id, m.question_id)
+                m.ask if m.ask else _MISSING_LABELS.get(m.question_id, m.question_id)
                 for m in missing[:4]
             ],
         ))

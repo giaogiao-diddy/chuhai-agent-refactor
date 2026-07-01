@@ -595,7 +595,45 @@ async def test_finish_missing_info_does_not_save_assessment(monkeypatch):
     from app.schemas.agent_protocol import AgentRunResult, TerminalState
 
     async def fake_runner(state, event, registry=None, max_steps=16):
-        return AgentRunResult(state=state, terminal=TerminalState.MISSING_INFO)
+        return AgentRunResult(state=state, terminal=TerminalState.MISSING_INFO,
+                              response={"missing_items": [{"question_id":"Q8","label":"目标市场","reason":"需要","ask":"重点开发哪个市场？"}],
+                                        "next_questions": ["重点开发哪个市场？"]})
+
+    class FakeUser:
+        id = "fake-uuid"
+    async def _fake_get_user(db, anon_id):
+        return FakeUser()
+
+    monkeypatch.setattr("app.api.conversation.run_agent_event", fake_runner)
+    monkeypatch.setattr("app.api.conversation.get_or_create_anonymous_user", _fake_get_user)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/finish",
+            json={
+                "state": {"messages": [{"role": "user", "content": "test"}], "conversation_round": 1, "answers": {}},
+                "anonymous_user_id": "test-no-save-user-000",
+            },
+        )
+    assert resp.status_code == 400
+    data = resp.json()
+    detail = data["detail"]
+    assert isinstance(detail, dict), f"detail 应为 dict, 实际: {type(detail)}"
+    assert detail["message"]
+    assert len(detail["missing_items"]) > 0
+    assert detail["missing_items"][0]["question_id"] == "Q8"
+    assert detail["missing_items"][0]["ask"] == "重点开发哪个市场？"
+
+
+async def test_finish_missing_info_structured_detail(monkeypatch):
+    """MISSING_INFO → structured 400 response with missing_items/next_questions（不写 DB）。"""
+    from app.schemas.agent_protocol import AgentRunResult, TerminalState
+
+    async def fake_runner(state, event, registry=None, max_steps=16):
+        return AgentRunResult(state=state, terminal=TerminalState.MISSING_INFO,
+                              response={"missing_items": [{"question_id":"Q8","label":"目标市场","reason":"需要","ask":"重点开发哪个市场？"}],
+                                        "next_questions": ["重点开发哪个市场？"]})
 
     class FakeUser:
         id = "fake-uuid"

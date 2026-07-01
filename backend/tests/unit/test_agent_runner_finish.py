@@ -88,6 +88,9 @@ def _build_fake_finish_registry(**overrides) -> ToolRegistry:
     r.register(ToolDefinition(name="report.audit.deepseek", description="a", input_model=ReportAuditInput, handler=overrides.get("audit", lambda i, c: ToolResult(data=type("X",(),{"audit_result":ReportAuditResult(passed=True, issues=[], rewrite_required=False, severity="pass")})()))))
     r.register(ToolDefinition(name="report.split", description="sp", input_model=ReportSplitInput, handler=overrides.get("split", _default_split)))
     r.register(ToolDefinition(name="report.guard", description="gd", input_model=ReportGuardInput, handler=overrides.get("guard", _default_guard)))
+    # extract_answers.deepseek for recovery extraction in finish flow
+    r.register(ToolDefinition(name="extract_answers.deepseek", description="ex", input_model=ExtractAnswersDeepSeekInput,
+               handler=overrides.get("extract", lambda i, c: ToolResult(data=ExtractionResult()))))
     return r
 
 
@@ -267,6 +270,207 @@ async def test_finish_structured_output_error_injects_feedback():
     result = await run_agent_event(_ready_state(), AgentEvent(type="finish_requested"), r)
     assert result.terminal == TerminalState.COMPLETED
     assert any("缺少 consultant_guide" in str(inp) for inp in gen_inputs), f"STRUCTURED_OUTPUT_ERROR 应注入: {gen_inputs}"
+
+
+# ── 日志覆盖 (caplog) ──
+
+@pytest.mark.asyncio
+async def test_finish_logs_report_generate_error_before_template(caplog):
+    caplog.set_level("WARNING")
+
+    call_count = [0]
+    def _fail_gen(inp, ctx):
+        call_count[0] += 1
+        return ToolResult(error=ToolError(code=ToolErrorCode.TRANSIENT, message="generate failed", retryable=True))
+
+    r = _build_fake_finish_registry(generate=_fail_gen)
+    result = await run_agent_event(_ready_state(), AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.COMPLETED_WITH_TEMPLATE
+    assert any("report.generate.deepseek" in rec.message and "generate failed" in rec.message
+               for rec in caplog.records), f"日志应包含 generate error, got: {[r.message for r in caplog.records]}"
+
+
+@pytest.mark.asyncio
+async def test_finish_logs_audit_rejection_before_retry(caplog):
+    caplog.set_level("WARNING")
+
+    gen_inputs = []
+    def _capture_gen(inp, ctx):
+        gen_inputs.append(inp.audit_feedback.copy() if hasattr(inp, 'audit_feedback') else [])
+        return ToolResult(data=type("X",(),{"raw_report":_fake_raw_report()})())
+
+    audit_calls = [0]
+    def _fail_audit(inp, ctx):
+        audit_calls[0] += 1
+        return ToolResult(data=type("X",(),{"audit_result":ReportAuditResult(
+            passed=False, issues=["不够具体"], rewrite_required=True, severity="fail",
+        )})())
+
+    r = _build_fake_finish_registry(generate=_capture_gen, audit=_fail_audit)
+    result = await run_agent_event(_ready_state(), AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.COMPLETED_WITH_TEMPLATE
+    assert any("report.audit rejected" in rec.message for rec in caplog.records), \
+        f"日志应包含 audit rejected, got: {[r.message for r in caplog.records]}"
+
+
+@pytest.mark.asyncio
+async def test_finish_logs_rag_error_but_continues(caplog):
+    caplog.set_level("WARNING")
+
+    r = _build_fake_finish_registry(
+        rag=lambda i, c: ToolResult(error=ToolError(code=ToolErrorCode.TRANSIENT, message="rag down", retryable=True)),
+    )
+    result = await run_agent_event(_ready_state(), AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.COMPLETED
+    assert any("rag.search failed" in rec.message for rec in caplog.records), \
+        f"日志应包含 rag.search failed, got: {[r.message for r in caplog.records]}"
+
+
+# ── finish recovery extraction ──
+
+from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
+from app.schemas.extraction import ExtractedAnswer, ExtractionResult
+
+
+@pytest.mark.asyncio
+async def test_finish_not_ready_runs_recovery_extraction_once():
+    """第一次 readiness not ready → recovery extraction → 第二次 ready → completed。"""
+    extract_calls = [0]
+
+    def _ready_first_missing(inp, ctx):
+        if "Q17" not in inp.answers:
+            missing = [MissingItem(question_id="Q17", label="出海方式", reason="需要", ask="考虑哪些出海方式？")]
+            return ToolResult(data=ReadinessResult(ready=False, missing_items=missing, next_questions=["考虑哪些出海方式？"]))
+        return ToolResult(data=ReadinessResult(ready=True))
+
+    def _recover_extract(inp, ctx):
+        extract_calls[0] += 1
+        return ToolResult(data=ExtractionResult(answers=[
+            ExtractedAnswer(question_id="Q17", option_ids=["F"], confidence=0.9),
+        ]))
+
+    r = _build_fake_finish_registry(readiness=_ready_first_missing, extract=_recover_extract)
+
+    state = AgentState(answers={"Q5":["A"],"Q8":["A"],"Q19":["A"],"Q30":["A"],"Q31":["A"],"Q6":["A"],"Q11":["A"],"Q22":["A"]}, branch="experienced")
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.COMPLETED
+    assert extract_calls[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_finish_recovery_still_missing_returns_missing_info():
+    """recovery extraction 后仍 missing → MISSING_INFO + structured response。"""
+    missing_info = [MissingItem(question_id="Q17", label="出海方式", reason="需要", ask="考虑哪些出海方式？")]
+
+    def _always_not_ready(inp, ctx):
+        return ToolResult(data=ReadinessResult(ready=False, missing_items=missing_info, next_questions=["考虑哪些出海方式？"]))
+
+    def _empty_extract(inp, ctx):
+        return ToolResult(data=ExtractionResult())
+
+    r = _build_fake_finish_registry(readiness=_always_not_ready, extract=_empty_extract)
+
+    state = AgentState(answers={"Q5":["A"]}, branch="experienced")
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.MISSING_INFO
+    assert result.response["missing_items"][0]["question_id"] == "Q17"
+    assert "next_questions" in result.response
+
+
+@pytest.mark.asyncio
+async def test_finish_recovery_extraction_error_returns_missing_info():
+    """recovery extraction 返回 error → 仍然 MISSING_INFO。"""
+    missing_info = [MissingItem(question_id="Q8", label="目标市场", reason="需要", ask="重点开发哪个市场？")]
+
+    def _not_ready(inp, ctx):
+        return ToolResult(data=ReadinessResult(ready=False, missing_items=missing_info, next_questions=["重点开发哪个市场？"]))
+
+    def _fail_extract(inp, ctx):
+        return ToolResult(error=ToolError(code=ToolErrorCode.TRANSIENT, message="fail", retryable=True))
+
+    r = _build_fake_finish_registry(readiness=_not_ready, extract=_fail_extract)
+
+    state = AgentState(answers={"Q5":["A"]}, branch="experienced")
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.MISSING_INFO
+    assert result.state.scoring_result is None
+
+
+# ── dialogue prompt 禁止信息已齐 ──
+
+from app.agent.tools.external.dialogue import _build_dialogue_prompt, DialogueDeepSeekInput
+from app.schemas.agent_state import AgentMessage
+
+
+def test_dialogue_prompt_forbids_completion_when_missing_items():
+    inp = DialogueDeepSeekInput(
+        messages=[AgentMessage(role="user", content="hi")],
+        missing_items=[{"label": "目标市场", "question_id": "Q8", "ask": "重点开发哪个市场？"}],
+    )
+    prompt = _build_dialogue_prompt(inp)
+    assert "不允许声明" in prompt or "不允许" in prompt
+    assert "信息已齐" in prompt
+    assert "已安排顾问" in prompt
+    assert "重点开发哪个市场" in prompt
+
+
+# ── recovery extraction uses full history ──
+
+@pytest.mark.asyncio
+async def test_finish_recovery_extraction_uses_full_history():
+    """recovery extraction 传入 history_window=None。"""
+    captured_window = None
+
+    def _ready_first_missing(inp, ctx):
+        if "Q17" not in inp.answers:
+            missing = [MissingItem(question_id="Q17", label="出海方式", reason="需要", ask="问？")]
+            return ToolResult(data=ReadinessResult(ready=False, missing_items=missing))
+        return ToolResult(data=ReadinessResult(ready=True))
+
+    def _recover_extract(inp, ctx):
+        nonlocal captured_window
+        captured_window = inp.history_window
+        return ToolResult(data=ExtractionResult(answers=[
+            ExtractedAnswer(question_id="Q17", option_ids=["F"], confidence=0.9),
+        ]))
+
+    r = _build_fake_finish_registry(readiness=_ready_first_missing, extract=_recover_extract)
+    state = AgentState(answers={"Q5":["A"], "Q8":["A"], "Q19":["A"], "Q30":["A"], "Q31":["A"], "Q6":["A"], "Q11":["A"], "Q22":["A"]}, branch="experienced")
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.COMPLETED
+    assert captured_window is None, f"history_window 应为 None, 实际: {captured_window}"
+
+
+@pytest.mark.asyncio
+async def test_finish_recovery_to_inexperienced_returns_unsupported_branch():
+    """recovery extraction 后 readiness → unsupported_branch。"""
+    def _ready_first_missing(inp, ctx):
+        if inp.branch != "inexperienced":
+            missing = [MissingItem(question_id="Q5", label="海外订单占比", reason="需要")]
+            return ToolResult(data=ReadinessResult(ready=False, missing_items=missing))
+        return ToolResult(data=ReadinessResult(ready=False, unsupported_branch=True))
+
+    def _recover_extract(inp, ctx):
+        return ToolResult(data=ExtractionResult(answers=[
+            ExtractedAnswer(question_id="Q5", option_ids=["D"], confidence=0.9),
+        ]))
+
+    r = _build_fake_finish_registry(readiness=_ready_first_missing, extract=_recover_extract)
+    state = AgentState(answers={}, branch=None)
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"), r)
+    assert result.terminal == TerminalState.UNSUPPORTED_BRANCH
+    assert result.state.scoring_result is None
+
+
+# ── ReadinessResult default lists ──
+
+def test_readiness_result_default_lists_are_independent():
+    from app.schemas.readiness import ReadinessResult, MissingItem
+    a = ReadinessResult(ready=False)
+    b = ReadinessResult(ready=False)
+    a.missing_items.append(MissingItem(question_id="Q8", label="目标市场", reason="需要"))
+    assert len(a.missing_items) == 1
+    assert len(b.missing_items) == 0
 
 
 @pytest.mark.asyncio

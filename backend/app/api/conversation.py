@@ -110,7 +110,11 @@ async def finish_conversation(
     state = result.state
 
     if result.terminal == TerminalState.MISSING_INFO:
-        raise HTTPException(status_code=400, detail="信息不足，请继续补充企业情况")
+        detail: dict = {"message": "信息不足，请继续补充企业情况"}
+        if result.response:
+            detail["missing_items"] = result.response.get("missing_items", [])
+            detail["next_questions"] = result.response.get("next_questions", [])
+        raise HTTPException(status_code=400, detail=detail)
     if result.terminal == TerminalState.UNSUPPORTED_BRANCH:
         raise HTTPException(status_code=400, detail="深度诊断优先支持已有出海经验企业")
     if result.terminal == TerminalState.FAILED:

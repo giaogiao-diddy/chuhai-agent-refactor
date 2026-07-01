@@ -138,7 +138,11 @@ class DeepSeekClient:
                             break
                         try:
                             chunk = json.loads(data_str)
-                            delta = chunk["choices"][0]["delta"]
+                            choice = chunk["choices"][0]
+                            finish_reason = choice.get("finish_reason")
+                            if finish_reason == "length":
+                                raise ValueError("finish_reason=length: 模型流式输出被截断")
+                            delta = choice["delta"]
                             text = delta.get("content", "")
                             if text:
                                 yield text

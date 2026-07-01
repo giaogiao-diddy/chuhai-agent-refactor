@@ -11,7 +11,8 @@ import type { UserReport } from "@/lib/api";
 export default function ChatPage() {
   const {
     state, messages, input, isStarting, isStreaming, isFinishing, isCompleted,
-    report, assessmentId, usedTemplateReport, wechatQrUrl, error, start, setInput, send, finish, restart,
+    report, assessmentId, usedTemplateReport, wechatQrUrl, error, missingItems, nextQuestions,
+    start, setInput, send, finish, restart,
   } = useStreaming();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [fullReport, setFullReport] = useState<UserReport | null>(null);
@@ -55,6 +56,17 @@ export default function ChatPage() {
         ))}
         {isStarting && <div style={s.status}>正在连接...</div>}
         {error && <div style={s.error}>{error}</div>}
+        {missingItems.length > 0 && (
+          <div style={s.missingBox}>
+            <div style={s.missingTitle}>生成报告还缺少：</div>
+            {missingItems.map((m, i) => (
+              <div key={i} style={s.missingItem}>
+                <span style={s.missingLabel}>{m.label}</span>
+                {m.ask && <div style={s.missingAsk}>{m.ask}</div>}
+              </div>
+            ))}
+          </div>
+        )}
         {reportSafe && (
           <>
             <h3 style={s.reportTitle}>诊断报告</h3>
@@ -110,4 +122,9 @@ const s: Record<string, React.CSSProperties> = {
   btn: { padding: "8px 20px", borderRadius: 8, border: "none", background: "#0D9488", color: "#fff", fontSize: 15, cursor: "pointer" },
   finishBtn: { padding: "8px 16px", borderRadius: 8, border: "none", background: "#e65100", color: "#fff", fontSize: 14, cursor: "pointer" },
   restartBtn: { padding: "8px 16px", borderRadius: 8, border: "1px solid #0D9488", background: "#fff", color: "#0D9488", fontSize: 14, cursor: "pointer" },
+  missingBox: { background: "#fff3e0", padding: "10px 14px", borderRadius: 8, marginBottom: 10 },
+  missingTitle: { fontWeight: 600, fontSize: 14, marginBottom: 6, color: "#e65100" },
+  missingItem: { marginBottom: 6, fontSize: 14 },
+  missingLabel: { fontWeight: 600, color: "#333" },
+  missingAsk: { color: "#666", marginTop: 2 },
 };

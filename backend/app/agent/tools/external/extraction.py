@@ -8,6 +8,7 @@ from app.schemas.extraction import ExtractionResult
 
 class ExtractAnswersDeepSeekInput(BaseModel):
     messages: list[AgentMessage]
+    history_window: int | None = 12
 
 
 async def extract_answers_deepseek_handler(
@@ -15,7 +16,10 @@ async def extract_answers_deepseek_handler(
     ctx: ToolContext,
 ) -> ToolResult:
     try:
-        extraction = await extraction_module.extract_from_messages(inp.messages)
+        extraction = await extraction_module.extract_from_messages(
+            inp.messages,
+            history_window=inp.history_window,
+        )
         return ToolResult(data=extraction)
     except Exception as e:
         return ToolResult(error=ToolError(

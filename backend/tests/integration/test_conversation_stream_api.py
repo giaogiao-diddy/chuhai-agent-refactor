@@ -40,6 +40,40 @@ async def test_stream_response_does_not_accept_get():
 
 # ── 错误路径 ──
 
+async def test_continue_stream_reasoning_only_returns_safe_error(monkeypatch):
+    """stream 只有 reasoning 无 content → error，不泄露 reasoning_content。"""
+
+    class _FakeReasoningOnlyClient:
+        async def stream_chat(self, *args, **kwargs):
+            if False:
+                yield  # empty — 模拟模型只输出 reasoning 没有 content
+
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeReasoningOnlyClient())
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1,
+                    "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    text = (await resp.aread()).decode()
+    assert '"type": "error"' in text
+    assert '"type": "done"' not in text
+    assert "AI 暂时不可用" in text
+    assert "reasoning_content" not in text
+
+
+# ── 错误路径 ──
+
 async def _fake_extract(*args, **kwargs):
     from app.schemas.extraction import ExtractionResult
     return ExtractionResult()
