@@ -113,9 +113,16 @@
 | P3 | AgentGraph 架构重构（ADR-0009） | ✅ Phase 39.3-39.6 |
 | P3 | Memory 系统 | ✅ Phase 40-41 |
 
+Phase 41.2-41.4.1 补充修复：
+- DIALOGUE_MAX_TOKENS 256→1024（修复推理模型空 content）
+- finish recovery extraction（完整历史补齐缺失答案）
+- MissingItem 新增 ask 字段，dialogue 禁止"信息已齐"
+- API MISSING_INFO 返回结构化 detail，前端展示缺失项面板
+- 报告生成链路 8 个 logger.warning 日志点
+
 后续迭代：
 - memory.save 自动保存时机
-- AgentState 拆分（DiagnosticState / ConversationSession / AgentExecutionContext）
+- AgentState 拆分
 - Memory 新鲜度与 LLM 语义选择升级
 
 ### Agent 工具系统
