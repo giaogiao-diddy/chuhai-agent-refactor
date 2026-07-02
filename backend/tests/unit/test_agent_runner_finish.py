@@ -60,12 +60,12 @@ def _build_fake_finish_registry(**overrides) -> ToolRegistry:
 
     def _ready(inp, ctx):
         if inp.branch == "inexperienced":
-            return ToolResult(data=ReadinessResult(ready=False, unsupported_branch=True))
+            return ToolResult(data=ReadinessResult(ready=False, score_ready=False, report_ready=False, unsupported_branch=True))
         if "Q5" not in inp.answers:
-            return ToolResult(data=ReadinessResult(ready=False, missing_items=[MissingItem(
+            return ToolResult(data=ReadinessResult(ready=False, score_ready=False, report_ready=False, missing_items=[MissingItem(
                 question_id="Q5", label="海外订单占比", reason="需要确认",
             )]))
-        return ToolResult(data=ReadinessResult(ready=True))
+        return ToolResult(data=ReadinessResult(ready=True, score_ready=True, report_ready=True))
 
     def _score(inp, ctx):
         if inp.branch == "inexperienced":
@@ -341,7 +341,7 @@ async def test_finish_not_ready_runs_recovery_extraction_once():
         if "Q17" not in inp.answers:
             missing = [MissingItem(question_id="Q17", label="出海方式", reason="需要", ask="考虑哪些出海方式？")]
             return ToolResult(data=ReadinessResult(ready=False, missing_items=missing, next_questions=["考虑哪些出海方式？"]))
-        return ToolResult(data=ReadinessResult(ready=True))
+        return ToolResult(data=ReadinessResult(ready=True, score_ready=True, report_ready=True))
 
     def _recover_extract(inp, ctx):
         extract_calls[0] += 1
@@ -425,7 +425,7 @@ async def test_finish_recovery_extraction_uses_full_history():
         if "Q17" not in inp.answers:
             missing = [MissingItem(question_id="Q17", label="出海方式", reason="需要", ask="问？")]
             return ToolResult(data=ReadinessResult(ready=False, missing_items=missing))
-        return ToolResult(data=ReadinessResult(ready=True))
+        return ToolResult(data=ReadinessResult(ready=True, score_ready=True, report_ready=True))
 
     def _recover_extract(inp, ctx):
         nonlocal captured_window

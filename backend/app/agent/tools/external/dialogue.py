@@ -14,6 +14,9 @@ class DialogueDeepSeekInput(BaseModel):
     missing_items: list[dict] = Field(default_factory=list)
     next_questions: list[str] = Field(default_factory=list)
     memory_entries: list[MemoryEntry] = Field(default_factory=list)
+    score_ready: bool = False
+    report_ready: bool = False
+    report_missing_items: list[dict] = Field(default_factory=list)
 
 
 class DialogueDeepSeekOutput(BaseModel):
@@ -31,19 +34,34 @@ def _build_dialogue_prompt(inp: DialogueDeepSeekInput) -> str:
             lines.append(f"- {me.frontmatter.name}: {me.frontmatter.description}")
             lines.append(f"  {snippet}")
 
-    if inp.missing_items:
-        missing_labels = [m.get("label", m.get("question_id", "?")) for m in inp.missing_items]
-        missing_asks = [m.get("ask", m.get("label", "?")) for m in inp.missing_items[:2]]
-        lines.append(f"当前缺失关键信息：{'、'.join(missing_labels[:4])}")
-        lines.append(f"建议追问：{' / '.join(missing_asks)}")
+    if not inp.report_ready:
+        # 还有信息需要追问（可能 score_ready 但 report_ready 未达到）
+        if inp.score_ready and not inp.report_ready:
+            lines.append("基础信息已足够生成初步报告，但诊断质量还需要补充以下信息：")
+        else:
+            lines.append("以下关键信息尚未收集完成：")
+
+        if inp.report_missing_items:
+            rmi_labels = [m.get("label", m.get("question_id", "?")) for m in inp.report_missing_items]
+            rmi_asks = [m.get("ask", m.get("label", "?")) for m in inp.report_missing_items[:2]]
+            lines.append(f"还需了解：{'、'.join(rmi_labels[:4])}")
+            if rmi_asks:
+                lines.append(f"建议追问：{' / '.join(rmi_asks)}")
+
+        if inp.missing_items and not inp.score_ready:
+            missing_labels = [m.get("label", m.get("question_id", "?")) for m in inp.missing_items]
+            missing_asks = [m.get("ask", m.get("label", "?")) for m in inp.missing_items[:2]]
+            lines.append(f"当前缺失关键信息：{'、'.join(missing_labels[:4])}")
+            lines.append(f"建议追问：{' / '.join(missing_asks)}")
+
         lines.append("严格约束：")
         lines.append("- 必须优先追问上述缺失信息，每轮最多问 1-2 个问题。")
-        lines.append("- 不允许声明'信息已齐''已安排顾问''24小时联系''请留意电话'。")
+        lines.append("- 不允许声明'信息收集完毕''信息已齐''已安排顾问''24小时联系''请留意电话'。")
         lines.append("- 不允许输出投流预算分配、运营方案、执行计划。")
-        lines.append("- 只允许围绕缺失项追问，直到所有关键信息补齐。")
-        lines.append("不要在关键信息缺失时给详细投放计划、预算分配或运营执行建议。")
-    if inp.next_questions:
-        lines.append(f"建议追问方向：{' / '.join(inp.next_questions[:4])}")
+    else:
+        lines.append("关键信息已基本齐备，可以引导用户点击'生成报告'按钮获取完整诊断报告。")
+        lines.append("本轮可以做一个简短小结（2-3句话），告诉用户报告会覆盖哪些方面。")
+
     return "\n".join(lines)
 
 
