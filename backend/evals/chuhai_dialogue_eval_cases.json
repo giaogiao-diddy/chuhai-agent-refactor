@@ -1,0 +1,300 @@
+[
+  {
+    "id": "case_001_womenswear_thailand_full",
+    "title": "女装工厂泰国 TikTok 完整诊断",
+    "tags": ["apparel", "thailand", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "你们主要做什么产品？目前有没有海外客户或外贸经验？"},
+      {"role": "user", "content": "我们做女装，有外贸经验，海外订单占比10%左右，主要是泰国客户。"},
+      {"role": "assistant", "content": "为什么选择泰国？每月预算多少？考虑哪些出海方式？"},
+      {"role": "user", "content": "泰国离供应链近，也有一些客户询盘。每月预算5万，想做TikTok Shop和短视频。"},
+      {"role": "assistant", "content": "公司规模和营收怎么样？产品优势和交付能力如何？"},
+      {"role": "user", "content": "公司成立1年，团队20人以内，年营收100到150万。优势是设计能力，交货周期10天，整体稳定。"},
+      {"role": "assistant", "content": "新媒体和外贸团队情况？最想解决什么？是否愿意预约？"},
+      {"role": "user", "content": "短视频没有专人，做过一点海外社媒但没体系。外贸团队2个人，想选主推产品，也愿意尽快预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["D", "F"], "Q19": ["B"], "Q30": ["C"], "Q31": ["A"], "Q2a": ["D"], "Q2b": ["D"], "Q3a": ["E"], "Q9": ["C"], "Q11": ["C"], "Q15": ["A"], "Q22": ["E"], "Q23": ["C"], "Q28": ["B"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_002_fitness_equipment_sea_full",
+    "title": "健身器材东南亚 B2B 完整诊断",
+    "tags": ["fitness", "sea", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "请介绍产品和海外经验。"},
+      {"role": "user", "content": "我们是健身器材源头工厂，主要做力量训练设备，海外订单占比20%，客户在东南亚。"},
+      {"role": "assistant", "content": "为什么选择东南亚？预算和出海方式？"},
+      {"role": "user", "content": "已有客户和询盘，所以想继续做东南亚。每月预算2到5万，考虑阿里国际站和海外短视频。"},
+      {"role": "assistant", "content": "公司基础和供应链情况？"},
+      {"role": "user", "content": "成立10年以上，100人左右，去年营收5000万到1亿。价格有优势，交付和品质稳定。"},
+      {"role": "assistant", "content": "新媒体、外贸团队和咨询意向？"},
+      {"role": "user", "content": "有兼职运营，还没有系统做海外社媒。外贸团队5人，能承接询盘。最想判断哪个国家先做，愿意先看报告再预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["C", "F"], "Q19": ["C"], "Q30": ["B"], "Q31": ["B"], "Q2a": ["A"], "Q2b": ["B"], "Q3a": ["B"], "Q9": ["A"], "Q11": ["A"], "Q15": ["A"], "Q22": ["B"], "Q23": ["C"], "Q28": ["A"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_003_homeware_europe_full",
+    "title": "家居用品欧美市场完整诊断",
+    "tags": ["homeware", "europe", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "你们做什么产品？海外订单占比多少？"},
+      {"role": "user", "content": "做家居收纳用品，海外订单占比35%，主要想继续开发欧美成熟市场。"},
+      {"role": "assistant", "content": "为什么选欧美？预算和路径？"},
+      {"role": "user", "content": "欧美客单价高，也有老客户询盘。预算10万以上，考虑独立站、Google广告和海外展会。"},
+      {"role": "assistant", "content": "企业基础和产品优势？"},
+      {"role": "user", "content": "成立5到10年，团队80人，年营收3000万。优势是定制能力和供应链稳定，交付大部分稳定。"},
+      {"role": "assistant", "content": "内容和转化承接情况？"},
+      {"role": "user", "content": "有成熟新媒体团队，做过海外短视频但询盘少。外贸团队成熟，能承接海外询盘。最想优化海外客户画像，愿意尽快预约。"}
+    ],
+    "expected_answers": {"Q5": ["A"], "Q8": ["A"], "Q17": ["B", "E", "G"], "Q19": ["A"], "Q30": ["D"], "Q31": ["A"], "Q2a": ["B"], "Q2b": ["C"], "Q3a": ["C"], "Q9": ["A"], "Q11": ["B", "E"], "Q15": ["B"], "Q22": ["A"], "Q23": ["B"], "Q28": ["A"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_004_machine_middleeast_full",
+    "title": "机械设备中东市场完整诊断",
+    "tags": ["machine", "middle-east", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "请说明产品和海外经验。"},
+      {"role": "user", "content": "我们做包装机械，有样品单和少量海外订单，占比不到10%，想做中东市场。"},
+      {"role": "assistant", "content": "选择中东的原因、预算和方式？"},
+      {"role": "user", "content": "同行已经在做，中东需求增长。预算5到10万，考虑展会、B2B平台和Google广告。"},
+      {"role": "assistant", "content": "公司规模、营收和交付？"},
+      {"role": "user", "content": "成立3到5年，团队50人，年营收800万左右。研发能力强，交付大部分稳定。"},
+      {"role": "assistant", "content": "新媒体与外贸承接？"},
+      {"role": "user", "content": "有国内新媒体经验但没有海外经验。外贸团队主要靠老板，目前想判断行业海外机会，可以考虑先简单了解咨询。"}
+    ],
+    "expected_answers": {"Q5": ["C"], "Q8": ["B"], "Q17": ["B", "C", "G"], "Q19": ["B"], "Q30": ["A"], "Q31": ["C"], "Q2a": ["C"], "Q2b": ["C"], "Q3a": ["D"], "Q9": ["D"], "Q11": ["C"], "Q15": ["B"], "Q22": ["C"], "Q23": ["C"], "Q28": ["C"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_005_cosmetics_sea_full",
+    "title": "美妆东南亚内容出海完整诊断",
+    "tags": ["cosmetics", "sea", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "你们产品和海外情况？"},
+      {"role": "user", "content": "我们做护肤品，有东南亚客户，海外订单占比15%。"},
+      {"role": "assistant", "content": "目标市场原因、预算和路径？"},
+      {"role": "user", "content": "东南亚文化接近，物流方便。预算2到5万，考虑TikTok Shop和短视频。"},
+      {"role": "assistant", "content": "公司基础、优势和交付？"},
+      {"role": "user", "content": "成立1到3年，20人以内，年营收500万以内。认证齐全，定制能力强，小单交付稳定。"},
+      {"role": "assistant", "content": "内容团队、海外社媒、外贸团队和咨询意向？"},
+      {"role": "user", "content": "老板能配合拍内容，刚准备做海外社媒。没有成熟外贸团队。最想选主推产品，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["D", "F"], "Q19": ["C"], "Q30": ["C"], "Q31": ["A"], "Q2a": ["D"], "Q2b": ["D"], "Q3a": ["E"], "Q9": ["C"], "Q11": ["B", "D"], "Q15": ["C"], "Q22": ["D"], "Q23": ["C"], "Q28": ["E"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_006_score_ready_not_report_ready",
+    "title": "满足评分但缺报告质量信息",
+    "tags": ["score_ready", "not_report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "请介绍产品和海外情况。"},
+      {"role": "user", "content": "我们做女鞋，有海外订单，占比20%，想做东南亚。预算5万，考虑TikTok和短视频。最想选主推产品，愿意预约。"},
+      {"role": "assistant", "content": "还有其他基础信息吗？"},
+      {"role": "user", "content": "暂时先这样。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["F"], "Q19": ["B"], "Q30": ["C"], "Q31": ["A"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_007_no_overseas_inexperienced",
+    "title": "无海外经验分支",
+    "tags": ["inexperienced"],
+    "messages": [
+      {"role": "assistant", "content": "有没有海外订单或海外客户？"},
+      {"role": "user", "content": "我们做家纺，完全没有海外客户，也没有外贸经验。"}
+    ],
+    "expected_answers": {"Q5": ["D"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_008_missing_q31",
+    "title": "缺预约意愿",
+    "tags": ["missing_info"],
+    "messages": [
+      {"role": "assistant", "content": "你们产品和海外经验？"},
+      {"role": "user", "content": "做五金工具，海外订单占比20%，目标东南亚，预算5万，考虑B2B平台和短视频，最想判断哪个国家先做。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["C", "F"], "Q19": ["B"], "Q30": ["B"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_009_missing_budget",
+    "title": "缺预算",
+    "tags": ["missing_info"],
+    "messages": [
+      {"role": "assistant", "content": "请说明出海情况。"},
+      {"role": "user", "content": "我们做宠物用品，海外订单占比10%，想做欧美市场，考虑独立站和海外短视频，最想优化客户画像，也愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["A"], "Q17": ["E", "F"], "Q30": ["D"], "Q31": ["A"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_010_missing_target_market",
+    "title": "缺目标市场",
+    "tags": ["missing_info"],
+    "messages": [
+      {"role": "assistant", "content": "你们目前想怎么出海？"},
+      {"role": "user", "content": "我们做灯具，海外订单占比30%以上，预算10万以上，考虑B2B平台、独立站和Google广告，最想判断行业有没有机会，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["A"], "Q17": ["C", "E", "G"], "Q19": ["A"], "Q30": ["A"], "Q31": ["A"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_011_lighting_beltroad_score_ready",
+    "title": "灯具一带一路评分就绪",
+    "tags": ["score_ready"],
+    "messages": [
+      {"role": "assistant", "content": "介绍一下企业。"},
+      {"role": "user", "content": "做LED灯具，有少量海外样品单，目标一带一路国家。预算2到5万，考虑B2B平台和展会，最想判断行业机会，愿意先看报告。"},
+      {"role": "assistant", "content": "补充一些基础信息？"},
+      {"role": "user", "content": "成立3年，团队30人，年营收800万，优势是价格和认证。"}
+    ],
+    "expected_answers": {"Q5": ["C"], "Q8": ["C"], "Q17": ["B", "C"], "Q19": ["C"], "Q30": ["A"], "Q31": ["B"], "Q2a": ["C"], "Q2b": ["C"], "Q3a": ["D"], "Q11": ["A", "D"]},
+    "expected_score_ready": true,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_012_toys_latinamerica_full",
+    "title": "玩具拉美完整诊断",
+    "tags": ["toys", "latin-america", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "产品和海外订单情况？"},
+      {"role": "user", "content": "我们做益智玩具，海外订单占比25%，想开发拉美新兴市场。"},
+      {"role": "assistant", "content": "为什么选拉美？预算和方式？"},
+      {"role": "user", "content": "竞争可能没那么激烈。预算5到10万，考虑展会、B2B平台和海外短视频。"},
+      {"role": "assistant", "content": "基础和承接能力？"},
+      {"role": "user", "content": "成立5年，团队60人，年营收2000万。源头工厂价格优势，交付稳定。有兼职新媒体，海外短视频刚准备做。外贸团队3人，最想选主推产品，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["B", "C", "F"], "Q19": ["B"], "Q30": ["C"], "Q31": ["A"], "Q2a": ["B"], "Q2b": ["C"], "Q3a": ["C"], "Q9": ["B"], "Q11": ["A"], "Q15": ["A"], "Q22": ["B"], "Q23": ["C"], "Q28": ["B"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_013_furniture_global_not_report_ready",
+    "title": "家具全球同步但报告信息不足",
+    "tags": ["score_ready", "not_report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "你们做什么，海外情况如何？"},
+      {"role": "user", "content": "做办公家具，海外订单占比15%，想全球同步推进。预算10万以上，考虑独立站、Google广告和B2B平台。最想判断哪个国家适合先做，愿意预约。"},
+      {"role": "assistant", "content": "再补充一些情况。"},
+      {"role": "user", "content": "成立5年，团队100人左右，年营收3000万。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["E"], "Q17": ["C", "E", "G"], "Q19": ["A"], "Q30": ["B"], "Q31": ["A"], "Q2a": ["B"], "Q2b": ["B"], "Q3a": ["C"]},
+    "expected_score_ready": true,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_014_food_japan_full",
+    "title": "食品日韩完整诊断",
+    "tags": ["food", "japan-korea", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "产品和海外订单？"},
+      {"role": "user", "content": "做休闲食品，海外订单占比12%，想做日韩市场。"},
+      {"role": "assistant", "content": "原因、预算和方式？"},
+      {"role": "user", "content": "物流和贸易往来方便。预算2到5万，考虑B2B平台和海外短视频。"},
+      {"role": "assistant", "content": "公司、产品、内容和外贸团队？"},
+      {"role": "user", "content": "成立3年，团队20人以内，年营收500万以内。认证齐全，交付稳定。有国内新媒体经验，海外社媒没做过。外贸主要靠老板，最想整体诊断，可以先简单了解咨询。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["H"], "Q17": ["C", "F"], "Q19": ["C"], "Q30": ["E"], "Q31": ["C"], "Q2a": ["C"], "Q2b": ["D"], "Q3a": ["E"], "Q9": ["C"], "Q11": ["D"], "Q15": ["A"], "Q22": ["C"], "Q23": ["C"], "Q28": ["C"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_015_electronics_europe_full",
+    "title": "消费电子欧美完整诊断",
+    "tags": ["electronics", "europe", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "请介绍业务。"},
+      {"role": "user", "content": "做消费电子配件，海外订单占比40%，主要欧美市场。"},
+      {"role": "assistant", "content": "为什么选择欧美，预算和出海方式？"},
+      {"role": "user", "content": "已有客户询盘，客单价高。每月10万以上，考虑独立站、Amazon和Google广告。"},
+      {"role": "assistant", "content": "企业基础和团队能力？"},
+      {"role": "user", "content": "成立10年以上，团队300人以上，年营收1亿以上。研发强、认证齐全、交付稳定。有成熟新媒体团队，海外社媒已有询盘成交。外贸团队成熟，想优化海外客户画像，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["A"], "Q8": ["A"], "Q17": ["D", "E", "G"], "Q19": ["A"], "Q30": ["D"], "Q31": ["A"], "Q2a": ["A"], "Q2b": ["A"], "Q3a": ["A"], "Q9": ["A"], "Q11": ["C", "D"], "Q15": ["A"], "Q22": ["A"], "Q23": ["A"], "Q28": ["A"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_016_textile_chinese_market_score_ready",
+    "title": "纺织品华人市场评分就绪",
+    "tags": ["textile", "score_ready"],
+    "messages": [
+      {"role": "assistant", "content": "介绍出海情况。"},
+      {"role": "user", "content": "我们做纺织面料，有少量海外客户，占比不到10%，目标华人市场。预算5000到2万，考虑海外短视频和B2B平台，最想判断行业机会，愿意先看报告。"},
+      {"role": "assistant", "content": "补充规模。"},
+      {"role": "user", "content": "成立1到3年，团队20人以内。"}
+    ],
+    "expected_answers": {"Q5": ["C"], "Q8": ["D"], "Q17": ["C", "F"], "Q19": ["D"], "Q30": ["A"], "Q31": ["B"], "Q2a": ["D"], "Q2b": ["D"]},
+    "expected_score_ready": true,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_017_gifts_no_q17",
+    "title": "礼品缺出海方式",
+    "tags": ["missing_info"],
+    "messages": [
+      {"role": "assistant", "content": "你们出海情况？"},
+      {"role": "user", "content": "我们做节日礼品，海外订单占比20%，想做东南亚，每月预算5万，最想选主推产品，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q19": ["B"], "Q30": ["C"], "Q31": ["A"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_018_bags_sea_full",
+    "title": "箱包东南亚完整诊断",
+    "tags": ["bags", "sea", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "产品和海外订单？"},
+      {"role": "user", "content": "我们做箱包，海外订单占比18%，目标东南亚。"},
+      {"role": "assistant", "content": "原因、预算、方式？"},
+      {"role": "user", "content": "已有客户询盘，预算5到10万，考虑TikTok Shop、海外短视频和B2B平台。"},
+      {"role": "assistant", "content": "企业基础和能力？"},
+      {"role": "user", "content": "成立5年，团队80人，年营收2000万。支持定制，交付稳定。有兼职新媒体，做过海外短视频但没有体系。外贸团队5人，想优化客户画像，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["B"], "Q8": ["B"], "Q17": ["C", "D", "F"], "Q19": ["B"], "Q30": ["D"], "Q31": ["A"], "Q2a": ["B"], "Q2b": ["C"], "Q3a": ["C"], "Q9": ["A"], "Q11": ["B"], "Q15": ["A"], "Q22": ["B"], "Q23": ["B"], "Q28": ["A"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  },
+  {
+    "id": "case_019_low_info_only_product",
+    "title": "只有产品和经验",
+    "tags": ["missing_info"],
+    "messages": [
+      {"role": "assistant", "content": "你们做什么？"},
+      {"role": "user", "content": "我们做厨房用品，有一点海外客户。"}
+    ],
+    "expected_answers": {"Q5": ["C"]},
+    "expected_score_ready": false,
+    "expected_report_ready": false
+  },
+  {
+    "id": "case_020_sports_australia_full",
+    "title": "运动用品澳洲完整诊断",
+    "tags": ["sports", "australia", "report_ready"],
+    "messages": [
+      {"role": "assistant", "content": "产品和海外情况？"},
+      {"role": "user", "content": "做户外运动用品，海外订单占比30%以上，目标澳洲和新西兰。"},
+      {"role": "assistant", "content": "原因、预算和路径？"},
+      {"role": "user", "content": "已有客户询盘，预算10万以上，考虑独立站、海外展会和Facebook广告。"},
+      {"role": "assistant", "content": "基础信息和团队？"},
+      {"role": "user", "content": "成立8年，团队120人，年营收6000万。源头工厂，供应链强，交付稳定。有成熟新媒体团队，海外社媒有询盘。外贸团队成熟，想判断哪个国家先做，愿意预约。"}
+    ],
+    "expected_answers": {"Q5": ["A"], "Q8": ["I"], "Q17": ["B", "E", "G"], "Q19": ["A"], "Q30": ["B"], "Q31": ["A"], "Q2a": ["B"], "Q2b": ["B"], "Q3a": ["B"], "Q9": ["A"], "Q11": ["A", "E"], "Q15": ["A"], "Q22": ["A"], "Q23": ["A"], "Q28": ["A"]},
+    "expected_score_ready": true,
+    "expected_report_ready": true
+  }
+]
