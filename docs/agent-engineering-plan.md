@@ -1,9 +1,9 @@
 # 出海诊断 Agent — Agent 引擎重构工程计划书
 
-> 版本：v1.1  
+> 版本：v2.0  
 > 日期：2026-07-01  
-> 目标：把当前“API 编排 + 若干独立节点”的实现，重构为一个具备清晰工具协议、执行循环、状态边界、错误恢复策略的真实 Agent 产品。  
-> 参考：`reference/claude-code-analysis/` 中对 Claude Code 工程模式的分析。只学习工程思想，不照搬具体实现。
+> 目标：Phase 38-41 已完成 Agent 引擎重构。Phase 42-50 将项目升级为可配置、可观察、可运营的 Agent 产品工作台。  
+> 参考：`reference/claude-code-analysis/`（Claude Code 工程模式）、`reference/SonettoHere/`（LangChain ReAct Agent 产品化）。
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### 0.1 这次重构要解决的问题
 
-当前项目已经跑通“对话 → 提取 → 评分 → 报告 → 留资 → 顾问跟进”闭环，但架构仍偏脚本化：
+Phase 38 前项目已经跑通“对话 → 提取 → 评分 → 报告 → 留资 → 顾问跟进”闭环，但架构仍偏脚本化：
 
 - API handler 直接编排 `extract / score / report / audit / save`
 - 工具没有统一协议，无法明确只读、写入、并发安全、重试语义
@@ -36,7 +36,7 @@
 
 - 不复制 Claude Code 的 CLI / TUI / 文件编辑 / Sandbox 架构
 - 不引入 MCP、Smithery、多 Agent 协作、RL、复杂权限系统
-- 不在本轮做长期 Memory 系统
+- Phase 39 不引入长期 Memory 系统；Memory 已在 Phase 40-41 完成
 
 ### 0.3 全局约束
 
@@ -111,6 +111,8 @@ API 层不再直接调用：
 ---
 
 ## 2. Phase 拆分
+
+> Phase 38-41.5 已完成，以下历史阶段仅作背景和验收口径，不再重复执行。
 
 ## Phase 38：安全上线底线
 
@@ -739,16 +741,231 @@ class ReadinessResult(BaseModel):
 
 ---
 
-## 5. 当前建议执行顺序
+## 5. Phase 42-50：Agent 产品工作台
 
-1. Phase 38：安全上线底线
-2. Phase 39.1：Tool 协议骨架
-3. Phase 39.2：本地确定性工具接入
-4. Phase 39.3：AgentEvent 与 TerminalState
-5. Phase 39.4：AgentGraph 接管 continue
-6. Phase 39.5：AgentGraph 接管 finish
-7. Phase 39.6：API handler 退回事件入口
-8. Phase 39.7：上下文窗口与配置化
-9. Phase 39.8：Question display mapping
-10. Phase 39.9：死代码清理
-11. Phase 40：Memory 系统
+> Phase 38-41.5 已完成 Agent 引擎重构。以下 Phase 将项目从"可运行的诊断 Agent"升级为"可配置、可观察、可运营的 Agent 产品工作台"。
+> 参考 SonettoHere 的产品化思路：Provider 管理、AppShell、Runtime Trace、会话管理。
+
+---
+
+### Phase 42：模型 Provider 配置中心
+
+参考：SonettoHere `api/providers/`、`web/src/views/ProvidersView.vue`
+
+**目标**：用户可在前端配置 OpenAI-compatible API，不再写死 DeepSeek。
+
+**裁决**：
+- Provider 配置存 PostgreSQL，不用 YAML。
+- API Key MVP 阶段服务端存 DB 明文；后端永不返回明文，前端只显示 `masked_key`。
+- 不在本 Phase 引入加密依赖；如需密钥加密，单独 Phase 处理。
+- 日志、响应、测试断言禁止打印 API Key 原文。
+
+做：
+- 后端新增 Provider 管理 API（CRUD + 测试连接 + 拉取模型列表）
+- Provider 模型：name / base_url / api_key / default_model / enabled / context_window
+- API Key 返回前端时 mask
+- `DeepSeekClient` 抽象为 `OpenAICompatibleClient`，动态读取当前启用 Provider
+- 前端 `/settings/models`：Provider 列表、新增、测试连接、设置默认、启用/停用
+
+不做：
+- 不删 DeepSeek 兼容性
+- 不做 OAuth Provider（只做 API Key）
+
+验收：
+- 用户无需改 `.env` 即可配置模型
+- 对话/抽取/报告/审计均走当前启用 Provider
+
+---
+
+### Phase 43：Agent 运行时模型选择
+
+**目标**：诊断开始前可选择模型，诊断会话记录使用模型。
+
+**裁决**：
+- 一次诊断创建后锁定 `provider_id` / `model_name`。
+- `continue-stream` 与 `finish` 必须使用该诊断锁定的模型。
+- 用户切换模型只影响下一次新诊断。
+
+做：
+- `AgentEvent` 或 request state 增加 `provider_id` / `model_name`
+- `/conversation/start` 返回当前默认模型信息
+- `/continue-stream` 使用用户当前选择的模型
+- `/finish` 使用同一模型
+- 前端聊天页顶部模型选择器 + 无模型时引导配置
+- 报告历史记录生成模型
+
+不做：
+- 不支持同一诊断中途切换模型
+
+验收：
+- 同一次诊断全程使用同一 provider/model
+- Provider 不可用时 UI 明确提示
+
+---
+
+### Phase 44：AppShell + 设置中心
+
+**目标**：把单页 Demo 升级为产品工作台。
+
+做：
+- 左侧导航：诊断 / 我的报告 / 顾问后台 / 模型设置 / 知识库 / Memory
+- 顶部状态：登录状态、当前模型、Agent 状态
+- 现有 inline style → 统一 CSS token
+- `/chat`、`/reports`、`/admin/leads` 视觉统一
+
+不做：
+- 不重做已有页面业务逻辑
+
+验收：
+- 产品有统一 Shell
+- 模型设置入口清晰
+
+---
+
+### Phase 45：诊断工作台
+
+**目标**：对话过程透明化，用户知道"为什么还不能生成报告"。
+
+做：
+- 对话页右侧诊断进度面板：
+  - 企业画像（slots）
+  - 已识别答案数 + `score_ready` / `report_ready` 状态
+  - `missing_items` / `report_missing_items` 实时展示
+  - 下一步建议问题
+- 移除"轮次"作为核心状态指标
+- `missing_items` 在对话过程中持续展示，不只在 finish 失败后
+
+验收：
+- 用户看到采集进度
+- Agent 不再像闲聊机器人
+
+---
+
+### Phase 46：Agent Runtime Trace
+
+参考：SonettoHere `ToolCallCard.vue`、`WebSocketCallback`、`ThinkingBlock.vue`
+
+**目标**：可观察 Agent 执行过程。
+
+做：
+- SSE 增加 runtime event：`extract_start/done`、`readiness_done`、`rag_search_done`、`report_generate_start/done`、`audit_done`
+- 前端折叠式 Agent Trace 面板：企业画像更新 / 题库答案抽取 / RAG 检索 / 报告生成 / 审计
+- 普通用户折叠，开发/顾问可展开
+- Trace 记录每一步耗时
+
+Trace event 最小结构：
+
+```ts
+type AgentTraceEvent = {
+  type: "trace";
+  step: "extract" | "readiness" | "rag_search" | "report_generate" | "report_audit";
+  status: "started" | "completed" | "failed";
+  elapsed_ms?: number;
+  summary?: string;
+};
+```
+
+Trace 禁止包含 prompt、raw_report、lead_report、原始异常和 API Key。
+
+验收：
+- 出问题能看到卡在哪一步
+- 简历中"Agent 工程化"有可视化支撑
+
+---
+
+### Phase 47：知识库管理与 RAG 可视化
+
+**目标**：RAG 从黑盒变成可管理、可解释的功能。
+
+做：
+- `/knowledge` 页面：查看/新增/编辑/删除知识、重新生成 embedding、测试检索
+- 报告详情显示使用了哪些知识片段（TopK 标题 + score）
+- 顾问后台可查看 RAG 命中依据
+
+权限：
+- `/knowledge` 仅 consultant/admin JWT 可访问。
+- 企业主只能在报告中看到安全的知识标题和来源，不可编辑知识库。
+
+验收：
+- RAG 不再是后端代码
+- 报告可解释"引用了什么知识"
+
+---
+
+### Phase 48：报告页与顾问后台产品化
+
+**目标**：报告不再像文本 dump。
+
+做：
+- 用户报告页：分数 Hero、维度中文名、风险/优势卡片、30 天行动计划 checklist、解锁 CTA
+- 顾问后台：P0/P1/P2 列表、跟进状态、顾问话术一键复制、企业画像摘要
+
+验收：
+- "顾问跟单准备时间压缩"有产品支撑
+
+---
+
+### Phase 49：会话管理
+
+参考：SonettoHere session sidebar
+
+**目标**：刷新不丢对话。
+
+做：
+- 保存未完成诊断草稿
+- 恢复上次诊断
+- 新建/删除草稿
+- 已完成诊断进入报告历史
+
+存储裁决：
+- Phase 49 先做浏览器 `localStorage` 草稿恢复。
+- 草稿仅保存 `ConversationClientState`、messages、selected provider/model、last_active_at。
+- 已完成报告仍以 DB report history 为准。
+- 不新增服务端 draft session 表。
+
+验收：
+- 浏览器刷新后状态恢复
+- 多诊断可管理
+
+---
+
+### Phase 50：前端测试与发布质量
+
+**目标**：补齐前端测试覆盖率。
+
+做：
+- Provider 配置测试
+- 模型选择测试
+- SSE runtime event 测试
+- 报告解锁测试
+- 顾问后台筛选/保存测试
+- build/typecheck 固化到 CI
+
+每个 Phase 完成后输出：
+1. 修改文件
+2. 新增 API / 类型结构
+3. 前端页面变化
+4. 安全边界
+5. 测试结果
+6. 明确未做
+
+---
+
+## 6. 当前建议执行顺序
+
+**已完成（Phase 38-41.5）**：
+1. ~~Phase 38：安全上线底线~~ ✅
+2. ~~Phase 39.1-39.9：Tool Runtime + Agent 协议 + 接管 + 配置化 + Display + 死代码~~ ✅
+3. ~~Phase 40：Memory 系统~~ ✅
+4. ~~Phase 41-41.5：Memory recall 接入 + 流式修复 + 可观测性 + 对话-报告断裂修复 + 过早收尾修复~~ ✅
+
+**下一阶段（Phase 42-50）**：
+1. Phase 42：模型 Provider 配置中心
+2. Phase 43：Agent 运行时模型选择
+3. Phase 44：AppShell + 设置中心
+4. Phase 45：诊断工作台
+5. Phase 46：Agent Runtime Trace
+6. Phase 47：知识库管理与 RAG 可视化
+7. Phase 48：报告页与顾问后台产品化
+8. Phase 49：会话管理
+9. Phase 50：前端测试与发布质量

@@ -120,10 +120,26 @@ Phase 41.2-41.4.1 补充修复：
 - API MISSING_INFO 返回结构化 detail，前端展示缺失项面板
 - 报告生成链路 8 个 logger.warning 日志点
 
-后续迭代：
-- memory.save 自动保存时机
-- AgentState 拆分
-- Memory 新鲜度与 LLM 语义选择升级
+下一阶段 Phase 42-50（Agent 产品工作台，参考 SonettoHere）：
+
+1. Phase 42：模型 Provider 配置中心 — OpenAI-compatible 多模型支持
+2. Phase 43：Agent 运行时模型选择 — 诊断全程使用同一模型
+3. Phase 44：AppShell + 设置中心 — 左侧导航 + 统一视觉
+4. Phase 45：诊断工作台 — dialogue 页实时展示 readiness 进度
+5. Phase 46：Agent Runtime Trace — SSE runtime event + 前端折叠 Trace
+6. Phase 47：知识库管理与 RAG 可视化 — /knowledge 管理页 + 报告引用溯源
+7. Phase 48：报告页与顾问后台产品化 — 卡片布局 + 话术一键复制
+8. Phase 49：会话管理 — 草稿保存/恢复 + session resume
+9. Phase 50：前端测试与发布质量 — CI 固化
+
+详见 `docs/agent-engineering-plan.md` v2.0。
+
+Phase 42-50 已裁决：
+- Provider 配置存 PostgreSQL；API Key MVP 服务端存 DB 明文，响应仅返回 `masked_key`。
+- 一次诊断锁定 `provider_id` / `model_name`，中途不切换；切换只影响下一次新诊断。
+- Runtime Trace 只传安全摘要，不传 prompt、raw_report、lead_report、原始异常和 API Key。
+- `/knowledge` 仅 consultant/admin 可管理；企业主只看安全知识标题/来源。
+- Phase 49 会话草稿先存浏览器 `localStorage`，不新增服务端 draft 表。
 
 ### Agent 工具系统
 
