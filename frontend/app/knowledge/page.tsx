@@ -56,13 +56,18 @@ export default function KnowledgePage() {
     if (!formTitle || !formContent) return;
     try {
       if (editing) {
-        const body: Record<string, string> = { title: formTitle };
-        if (formContent) body.content = formContent;
-        if (formSource) body.source = formSource;
+        const body: Record<string, string | null> = {
+          title: formTitle,
+          content: formContent,
+          source: formSource.trim() ? formSource.trim() : null,
+        };
         const updated = await updateKnowledge(editing.id, body);
         setItems(items.map(x => x.id === updated.id ? updated : x));
       } else {
-        const created = await createKnowledge({ title: formTitle, content: formContent, source: formSource || undefined });
+        const created = await createKnowledge({
+          title: formTitle, content: formContent,
+          source: formSource.trim() ? formSource.trim() : undefined,
+        });
         setItems([created, ...items]);
       }
       resetForm();

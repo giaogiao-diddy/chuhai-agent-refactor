@@ -137,14 +137,18 @@ async def create_knowledge(db: AsyncSession, title: str, content: str, source: s
     return doc
 
 
-async def update_knowledge(db: AsyncSession, doc_id: _uuid.UUID, title: str | None, content: str | None, source: str | None) -> RagDocument | None:
+async def update_knowledge(
+    db: AsyncSession, doc_id: _uuid.UUID,
+    title: str | None, content: str | None, source: str | None,
+    update_source: bool = False,
+) -> RagDocument | None:
     doc = await db.get(RagDocument, doc_id)
     if doc is None:
         return None
     if title is not None:
         doc.title = title
-    if source is not None:
-        doc.source = source
+    if update_source:
+        doc.source = source  # None = 清空
     content_changed = False
     if content is not None and content != doc.content:
         doc.content = content

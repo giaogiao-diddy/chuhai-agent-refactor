@@ -196,3 +196,76 @@ async def test_search_knowledge_does_not_return_embedding():
         if doc_id:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await client.delete(f"/knowledge/{doc_id}")
+
+
+# ── 校验 ──
+
+@pytest.mark.asyncio
+async def test_create_knowledge_rejects_blank_title():
+    _skip_if_no_db()
+    transport = ASGITransport(app=_app_instance())
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/knowledge", json={"title": "   ", "content": "valid content"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_knowledge_rejects_blank_content():
+    _skip_if_no_db()
+    transport = ASGITransport(app=_app_instance())
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/knowledge", json={"title": "valid", "content": "   "})
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_knowledge_rejects_blank_title():
+    _skip_if_no_db()
+    transport = ASGITransport(app=_app_instance())
+    doc_id = None
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/knowledge", json={"title": "orig", "content": "original content"})
+            doc_id = resp.json()["id"]
+            patch_resp = await client.patch(f"/knowledge/{doc_id}", json={"title": "   "})
+            assert patch_resp.status_code == 422
+    finally:
+        if doc_id:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                await client.delete(f"/knowledge/{doc_id}")
+
+
+@pytest.mark.asyncio
+async def test_update_knowledge_can_clear_source():
+    _skip_if_no_db()
+    transport = ASGITransport(app=_app_instance())
+    doc_id = None
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/knowledge", json={"title": "src-test", "content": "c", "source": "old"})
+            doc_id = resp.json()["id"]
+            await client.patch(f"/knowledge/{doc_id}", json={"source": None})
+            detail_resp = await client.get(f"/knowledge/{doc_id}")
+            assert detail_resp.json()["source"] is None
+    finally:
+        if doc_id:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                await client.delete(f"/knowledge/{doc_id}")
+
+
+@pytest.mark.asyncio
+async def test_update_knowledge_blank_source_becomes_none():
+    _skip_if_no_db()
+    transport = ASGITransport(app=_app_instance())
+    doc_id = None
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/knowledge", json={"title": "src-test2", "content": "c", "source": "old"})
+            doc_id = resp.json()["id"]
+            await client.patch(f"/knowledge/{doc_id}", json={"source": "   "})
+            detail_resp = await client.get(f"/knowledge/{doc_id}")
+            assert detail_resp.json()["source"] is None
+    finally:
+        if doc_id:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                await client.delete(f"/knowledge/{doc_id}")

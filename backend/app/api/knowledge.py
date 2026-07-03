@@ -65,9 +65,11 @@ async def api_update_knowledge(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_consultant_required),
 ):
+    update_source = "source" in body.model_fields_set
     doc = await update_knowledge(
         db, doc_id,
         title=body.title, content=body.content, source=body.source,
+        update_source=update_source,
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="知识不存在")

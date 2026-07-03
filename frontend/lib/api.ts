@@ -538,7 +538,7 @@ export async function createKnowledge(data: { title: string; content: string; so
   return res.json();
 }
 
-export async function updateKnowledge(id: string, data: { title?: string; content?: string; source?: string }): Promise<KnowledgeItem> {
+export async function updateKnowledge(id: string, data: { title?: string; content?: string; source?: string | null }): Promise<KnowledgeItem> {
   const res = await fetch(`${API_BASE}/knowledge/${id}`, {
     method: "PATCH", headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(data),
