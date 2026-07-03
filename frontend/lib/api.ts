@@ -578,3 +578,68 @@ export async function searchKnowledge(query: string, topK = 5): Promise<Knowledg
   if (!res.ok) throw new Error("检索失败");
   return res.json();
 }
+
+// ── MCP Servers ──
+
+export type McpServer = {
+  id: string;
+  name: string;
+  transport: string;
+  url: string | null;
+  command: string | null;
+  enabled: boolean;
+  tools_count: number;
+  connected: boolean;
+  error_message: string | null;
+  created_at: string | null;
+};
+
+function _mcpError(res: Response): Error {
+  if (res.status === 401) return new Error("请先登录");
+  if (res.status === 403) return new Error("无权访问 MCP 设置");
+  if (res.status === 404) return new Error("MCP 服务不存在");
+  if (res.status === 422) return new Error("请检查 MCP 配置");
+  return new Error(res.status >= 500 ? "服务器错误" : "操作失败");
+}
+
+export async function listMcpServers(): Promise<McpServer[]> {
+  const res = await fetch(`${API_BASE}/mcp-servers`, { headers: authHeaders() });
+  if (!res.ok) throw _mcpError(res);
+  return res.json();
+}
+
+export async function createMcpServer(data: {
+  name: string; transport?: string; url?: string; command?: string; env?: Record<string, string>; headers?: Record<string, string>;
+}): Promise<McpServer> {
+  const res = await fetch(`${API_BASE}/mcp-servers`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw _mcpError(res);
+  return res.json();
+}
+
+export async function updateMcpServer(id: string, data: {
+  name?: string; enabled?: boolean; url?: string; command?: string; env?: Record<string, string>; headers?: Record<string, string>;
+}): Promise<McpServer> {
+  const res = await fetch(`${API_BASE}/mcp-servers/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw _mcpError(res);
+  return res.json();
+}
+
+export async function deleteMcpServer(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/mcp-servers/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) throw _mcpError(res);
+}
+
+export async function testMcpServer(id: string): Promise<McpServer> {
+  const res = await fetch(`${API_BASE}/mcp-servers/${id}/test`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw _mcpError(res);
+  return res.json();
+}

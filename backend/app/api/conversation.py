@@ -1,5 +1,6 @@
 import json
 import uuid as _uuid
+import inspect
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -40,6 +41,13 @@ def _safe_500_detail() -> str:
     return "AI 暂时不可用，请稍后重试"
 
 
+def _runner_kwargs(fn, kwargs: dict) -> dict:
+    sig = inspect.signature(fn)
+    if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+        return kwargs
+    return {k: v for k, v in kwargs.items() if k in sig.parameters}
+
+
 async def _resolve_provider_runtime(
     db: AsyncSession,
     provider_id: str | None,
@@ -61,7 +69,10 @@ async def _resolve_provider_runtime(
         model = model_name or provider.default_model
         return provider.base_url, provider.api_key, model, str(provider.id), model
 
-    provider = await get_default_provider(db)
+    try:
+        provider = await get_default_provider(db)
+    except Exception:
+        return None, None, None, None, None
     if provider is not None:
         model = model_name or provider.default_model
         return provider.base_url, provider.api_key, model, str(provider.id), model
@@ -97,14 +108,15 @@ async def continue_conversation(
     state = request.state.to_agent_state()
     event = AgentEvent(type="user_message", message=request.message)
 
-    runner_kwargs: dict = {}
+    runner_kwargs: dict = {"db_session": db}
     if state.provider_id:
         base_url, api_key, model, _, _ = await _resolve_provider_runtime(
             db, state.provider_id, state.model_name,
         )
-        if base_url: runner_kwargs = {"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model}
+        if base_url:
+            runner_kwargs.update({"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model})
 
-    result = await run_agent_event(state, event, **runner_kwargs)
+    result = await run_agent_event(state, event, **_runner_kwargs(run_agent_event, runner_kwargs))
 
     if result.terminal == TerminalState.FAILED:
         raise HTTPException(status_code=500, detail=_safe_500_detail())
@@ -133,18 +145,19 @@ async def continue_conversation_stream(
 ):
     state = request.state.to_agent_state()
 
-    stream_kwargs: dict = {}
+    stream_kwargs: dict = {"db_session": db}
     if state.provider_id:
         base_url, api_key, model, _, _ = await _resolve_provider_runtime(
             db, state.provider_id, state.model_name,
         )
-        if base_url: stream_kwargs = {"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model}
+        if base_url:
+            stream_kwargs.update({"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model})
 
     async def generate() -> AsyncGenerator[str, None]:
         async for event in run_agent_event_stream(
             state,
             AgentEvent(type="user_message", message=request.message),
-            **stream_kwargs,
+            **_runner_kwargs(run_agent_event_stream, stream_kwargs),
         ):
             yield _sse_event(event)
 
@@ -170,17 +183,18 @@ async def finish_conversation(
     else:
         raise HTTPException(status_code=401, detail="请先登录")
 
-    finish_kwargs: dict = {}
+    finish_kwargs: dict = {"db_session": db}
     if state.provider_id:
         base_url, api_key, model, _, _ = await _resolve_provider_runtime(
             db, state.provider_id, state.model_name,
         )
-        if base_url: finish_kwargs = {"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model}
+        if base_url:
+            finish_kwargs.update({"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model})
 
     result = await run_agent_event(
         state,
         AgentEvent(type="finish_requested"),
-        **finish_kwargs,
+        **_runner_kwargs(run_agent_event, finish_kwargs),
     )
     state = result.state
 

@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/leads", label: "顾问后台", icon: "admin" },
   { href: "/knowledge", label: "知识库", icon: "knowledge" },
   { href: "/settings/models", label: "模型设置", icon: "settings" },
+  { href: "/settings/mcp", label: "MCP 服务", icon: "settings" },
 ];
 
 type Props = {

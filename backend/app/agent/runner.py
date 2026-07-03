@@ -8,6 +8,9 @@ from app.agent.tools.executor import ToolExecutor
 from app.agent.tools.external import register_external_tools
 from app.agent.tools.external.dialogue import DialogueDeepSeekInput, _build_dialogue_input, _build_dialogue_prompt
 from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
+from app.agent.mcp.adapter import register_enabled_mcp_tools
+from app.agent.skills.bundled import register_all_bundled_skills
+from app.agent.skills.registry import get_skill
 from app.agent.tools.base import ToolContext, ToolErrorCode
 from app.agent.tools.local import register_local_tools
 from app.agent.tools.local.readiness import ReadinessCheckInput, ReadinessResult
@@ -27,11 +30,23 @@ def _default_max_agent_steps() -> int:
     return get_settings().MAX_AGENT_STEPS
 
 
-def _build_tool_registry() -> ToolRegistry:
+async def _build_tool_registry(db_session=None) -> ToolRegistry:
     registry = ToolRegistry()
     register_local_tools(registry)
     register_external_tools(registry)
+    if db_session is not None:
+        await register_enabled_mcp_tools(registry, db_session)
     return registry
+
+
+def _skill_name_from_message(message: str | None) -> str | None:
+    if not message:
+        return None
+    text = message.strip()
+    if not text.startswith("/"):
+        return None
+    name = text[1:].split(maxsplit=1)[0].strip()
+    return name or None
 
 
 def _safe_error(msg: str) -> str:
@@ -87,6 +102,7 @@ async def run_agent_event(
     provider_base_url: str | None = None,
     provider_api_key: str | None = None,
     provider_model: str | None = None,
+    db_session=None,
 ) -> AgentRunResult:
     effective_max_steps = max_steps if max_steps is not None else _default_max_agent_steps()
     if effective_max_steps <= 0:
@@ -97,18 +113,20 @@ async def run_agent_event(
 
     if event.type == "user_message":
         return await _handle_user_message(
-            state, event, registry or _build_tool_registry(),
+            state, event, registry or await _build_tool_registry(db_session),
             provider_base_url=provider_base_url,
             provider_api_key=provider_api_key,
             provider_model=provider_model,
+            db_session=db_session,
         )
 
     if event.type == "finish_requested":
         return await _handle_finish_requested(
-            state, registry or _build_tool_registry(),
+            state, registry or await _build_tool_registry(db_session),
             provider_base_url=provider_base_url,
             provider_api_key=provider_api_key,
             provider_model=provider_model,
+            db_session=db_session,
         )
 
     return AgentRunResult(state=state, terminal=TerminalState.FAILED)
@@ -121,14 +139,29 @@ async def _handle_user_message(
     provider_base_url: str | None = None,
     provider_api_key: str | None = None,
     provider_model: str | None = None,
+    db_session=None,
 ) -> AgentRunResult:
     executor = ToolExecutor(registry)
     ctx = ToolContext(
+        db_session=db_session,
         provider_base_url=provider_base_url,
         provider_api_key=provider_api_key,
         provider_model=provider_model,
     )
     current = append_user_message(state, event.message)
+
+    skill_name = _skill_name_from_message(event.message)
+    if skill_name:
+        register_all_bundled_skills()
+        skill = get_skill(skill_name)
+        if skill is not None and skill.user_invocable:
+            assistant_text = await skill.execute(current, executor)
+            current = append_assistant_message(current, assistant_text)
+            return AgentRunResult(
+                state=current,
+                terminal=TerminalState.AWAITING_USER,
+                response={"assistant_message": assistant_text},
+            )
 
     # Step 1: extraction
     extract_result = await executor.execute(
@@ -192,9 +225,11 @@ async def _handle_finish_requested(
     provider_base_url: str | None = None,
     provider_api_key: str | None = None,
     provider_model: str | None = None,
+    db_session=None,
 ) -> AgentRunResult:
     executor = ToolExecutor(registry)
     ctx = ToolContext(
+        db_session=db_session,
         provider_base_url=provider_base_url,
         provider_api_key=provider_api_key,
         provider_model=provider_model,
@@ -460,21 +495,43 @@ async def run_agent_event_stream(
     provider_base_url: str | None = None,
     provider_api_key: str | None = None,
     provider_model: str | None = None,
+    db_session=None,
 ) -> AsyncGenerator[dict, None]:
     if event.type != "user_message":
-        result = await run_agent_event(state, event, registry)
+        result = await run_agent_event(
+            state,
+            event,
+            registry,
+            provider_base_url=provider_base_url,
+            provider_api_key=provider_api_key,
+            provider_model=provider_model,
+            db_session=db_session,
+        )
         client_state = ConversationClientState.from_agent_state(result.state)
         yield {"type": "error", "message": "streaming 仅支持 user_message", "state": client_state.model_dump()}
         return
 
-    tools = registry or _build_tool_registry()
+    tools = registry or await _build_tool_registry(db_session)
     executor = ToolExecutor(tools)
     ctx = ToolContext(
+        db_session=db_session,
         provider_base_url=provider_base_url,
         provider_api_key=provider_api_key,
         provider_model=provider_model,
     )
     current = append_user_message(state, event.message)
+
+    skill_name = _skill_name_from_message(event.message)
+    if skill_name:
+        register_all_bundled_skills()
+        skill = get_skill(skill_name)
+        if skill is not None and skill.user_invocable:
+            assistant_text = await skill.execute(current, executor)
+            current = append_assistant_message(current, assistant_text)
+            cc = ConversationClientState.from_agent_state(current)
+            yield {"type": "delta", "content": assistant_text}
+            yield {"type": "done", "state": cc.model_dump()}
+            return
 
     # ── extraction ──
     t0 = _time.monotonic()

@@ -69,8 +69,14 @@ async def test_start_with_default_provider_locks_model():
     _skip_if_no_db()
     transport = ASGITransport(app=_app_instance())
     pid = None
+    disabled_ids: list[str] = []
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            providers = (await client.get("/model-providers")).json()
+            for existing in providers:
+                if existing.get("enabled"):
+                    await client.patch(f"/model-providers/{existing['id']}", json={"enabled": False})
+                    disabled_ids.append(existing["id"])
             p = await _create_provider(client, "StartDefault")
             pid = p["id"]
             resp = await client.post("/conversation/start", json={})
@@ -84,6 +90,10 @@ async def test_start_with_default_provider_locks_model():
         if pid:
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 await _delete_provider(client, pid)
+        if disabled_ids:
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                for existing_id in disabled_ids:
+                    await client.patch(f"/model-providers/{existing_id}", json={"enabled": True})
 
 
 @pytest.mark.asyncio

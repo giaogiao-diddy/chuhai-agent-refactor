@@ -6,6 +6,7 @@ from app.api.auth import router as auth_router
 from app.api.conversation import router as conversation_router
 from app.api.health import router as health_router
 from app.api.knowledge import router as knowledge_router
+from app.api.mcp_servers import router as mcp_servers_router
 from app.api.model_providers import router as model_providers_router
 from app.api.lead_submission import router as lead_submission_router
 from app.api.reports import router as reports_router
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_leads_router)
     app.include_router(model_providers_router)
     app.include_router(knowledge_router)
+    app.include_router(mcp_servers_router)
 
     return app
 

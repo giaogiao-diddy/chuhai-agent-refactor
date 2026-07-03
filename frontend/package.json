@@ -13,9 +13,10 @@
     "test:session-drafts": "tsx ./scripts/test-session-drafts.ts",
     "test:provider-api": "tsx ./scripts/test-provider-api.ts",
     "test:report-unlock": "tsx ./scripts/test-report-unlock.ts",
+    "test:mcp-api": "tsx ./scripts/test-mcp-api.ts",
     "test:visual-system": "tsx ./scripts/test-visual-system.ts",
     "typecheck": "tsc --noEmit",
-    "quality": "npm run typecheck && npm run test:parser && npm run test:report-safety && npm run test:auth && npm run test:admin-api && npm run test:session-drafts && npm run test:provider-api && npm run test:report-unlock && npm run test:visual-system && npm run build"
+    "quality": "npm run typecheck && npm run test:parser && npm run test:report-safety && npm run test:auth && npm run test:admin-api && npm run test:session-drafts && npm run test:provider-api && npm run test:report-unlock && npm run test:mcp-api && npm run test:visual-system && npm run build"
   },
   "dependencies": {
     "next": "^14.2.0",
