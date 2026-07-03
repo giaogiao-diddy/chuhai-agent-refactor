@@ -50,4 +50,6 @@ class AgentState(BaseModel):
     max_report_retries: int = 2
     used_template_report: bool = False
     readiness_result: ReadinessResult | None = None
+    provider_id: str | None = None
+    model_name: str | None = None
 

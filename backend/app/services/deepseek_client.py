@@ -9,14 +9,25 @@ from config import get_settings
 
 
 class DeepSeekClient:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
+    ) -> None:
         settings = get_settings()
-        self.api_key = settings.DEEPSEEK_API_KEY
-        self.model = settings.DEEPSEEK_MODEL
+        self.api_key = api_key or settings.DEEPSEEK_API_KEY
+        self.model = model or settings.DEEPSEEK_MODEL
         self.embedding_model = settings.DEEPSEEK_EMBEDDING_MODEL
-        self.base_url = settings.DEEPSEEK_BASE_URL.rstrip("/")
+        self.base_url = (base_url or settings.DEEPSEEK_BASE_URL).rstrip("/")
         if not self.api_key:
-            raise ValueError("DEEPSEEK_API_KEY 未配置，请在 .env 中设置")
+            raise ValueError("API Key 未配置，请在 .env 中设置或配置模型 Provider")
+
+    def _chat_url(self) -> str:
+        u = self.base_url.rstrip("/")
+        if u.endswith("/v1"):
+            return u + "/chat/completions"
+        return u + "/v1/chat/completions"
 
     @property
     def _headers(self) -> dict[str, str]:
@@ -50,7 +61,7 @@ class DeepSeekClient:
     async def _request(self, payload: dict, timeout: int = 60) -> httpx.Response:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
-                f"{self.base_url}/v1/chat/completions",
+                self._chat_url(),
                 headers=self._headers,
                 json=payload,
             )
@@ -122,7 +133,7 @@ class DeepSeekClient:
         async with httpx.AsyncClient(timeout=60) as client:
             async with client.stream(
                 "POST",
-                f"{self.base_url}/v1/chat/completions",
+                self._chat_url(),
                 headers=self._headers,
                 json=payload,
             ) as response:

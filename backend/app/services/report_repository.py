@@ -39,6 +39,8 @@ def _build_item(assessment: Assessment, validated: UserReportSchema, followup_st
         created_at=assessment.created_at,
         completed_at=assessment.completed_at,
         followup_status=followup_status,
+        provider_id=assessment.provider_id,
+        model_name=assessment.model_name,
     )
 
 
@@ -107,6 +109,8 @@ async def get_user_report_detail(
         report_summary=_build_summary(validated),
         user_report=validated if is_unlocked else None,
         followup_status=followup_status,
+        provider_id=assessment.provider_id,
+        model_name=assessment.model_name,
     )
 
 
@@ -167,4 +171,6 @@ async def get_user_report_detail_by_user_id(
         report_summary=_build_summary(validated),
         user_report=validated if is_unlocked else None,
         followup_status=followup_status,
+        provider_id=assessment.provider_id,
+        model_name=assessment.model_name,
     )

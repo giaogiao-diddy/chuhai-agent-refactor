@@ -73,7 +73,11 @@ async def report_generate_deepseek_handler(
     try:
         if inp.audit_feedback or inp.escalated:
             prompt = _build_feedback_prompt(inp.state, inp.rag_context, inp.audit_feedback)
-            client = DeepSeekClient()
+            client_kwargs: dict = {}
+            if ctx is not None and ctx.provider_base_url: client_kwargs["base_url"] = ctx.provider_base_url
+            if ctx is not None and ctx.provider_api_key: client_kwargs["api_key"] = ctx.provider_api_key
+            if ctx is not None and ctx.provider_model: client_kwargs["model"] = ctx.provider_model
+            client = DeepSeekClient(**client_kwargs)
             raw = await client.chat_json(
                 [LLMMessage(role="system", content=SYSTEM_REPORT_GENERATION),
                  LLMMessage(role="user", content=prompt)],
@@ -82,7 +86,12 @@ async def report_generate_deepseek_handler(
                 temperature=0.2,
             )
         else:
-            raw = await generate_raw_report(inp.state, inp.rag_context or None)
+            raw = await generate_raw_report(
+                inp.state, inp.rag_context or None,
+                client_base_url=ctx.provider_base_url if ctx is not None else None,
+                client_api_key=ctx.provider_api_key if ctx is not None else None,
+                client_model=(ctx.provider_model or None) if ctx is not None else None,
+            )
 
         return ToolResult(data=ReportGenerateOutput(raw_report=raw))
     except ValueError as e:

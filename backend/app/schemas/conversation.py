@@ -19,6 +19,8 @@ class ConversationClientState(BaseModel):
     validation_errors: list[str] = Field(default_factory=list)
     used_template_report: bool = False
     public_error: str | None = None
+    provider_id: str | None = None
+    model_name: str | None = None
 
     def to_agent_state(self) -> AgentState:
         return AgentState(
@@ -31,6 +33,8 @@ class ConversationClientState(BaseModel):
             validation_errors=[],
             answers=self.answers,
             used_template_report=self.used_template_report,
+            provider_id=self.provider_id,
+            model_name=self.model_name,
         )
 
     @classmethod
@@ -72,12 +76,21 @@ class ConversationClientState(BaseModel):
             answers=state.answers,
             used_template_report=state.used_template_report,
             public_error=public_error,
+            provider_id=state.provider_id,
+            model_name=state.model_name,
         )
+
+
+class ConversationStartRequest(BaseModel):
+    provider_id: str | None = None
+    model_name: str | None = None
 
 
 class ConversationStartResponse(BaseModel):
     state: ConversationClientState
     assistant_message: str
+    provider_id: str | None = None
+    model_name: str | None = None
 
 
 class ConversationContinueRequest(BaseModel):

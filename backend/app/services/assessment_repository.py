@@ -55,6 +55,8 @@ async def save_completed_assessment(
         used_template_report=state.used_template_report,
         report_error=state.report_error,
         scoring_error=state.scoring_error,
+        provider_id=state.provider_id,
+        model_name=state.model_name,
         completed_at=now if state.status == "completed" else None,
     )
 

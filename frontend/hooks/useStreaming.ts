@@ -19,23 +19,31 @@ export function useStreaming() {
   const [error, setError] = useState<string | null>(null);
   const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
   const [nextQuestions, setNextQuestions] = useState<string[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [lockedProviderId, setLockedProviderId] = useState<string | null>(null);
+  const [lockedModelName, setLockedModelName] = useState<string | null>(null);
   const startingRef = useRef(false);
   const streamingRef = useRef(false);
   const finishingRef = useRef(false);
   const restartingRef = useRef(false);
   const isCompleted = Boolean(report);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (providerId?: string | null, modelName?: string | null) => {
     if (startingRef.current) return;
     startingRef.current = true;
     setIsStarting(true);
     setError(null);
     try {
-      const data = await startConversation();
+      const data = await startConversation({
+        provider_id: providerId || undefined,
+        model_name: modelName || undefined,
+      });
       setState(data.state);
       setMessages(data.state.messages);
-    } catch {
-      setError("启动失败");
+      setLockedProviderId(data.provider_id);
+      setLockedModelName(data.model_name);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "启动失败");
     } finally {
       startingRef.current = false;
       setIsStarting(false);
@@ -120,19 +128,22 @@ export function useStreaming() {
     setWechatQrUrl(null);
     setIsStreaming(false);
     setIsFinishing(false);
+    setLockedProviderId(null);
+    setLockedModelName(null);
     streamingRef.current = false;
     try {
-      await start();
+      await start(selectedProviderId);
     } finally {
       restartingRef.current = false;
     }
-  }, [start]);
+  }, [start, selectedProviderId]);
 
   return {
     state, messages, input,
     isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error,
     missingItems, nextQuestions,
-    start, setInput, send, finish, restart,
+    selectedProviderId, lockedProviderId, lockedModelName,
+    start, setInput, send, finish, restart, setSelectedProviderId,
   };
 }

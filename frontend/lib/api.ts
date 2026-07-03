@@ -21,16 +21,35 @@ export type ConversationClientState = {
   validation_errors: string[];
   used_template_report: boolean;
   public_error: string | null;
+  provider_id: string | null;
+  model_name: string | null;
+};
+
+export type StartConversationRequest = {
+  provider_id?: string;
+  model_name?: string;
 };
 
 export type StartConversationResponse = {
   state: ConversationClientState;
   assistant_message: string;
+  provider_id: string | null;
+  model_name: string | null;
 };
 
-export async function startConversation(): Promise<StartConversationResponse> {
-  const res = await fetch(`${API_BASE}/conversation/start`, { method: "POST", headers: { "Content-Type": "application/json" } });
-  if (!res.ok) throw new Error("启动失败");
+export async function startConversation(req?: StartConversationRequest): Promise<StartConversationResponse> {
+  const res = await fetch(`${API_BASE}/conversation/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req || {}),
+  });
+  if (!res.ok) {
+    if (res.status === 400) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || "请先配置可用模型");
+    }
+    throw new Error("启动失败");
+  }
   return res.json();
 }
 
@@ -168,6 +187,8 @@ export type ReportListItem = {
   tag: string | null; feasibility_score: number | null; display_score: number | null;
   used_template_report: boolean; created_at: string; completed_at: string | null;
   followup_status: string | null;
+  provider_id: string | null;
+  model_name: string | null;
 };
 
 export type ReportDetailResponse = {
@@ -179,6 +200,8 @@ export type ReportDetailResponse = {
   user_report: UserReport | null;
   wechat_qr_url: string | null;
   followup_status: string | null;
+  provider_id: string | null;
+  model_name: string | null;
 };
 
 export async function listReports(limit = 20): Promise<ReportListItem[]> {
@@ -388,6 +411,22 @@ function _providerError(res: Response): Error {
   if (res.status === 401) return new Error("请先登录");
   if (res.status === 403) return new Error("无权访问模型设置");
   return new Error(res.status >= 500 ? "服务器错误" : "操作失败");
+}
+
+export type ModelProviderPublicItem = {
+  id: string;
+  name: string;
+  default_model: string;
+  context_window: number;
+};
+
+export async function listPublicModelProviders(): Promise<ModelProviderPublicItem[]> {
+  const res = await fetch(`${API_BASE}/model-providers/enabled-public`);
+  if (!res.ok) {
+    // 5xx / 网络层以上错误 → 抛出，不让调用方误判为"无模型"
+    throw new Error(res.status >= 500 ? "服务器错误" : "加载模型列表失败");
+  }
+  return res.json();
 }
 
 export async function listModelProviders(): Promise<ModelProvider[]> {

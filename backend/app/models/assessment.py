@@ -33,6 +33,8 @@ class Assessment(Base):
     used_template_report: Mapped[bool] = mapped_column(Boolean, default=False)
     report_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     scoring_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz.utc), index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(tz.utc), onupdate=lambda: datetime.now(tz.utc))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

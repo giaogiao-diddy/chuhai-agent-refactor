@@ -36,6 +36,9 @@ SYSTEM_EXTRACT_ANSWERS = f"""{SYSTEM_DIALOGUE}
 async def extract_from_messages(
     messages: list[AgentMessage],
     history_window: int | None = 12,
+    client_base_url: str | None = None,
+    client_api_key: str | None = None,
+    client_model: str | None = None,
 ) -> ExtractionResult:
     selected = messages if history_window is None else messages[-history_window:]
     user_texts = [m.content for m in selected if m.role in ("user", "assistant")]
@@ -43,7 +46,11 @@ async def extract_from_messages(
         LLMMessage(role="system", content=SYSTEM_EXTRACT_ANSWERS),
         LLMMessage(role="user", content="\n".join(user_texts)),
     ]
-    client = DeepSeekClient()
+    client_kwargs: dict = {}
+    if client_base_url: client_kwargs["base_url"] = client_base_url
+    if client_api_key: client_kwargs["api_key"] = client_api_key
+    if client_model: client_kwargs["model"] = client_model
+    client = DeepSeekClient(**client_kwargs)
     return await client.chat_json(
         llm_messages, response_model=ExtractionResult, max_tokens=4000, temperature=0.0
     )

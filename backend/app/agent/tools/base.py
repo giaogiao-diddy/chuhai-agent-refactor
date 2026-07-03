@@ -30,6 +30,9 @@ class ToolContext(BaseModel):
     user_id: str | None = None
     db_session: Any | None = None
     abort_signal: Any | None = None
+    provider_base_url: str | None = None
+    provider_api_key: str | None = None
+    provider_model: str | None = None
 
     model_config = {"arbitrary_types_allowed": True}
 

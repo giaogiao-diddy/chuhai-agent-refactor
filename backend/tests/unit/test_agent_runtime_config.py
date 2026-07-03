@@ -82,7 +82,8 @@ async def test_dialogue_tool_uses_configured_tokens_temperature_and_history_wind
         for i in range(10)
     ]
     inp = DialogueDeepSeekInput(messages=messages)
-    result = await dialogue_deepseek_handler(inp, None)
+    from app.agent.tools.base import ToolContext
+    result = await dialogue_deepseek_handler(inp, ToolContext())
 
     assert result.error is None
     assert recorded["max_tokens"] == 123
@@ -125,14 +126,15 @@ async def test_report_generate_uses_configured_report_tokens(monkeypatch):
     state.scoring_result = _fake_scoring_result()
 
     # escalated=False, audit_feedback triggers _build_feedback_prompt path
+    from app.agent.tools.base import ToolContext
     inp = ReportGenerateInput(state=state, rag_context=[], audit_feedback=["test"], escalated=False)
-    result = await report_generate_deepseek_handler(inp, None)
+    result = await report_generate_deepseek_handler(inp, ToolContext())
     assert result.error is None
     assert recorded["max_tokens"] == 3456
 
     recorded.clear()
     inp2 = ReportGenerateInput(state=state, rag_context=[], audit_feedback=[], escalated=True)
-    result2 = await report_generate_deepseek_handler(inp2, None)
+    result2 = await report_generate_deepseek_handler(inp2, ToolContext())
     assert result2.error is None
     assert recorded["max_tokens"] == 7890
 

@@ -78,6 +78,7 @@ export default function ReportsPage() {
             <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>
               {r.created_at?.slice(0, 10)} · 跟进：{r.followup_status || "待留资"}
               {r.used_template_report ? " · 模板" : ""}
+              {r.model_name ? ` · ${r.model_name}` : ""}
             </div>
           </div>
         ))}

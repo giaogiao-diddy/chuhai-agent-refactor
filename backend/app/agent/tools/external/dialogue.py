@@ -65,13 +65,19 @@ def _build_dialogue_prompt(inp: DialogueDeepSeekInput) -> str:
     return "\n".join(lines)
 
 
+def _get_client(ctx: ToolContext | None) -> DeepSeekClient:
+    if ctx is not None and ctx.provider_base_url and ctx.provider_api_key:
+        return DeepSeekClient(base_url=ctx.provider_base_url, api_key=ctx.provider_api_key, model=ctx.provider_model or None)
+    return DeepSeekClient()
+
+
 async def dialogue_deepseek_handler(
     inp: DialogueDeepSeekInput,
     ctx: ToolContext,
 ) -> ToolResult:
     try:
         settings = get_settings()
-        client = DeepSeekClient()
+        client = _get_client(ctx)
         system_prompt = _build_dialogue_prompt(inp)
         llm_messages = [LLMMessage(role="system", content=system_prompt)]
         for msg in inp.messages[-settings.DIALOGUE_HISTORY_WINDOW:]:

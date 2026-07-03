@@ -1,6 +1,6 @@
 import pytest
 
-from app.agent.tools.base import ToolErrorCode
+from app.agent.tools.base import ToolContext, ToolErrorCode
 from app.agent.tools.external.report_generation import (
     ReportGenerateInput,
     report_generate_deepseek_handler,
@@ -48,7 +48,7 @@ async def test_report_generate_escalated_without_feedback_uses_8000_tokens(monke
     state.scoring_result = _fake_scoring_result()
 
     inp = ReportGenerateInput(state=state, rag_context=[], audit_feedback=[], escalated=True)
-    result = await report_generate_deepseek_handler(inp, None)
+    result = await report_generate_deepseek_handler(inp, ToolContext())
 
     assert result.error is None
     assert recorded_max_tokens == [8000], f"expected 8000, got {recorded_max_tokens}"
@@ -71,7 +71,7 @@ async def test_chat_json_finish_reason_length_maps_to_length_exceeded(monkeypatc
     state.scoring_result = _fake_scoring_result()
 
     inp = ReportGenerateInput(state=state, rag_context=[], audit_feedback=["fix length issue"], escalated=False)
-    result = await report_generate_deepseek_handler(inp, None)
+    result = await report_generate_deepseek_handler(inp, ToolContext())
 
     assert result.error is not None
     assert result.error.code == ToolErrorCode.LENGTH_EXCEEDED

@@ -29,6 +29,8 @@ class ReportListItem(BaseModel):
     created_at: datetime
     completed_at: datetime | None = None
     followup_status: str | None = None
+    provider_id: str | None = None
+    model_name: str | None = None
 
 
 class ReportDetailResponse(BaseModel):
@@ -43,3 +45,5 @@ class ReportDetailResponse(BaseModel):
     user_report: UserReport | None = None
     wechat_qr_url: str | None = None
     followup_status: str | None = None
+    provider_id: str | None = None
+    model_name: str | None = None

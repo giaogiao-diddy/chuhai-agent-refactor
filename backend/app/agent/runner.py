@@ -7,7 +7,7 @@ from app.agent.tools.executor import ToolExecutor
 from app.agent.tools.external import register_external_tools
 from app.agent.tools.external.dialogue import DialogueDeepSeekInput
 from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
-from app.agent.tools.base import ToolErrorCode
+from app.agent.tools.base import ToolContext, ToolErrorCode
 from app.agent.tools.local import register_local_tools
 from app.agent.tools.local.readiness import ReadinessCheckInput, ReadinessResult
 from app.agent.tools.registry import ToolRegistry
@@ -65,6 +65,9 @@ async def run_agent_event(
     event: AgentEvent,
     registry: ToolRegistry | None = None,
     max_steps: int | None = None,
+    provider_base_url: str | None = None,
+    provider_api_key: str | None = None,
+    provider_model: str | None = None,
 ) -> AgentRunResult:
     effective_max_steps = max_steps if max_steps is not None else _default_max_agent_steps()
     if effective_max_steps <= 0:
@@ -74,10 +77,20 @@ async def run_agent_event(
         )
 
     if event.type == "user_message":
-        return await _handle_user_message(state, event, registry or _build_tool_registry())
+        return await _handle_user_message(
+            state, event, registry or _build_tool_registry(),
+            provider_base_url=provider_base_url,
+            provider_api_key=provider_api_key,
+            provider_model=provider_model,
+        )
 
     if event.type == "finish_requested":
-        return await _handle_finish_requested(state, registry or _build_tool_registry())
+        return await _handle_finish_requested(
+            state, registry or _build_tool_registry(),
+            provider_base_url=provider_base_url,
+            provider_api_key=provider_api_key,
+            provider_model=provider_model,
+        )
 
     return AgentRunResult(state=state, terminal=TerminalState.FAILED)
 
@@ -86,14 +99,23 @@ async def _handle_user_message(
     state: AgentState,
     event: AgentEvent,
     registry: ToolRegistry,
+    provider_base_url: str | None = None,
+    provider_api_key: str | None = None,
+    provider_model: str | None = None,
 ) -> AgentRunResult:
     executor = ToolExecutor(registry)
+    ctx = ToolContext(
+        provider_base_url=provider_base_url,
+        provider_api_key=provider_api_key,
+        provider_model=provider_model,
+    )
     current = append_user_message(state, event.message)
 
     # Step 1: extraction
     extract_result = await executor.execute(
         "extract_answers.deepseek",
         ExtractAnswersDeepSeekInput(messages=current.messages),
+        context=ctx,
     )
     if extract_result.error is None and isinstance(extract_result.data, ExtractionResult):
         current = apply_extraction_result(current, extract_result.data)
@@ -105,6 +127,7 @@ async def _handle_user_message(
     readiness_result = await executor.execute(
         "readiness.check",
         ReadinessCheckInput(answers=current.answers, branch=current.branch),
+        context=ctx,
     )
     readiness: ReadinessResult | None = None
     if readiness_result.error is None and isinstance(readiness_result.data, ReadinessResult):
@@ -117,7 +140,7 @@ async def _handle_user_message(
 
     # Step 4: dialogue
     missing_items = [m.model_dump() for m in readiness.missing_items] if readiness else []
-    report_missing = [m.model_dump() for m in readiness.report_missing_items] if readiness else [] if readiness else []
+    report_missing = [m.model_dump() for m in readiness.report_missing_items] if readiness else []
     next_qs = readiness.next_questions if readiness else []
     dialogue_result = await executor.execute(
         "dialogue.deepseek",
@@ -130,6 +153,7 @@ async def _handle_user_message(
             report_ready=readiness.report_ready if readiness else False,
             report_missing_items=report_missing if readiness else [],
         ),
+        context=ctx,
     )
     if dialogue_result.error is not None:
         current = append_assistant_message(current, _safe_error(""))
@@ -156,13 +180,22 @@ async def _handle_user_message(
 async def _handle_finish_requested(
     state: AgentState,
     registry: ToolRegistry,
+    provider_base_url: str | None = None,
+    provider_api_key: str | None = None,
+    provider_model: str | None = None,
 ) -> AgentRunResult:
     executor = ToolExecutor(registry)
+    ctx = ToolContext(
+        provider_base_url=provider_base_url,
+        provider_api_key=provider_api_key,
+        provider_model=provider_model,
+    )
 
     # 1. readiness
     result = await executor.execute(
         "readiness.check",
         ReadinessCheckInput(answers=state.answers, branch=state.branch),
+        context=ctx,
     )
     if result.error is not None:
         return AgentRunResult(state=state, terminal=TerminalState.FAILED)
@@ -180,6 +213,7 @@ async def _handle_finish_requested(
         recovery_result = await executor.execute(
             "extract_answers.deepseek",
             ExtractAnswersDeepSeekInput(messages=state.messages, history_window=None),
+            context=ctx,
         )
         if recovery_result.error is None and isinstance(recovery_result.data, ExtractionResult):
             current = apply_extraction_result(current, recovery_result.data)
@@ -187,6 +221,7 @@ async def _handle_finish_requested(
             retry_readiness = await executor.execute(
                 "readiness.check",
                 ReadinessCheckInput(answers=current.answers, branch=current.branch),
+                context=ctx,
             )
             if retry_readiness.error is None and isinstance(retry_readiness.data, ReadinessResult):
                 current = current.model_copy(deep=True)
@@ -210,6 +245,7 @@ async def _handle_finish_requested(
     score_result = await executor.execute(
         "score.calculate",
         ScoreCalculateInput(answers=current.answers, branch=current.branch, q1_slots=current.slots),
+        context=ctx,
     )
     if score_result.error is not None:
         return AgentRunResult(state=current, terminal=TerminalState.FAILED)
@@ -227,7 +263,7 @@ async def _handle_finish_requested(
     rag_query = " ".join(rag_query_parts) if rag_query_parts else "B2B工厂出海"
 
     from app.agent.tools.external.rag import RagSearchInput
-    rag_result = await executor.execute("rag.search", RagSearchInput(query=rag_query))
+    rag_result = await executor.execute("rag.search", RagSearchInput(query=rag_query), context=ctx)
     if rag_result.error is not None:
         logger.warning("rag.search failed: %s %s", rag_result.error.code, rag_result.error.message)
     rag_context = rag_result.data.matches if rag_result.error is None else []
@@ -262,6 +298,7 @@ async def _handle_finish_requested(
                 state=current, rag_context=rag_context,
                 audit_feedback=audit_feedback, escalated=escalated,
             ),
+            context=ctx,
         )
         if gen_result.error is not None:
             logger.warning("report.generate.deepseek attempt=%d failed: %s %s",
@@ -291,6 +328,7 @@ async def _handle_finish_requested(
         split_result = await executor.execute(
             "report.split",
             RSplitInput(raw_report=raw_report, scoring_result=current.scoring_result, slots=current.slots),
+            context=ctx,
         )
         if split_result.error is not None:
             logger.warning("report.split attempt=%d failed: %s %s",
@@ -305,6 +343,7 @@ async def _handle_finish_requested(
         guard_result = await executor.execute(
             "report.guard",
             RGuardInput(user_report=user_report),
+            context=ctx,
         )
         if guard_result.error is not None:
             logger.warning("report.guard attempt=%d failed: %s %s",
@@ -321,6 +360,7 @@ async def _handle_finish_requested(
                 lead_report=lead_report,
                 raw_report=raw_report,
             ),
+            context=ctx,
         )
         if audit_result.error is not None:
             logger.warning("report.audit.deepseek attempt=%d failed: %s %s",
@@ -364,11 +404,12 @@ async def _handle_finish_requested(
         split_r = await executor.execute(
             "report.split",
             RSplitInput(raw_report=raw, scoring_result=current.scoring_result, slots=current.slots),
+            context=ctx,
         )
         if split_r.error is not None:
             return AgentRunResult(state=current, terminal=TerminalState.FAILED)
 
-        guard_r = await executor.execute("report.guard", RGuardInput(user_report=split_r.data.user_report))
+        guard_r = await executor.execute("report.guard", RGuardInput(user_report=split_r.data.user_report), context=ctx)
         if guard_r.error is not None:
             return AgentRunResult(state=current, terminal=TerminalState.FAILED)
 
@@ -392,6 +433,9 @@ async def run_agent_event_stream(
     state: AgentState,
     event: AgentEvent,
     registry: ToolRegistry | None = None,
+    provider_base_url: str | None = None,
+    provider_api_key: str | None = None,
+    provider_model: str | None = None,
 ) -> AsyncGenerator[dict, None]:
     if event.type != "user_message":
         result = await run_agent_event(state, event, registry)
@@ -401,12 +445,18 @@ async def run_agent_event_stream(
 
     tools = registry or _build_tool_registry()
     executor = ToolExecutor(tools)
+    ctx = ToolContext(
+        provider_base_url=provider_base_url,
+        provider_api_key=provider_api_key,
+        provider_model=provider_model,
+    )
     current = append_user_message(state, event.message)
 
     # extraction
     extract_result = await executor.execute(
         "extract_answers.deepseek",
         ExtractAnswersDeepSeekInput(messages=current.messages),
+        context=ctx,
     )
     if extract_result.error is None and isinstance(extract_result.data, ExtractionResult):
         current = apply_extraction_result(current, extract_result.data)
@@ -418,6 +468,7 @@ async def run_agent_event_stream(
     readiness_result = await executor.execute(
         "readiness.check",
         ReadinessCheckInput(answers=current.answers, branch=current.branch),
+        context=ctx,
     )
     readiness: ReadinessResult | None = None
     if readiness_result.error is None and isinstance(readiness_result.data, ReadinessResult):
@@ -451,7 +502,11 @@ async def run_agent_event_stream(
 
     assistant_text = ""
     try:
-        client = DeepSeekClient()
+        client_kwargs: dict = {}
+        if provider_base_url: client_kwargs["base_url"] = provider_base_url
+        if provider_api_key: client_kwargs["api_key"] = provider_api_key
+        if provider_model: client_kwargs["model"] = provider_model
+        client = DeepSeekClient(**client_kwargs)
         async for chunk in client.stream_chat(
             llm_messages,
             max_tokens=settings.DIALOGUE_MAX_TOKENS,

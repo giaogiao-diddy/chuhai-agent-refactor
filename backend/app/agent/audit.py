@@ -86,7 +86,12 @@ def validate_report_bundle_locally(bundle: ReportBundle) -> ReportAuditResult:
     )
 
 
-async def audit_report_bundle(bundle: ReportBundle) -> ReportAuditResult:
+async def audit_report_bundle(
+    bundle: ReportBundle,
+    client_base_url: str | None = None,
+    client_api_key: str | None = None,
+    client_model: str | None = None,
+) -> ReportAuditResult:
     local = validate_report_bundle_locally(bundle)
     if not local.passed:
         return local
@@ -95,7 +100,11 @@ async def audit_report_bundle(bundle: ReportBundle) -> ReportAuditResult:
     lead_text = bundle.lead_report.model_dump_json()
     prompt = f"审计以下报告:\n用户版(前500字): {user_text[:500]}\n顾问版(前300字): {lead_text[:300]}"
 
-    client = DeepSeekClient()
+    client_kwargs: dict = {}
+    if client_base_url: client_kwargs["base_url"] = client_base_url
+    if client_api_key: client_kwargs["api_key"] = client_api_key
+    if client_model: client_kwargs["model"] = client_model
+    client = DeepSeekClient(**client_kwargs)
     ai_result = await client.chat_json(
         [LLMMessage(role="system", content=SYSTEM_REPORT_AUDIT),
          LLMMessage(role="user", content=prompt)],

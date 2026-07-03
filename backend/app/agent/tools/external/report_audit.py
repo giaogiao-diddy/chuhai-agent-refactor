@@ -31,7 +31,12 @@ async def report_audit_deepseek_handler(
         return ToolResult(data=ReportAuditOutput(audit_result=local))
 
     try:
-        ai_audit = await audit_report_bundle(bundle)
+        ai_audit = await audit_report_bundle(
+            bundle,
+            client_base_url=ctx.provider_base_url if ctx is not None else None,
+            client_api_key=ctx.provider_api_key if ctx is not None else None,
+            client_model=ctx.provider_model if ctx is not None else None,
+        )
         return ToolResult(data=ReportAuditOutput(audit_result=ai_audit))
     except Exception as e:
         return ToolResult(error=ToolError(

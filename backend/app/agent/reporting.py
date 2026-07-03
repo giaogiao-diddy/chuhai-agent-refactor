@@ -31,6 +31,9 @@ consultant_guide, sales_followup, consultant_notes
 async def generate_raw_report(
     state: AgentState,
     rag_context: list[RagDocumentMatch] | None = None,
+    client_base_url: str | None = None,
+    client_api_key: str | None = None,
+    client_model: str | None = None,
 ) -> RawAIReport:
     scoring = state.scoring_result
     if scoring is None:
@@ -70,7 +73,11 @@ Q5分支: {state.branch}
         prompt += f"\n\n参考知识:\n{rag_block}"
 
     settings = get_settings()
-    client = DeepSeekClient()
+    client_kwargs: dict = {}
+    if client_base_url: client_kwargs["base_url"] = client_base_url
+    if client_api_key: client_kwargs["api_key"] = client_api_key
+    if client_model: client_kwargs["model"] = client_model
+    client = DeepSeekClient(**client_kwargs)
     return await client.chat_json(
         [LLMMessage(role="system", content=SYSTEM_REPORT_GENERATION),
          LLMMessage(role="user", content=prompt)],

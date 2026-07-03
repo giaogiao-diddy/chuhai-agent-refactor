@@ -19,6 +19,9 @@ async def extract_answers_deepseek_handler(
         extraction = await extraction_module.extract_from_messages(
             inp.messages,
             history_window=inp.history_window,
+            client_base_url=ctx.provider_base_url if ctx is not None else None,
+            client_api_key=ctx.provider_api_key if ctx is not None else None,
+            client_model=ctx.provider_model if ctx is not None else None,
         )
         return ToolResult(data=extraction)
     except Exception as e:

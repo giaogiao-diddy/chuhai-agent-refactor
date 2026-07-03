@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.model_provider import (
     ModelProviderCreate,
+    ModelProviderPublicItem,
     ModelProviderResponse,
     ModelProviderTestResponse,
     ModelProviderUpdate,
@@ -39,6 +40,15 @@ async def api_list_providers(
 ):
     providers = await list_providers(db)
     return [ModelProviderResponse.from_orm_model(p) for p in providers]
+
+
+@router.get("/enabled-public", response_model=list[ModelProviderPublicItem])
+async def api_list_public_providers(
+    db: AsyncSession = Depends(get_db),
+):
+    """公开只读接口：返回 enabled 的 Provider 列表，仅暴露 id/name/default_model/context_window。"""
+    providers = await list_providers(db)
+    return [ModelProviderPublicItem.from_orm_model(p) for p in providers if p.enabled]
 
 
 @router.post("", response_model=ModelProviderResponse)

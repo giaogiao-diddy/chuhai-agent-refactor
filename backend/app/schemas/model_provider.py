@@ -76,6 +76,22 @@ class ModelProviderResponse(BaseModel):
         )
 
 
+class ModelProviderPublicItem(BaseModel):
+    id: str
+    name: str
+    default_model: str
+    context_window: int
+
+    @classmethod
+    def from_orm_model(cls, p) -> "ModelProviderPublicItem":
+        return cls(
+            id=str(p.id),
+            name=p.name,
+            default_model=p.default_model,
+            context_window=p.context_window,
+        )
+
+
 class ModelProviderTestResponse(BaseModel):
     success: bool
     message: str

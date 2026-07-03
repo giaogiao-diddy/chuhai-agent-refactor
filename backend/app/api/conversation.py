@@ -1,4 +1,5 @@
 import json
+import uuid as _uuid
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,12 +18,14 @@ from app.schemas.conversation import (
     ConversationContinueResponse,
     ConversationFinishRequest,
     ConversationFinishResponse,
+    ConversationStartRequest,
     ConversationStartResponse,
     ConversationStreamRequest,
 )
 from app.api.auth_deps import get_current_user_optional
 from app.models import User
 from app.services.assessment_repository import save_completed_assessment
+from app.services.model_provider_repository import get_default_provider, get_provider
 from app.services.user_repository import get_or_create_anonymous_user
 from config import get_settings
 
@@ -37,18 +40,71 @@ def _safe_500_detail() -> str:
     return "AI 暂时不可用，请稍后重试"
 
 
+async def _resolve_provider_runtime(
+    db: AsyncSession,
+    provider_id: str | None,
+    model_name: str | None,
+) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+    """Resolve provider from DB → (base_url, api_key, model, provider_id, model_name).
+    Returns (None, None, None, None, None) when no DB provider is configured
+    (falls back to env var config).
+    Raises HTTPException only when a specific provider_id is requested but unavailable.
+    """
+    if provider_id:
+        try:
+            pid = _uuid.UUID(provider_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="无效的 provider_id")
+        provider = await get_provider(db, pid)
+        if provider is None or not provider.enabled:
+            raise HTTPException(status_code=400, detail="所选模型不可用")
+        model = model_name or provider.default_model
+        return provider.base_url, provider.api_key, model, str(provider.id), model
+
+    provider = await get_default_provider(db)
+    if provider is not None:
+        model = model_name or provider.default_model
+        return provider.base_url, provider.api_key, model, str(provider.id), model
+
+    # No DB provider configured → env var fallback
+    return None, None, None, None, None
+
+
 @router.post("/start", response_model=ConversationStartResponse)
-async def start_conversation():
+async def start_conversation(
+    request: ConversationStartRequest = ConversationStartRequest(),
+    db: AsyncSession = Depends(get_db),
+):
+    base_url, api_key, model, pid, mname = await _resolve_provider_runtime(
+        db, request.provider_id, request.model_name,
+    )
     state = append_assistant_message(AgentState(), OPENING_MESSAGE)
+    state = state.model_copy(update={"provider_id": pid, "model_name": mname})
     client_state = ConversationClientState.from_agent_state(state)
-    return ConversationStartResponse(state=client_state, assistant_message=OPENING_MESSAGE)
+    return ConversationStartResponse(
+        state=client_state,
+        assistant_message=OPENING_MESSAGE,
+        provider_id=pid,
+        model_name=mname,
+    )
 
 
 @router.post("/continue", response_model=ConversationContinueResponse)
-async def continue_conversation(request: ConversationContinueRequest):
+async def continue_conversation(
+    request: ConversationContinueRequest,
+    db: AsyncSession = Depends(get_db),
+):
     state = request.state.to_agent_state()
     event = AgentEvent(type="user_message", message=request.message)
-    result = await run_agent_event(state, event)
+
+    runner_kwargs: dict = {}
+    if state.provider_id:
+        base_url, api_key, model, _, _ = await _resolve_provider_runtime(
+            db, state.provider_id, state.model_name,
+        )
+        if base_url: runner_kwargs = {"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model}
+
+    result = await run_agent_event(state, event, **runner_kwargs)
 
     if result.terminal == TerminalState.FAILED:
         raise HTTPException(status_code=500, detail=_safe_500_detail())
@@ -71,13 +127,24 @@ def _sse_event(data: dict) -> str:
 
 
 @router.post("/continue-stream")
-async def continue_conversation_stream(request: ConversationStreamRequest):
+async def continue_conversation_stream(
+    request: ConversationStreamRequest,
+    db: AsyncSession = Depends(get_db),
+):
     state = request.state.to_agent_state()
+
+    stream_kwargs: dict = {}
+    if state.provider_id:
+        base_url, api_key, model, _, _ = await _resolve_provider_runtime(
+            db, state.provider_id, state.model_name,
+        )
+        if base_url: stream_kwargs = {"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model}
 
     async def generate() -> AsyncGenerator[str, None]:
         async for event in run_agent_event_stream(
             state,
             AgentEvent(type="user_message", message=request.message),
+            **stream_kwargs,
         ):
             yield _sse_event(event)
 
@@ -103,9 +170,17 @@ async def finish_conversation(
     else:
         raise HTTPException(status_code=401, detail="请先登录")
 
+    finish_kwargs: dict = {}
+    if state.provider_id:
+        base_url, api_key, model, _, _ = await _resolve_provider_runtime(
+            db, state.provider_id, state.model_name,
+        )
+        if base_url: finish_kwargs = {"provider_base_url": base_url, "provider_api_key": api_key, "provider_model": model}
+
     result = await run_agent_event(
         state,
         AgentEvent(type="finish_requested"),
+        **finish_kwargs,
     )
     state = result.state
 
