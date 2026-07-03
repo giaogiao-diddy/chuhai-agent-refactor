@@ -110,6 +110,7 @@ export default function ChatPage() {
       <div className="chat-layout">
         {/* Left: chat column */}
         <div className="chat-main">
+        <div className="chat-thread">
         {modelLoadError && (
           <div className="card" style={{ textAlign: "center", padding: "24px 16px", marginBottom: 16 }}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>模型列表加载失败</div>
@@ -180,38 +181,40 @@ export default function ChatPage() {
         )}
         {displayReport && !reportSafe && <div className="error-msg">报告内容校验失败，请联系管理员</div>}
         <div ref={bottomRef} />
+        </div>
 
         {/* Input bar */}
-        <div style={{
-          position: "sticky", bottom: 0, display: "flex", padding: "12px 0",
-          background: "linear-gradient(180deg, rgba(244,249,255,0.78), var(--color-bg))",
-          gap: 8, borderTop: "1px solid var(--color-line)", marginTop: 16,
-          backdropFilter: "blur(10px)",
-        }}>
-          {showFinish && (
-            <button className="btn btn-sm" style={{ background: "var(--color-warning)", color: "#fff" }}
-              onClick={finish} disabled={busy}>
-              {isFinishing ? "生成中..." : "生成报告"}
+        <div className="chat-composer">
+          <div className="chat-composer-meta">
+            <span>长期记忆：输入 /remember 标题: 内容，可保存偏好或项目事实。</span>
+            {readiness?.report_ready && !isCompleted && (
+              <span className="chat-ready-pill">信息已齐备</span>
+            )}
+          </div>
+          <div className="chat-composer-row">
+            <div className="chat-composer-actions">
+              {showFinish && (
+                <button className="btn btn-sm" style={{ background: "var(--color-warning)", color: "#fff" }}
+                  onClick={finish} disabled={busy}>
+                  {isFinishing ? "生成中..." : "生成报告"}
+                </button>
+              )}
+              {isCompleted && (
+                <button className="btn btn-secondary btn-sm" onClick={restart} disabled={busy}>重新开始</button>
+              )}
+            </div>
+            <textarea
+              className="chat-input"
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={inputPlaceholder()}
+              disabled={busy || isCompleted || modelUnavailable}
+              rows={2}
+            />
+            <button className="btn btn-primary chat-send-button" onClick={send} disabled={busy || isCompleted || !input.trim() || modelUnavailable}>
+              {isStreaming ? "..." : "发送"}
             </button>
-          )}
-          {isCompleted && (
-            <button className="btn btn-secondary btn-sm" onClick={restart} disabled={busy}>重新开始</button>
-          )}
-          {readiness?.report_ready && !isCompleted && (
-            <span style={{ fontSize: 12, color: "var(--color-success)", alignSelf: "center" }}>信息已齐备</span>
-          )}
-          <textarea
-            className="input"
-            style={{ flex: 1, resize: "none", fontFamily: "inherit" }}
-            value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={inputPlaceholder()}
-            disabled={busy || isCompleted || modelUnavailable}
-            rows={2}
-          />
-          <button className="btn btn-primary" onClick={send} disabled={busy || isCompleted || !input.trim() || modelUnavailable}>
-            {isStreaming ? "..." : "发送"}
-          </button>
+          </div>
         </div>
         </div>{/* /.chat-main */}
 

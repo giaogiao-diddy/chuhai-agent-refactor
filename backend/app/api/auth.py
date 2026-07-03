@@ -19,6 +19,11 @@ class DevLoginRequest(BaseModel):
     role: str = Field(default="consultant", pattern="^(user|consultant|admin)$")
 
 
+def _dev_login_enabled() -> bool:
+    settings = get_settings()
+    return bool(getattr(settings, "DEV_MODE", False)) or settings.ENV == "development"
+
+
 @router.get("/wechat/login-url")
 async def wechat_login_url():
     """生成微信扫码登录 URL，附带签名 state 用于防 CSRF。"""
@@ -113,10 +118,9 @@ async def dev_login(
     body: DevLoginRequest = DevLoginRequest(),
     db: AsyncSession = Depends(get_db),
 ):
-    """开发模式登录：仅在 DEV_MODE=true 时可用。"""
-    settings = get_settings()
-    if not getattr(settings, "DEV_MODE", False):
-        raise HTTPException(status_code=503, detail="开发模式未启用，请设置 DEV_MODE=true")
+    """开发模式登录：本地 development 环境可用，生产需显式 DEV_MODE=true。"""
+    if not _dev_login_enabled():
+        raise HTTPException(status_code=503, detail="开发登录未启用")
     from app.models import User
 
     wechat_openid = f"dev:{body.name}"

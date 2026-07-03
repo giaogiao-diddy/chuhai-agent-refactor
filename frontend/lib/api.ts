@@ -352,7 +352,17 @@ export async function devLogin(name?: string): Promise<AuthCallbackResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: name || "开发者", role: "consultant" }),
   });
-  if (!res.ok) throw new Error("开发登录失败");
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const data = await res.json();
+      if (typeof data.detail === "string" && data.detail) {
+        detail = data.detail;
+      }
+    } catch {}
+    if (detail) throw new Error(detail);
+    throw new Error("开发登录失败");
+  }
   const data = await res.json();
   setAuthToken(data.access_token);
   return data;

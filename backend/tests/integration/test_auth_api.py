@@ -8,11 +8,15 @@ from main import app
 @pytest.fixture(autouse=True)
 def _restore():
     settings = get_settings()
+    old_env = settings.ENV
+    old_dev_mode = settings.DEV_MODE
     old_app_id = settings.WECHAT_APP_ID
     old_redirect = settings.WECHAT_REDIRECT_URI
     old_jwt = settings.JWT_SECRET_KEY
     old_wx_secret = settings.WECHAT_APP_SECRET
     yield
+    settings.ENV = old_env
+    settings.DEV_MODE = old_dev_mode
     settings.WECHAT_APP_ID = old_app_id
     settings.WECHAT_REDIRECT_URI = old_redirect
     settings.JWT_SECRET_KEY = old_jwt
@@ -94,6 +98,52 @@ async def test_wechat_login_url_requires_jwt_secret():
     except ValueError:
         # ASGI transport 原样传播了 ValueError → 也是预期行为
         pass
+
+
+# ── dev-login ──
+
+@pytest.mark.asyncio
+async def test_dev_login_enabled_in_development_env():
+    settings = get_settings()
+    settings.ENV = "development"
+    settings.DEV_MODE = False
+    settings.JWT_SECRET_KEY = "a" * 32
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/auth/dev-login",
+            json={"name": "dev-test-login", "role": "consultant"},
+        )
+
+    from app.db.session import async_session
+    from app.models import User
+    from sqlalchemy import delete
+    async with async_session() as db:
+        await db.execute(delete(User).where(User.wechat_openid == "dev:dev-test-login"))
+        await db.commit()
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["access_token"]
+    assert data["user"]["role"] == "consultant"
+
+
+@pytest.mark.asyncio
+async def test_dev_login_disabled_in_production_without_dev_mode():
+    settings = get_settings()
+    settings.ENV = "production"
+    settings.DEV_MODE = False
+    settings.JWT_SECRET_KEY = "a" * 32
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/auth/dev-login",
+            json={"name": "dev-test-login", "role": "consultant"},
+        )
+
+    assert resp.status_code == 503
 
 
 # ── Monkeypatch 辅助：阻止真实微信 HTTP 请求 ──

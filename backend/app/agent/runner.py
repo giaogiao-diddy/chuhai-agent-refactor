@@ -49,6 +49,29 @@ def _skill_name_from_message(message: str | None) -> str | None:
     return name or None
 
 
+def _parse_remember_command(message: str | None) -> tuple[str, str] | None:
+    if not message:
+        return None
+    text = message.strip()
+    if not text.startswith("/remember"):
+        return None
+
+    content = text[len("/remember"):].strip()
+    if not content:
+        return None
+
+    for sep in ("：", ":"):
+        if sep in content:
+            name, body = content.split(sep, 1)
+            name = name.strip()
+            body = body.strip()
+            if name and body:
+                return name[:80], body
+            break
+
+    return content[:80], content
+
+
 def _safe_error(msg: str) -> str:
     """安全文案：不泄露原始异常给用户。"""
     return "AI 暂时不可用，请稍后重试"
@@ -149,6 +172,31 @@ async def _handle_user_message(
         provider_model=provider_model,
     )
     current = append_user_message(state, event.message)
+
+    remember = _parse_remember_command(event.message)
+    if remember is not None:
+        from app.schemas.memory import MemorySaveInput
+        name, content = remember
+        save_result = await executor.execute(
+            "memory.save",
+            MemorySaveInput(
+                name=name,
+                description=f"用户手动保存的长期记忆：{name}",
+                type="user",
+                content=content,
+            ),
+            context=ctx,
+        )
+        if save_result.error is not None:
+            assistant_text = "记忆保存失败，请检查内容后重试"
+        else:
+            assistant_text = f"已保存到长期记忆：{name}"
+        current = append_assistant_message(current, assistant_text)
+        return AgentRunResult(
+            state=current,
+            terminal=TerminalState.AWAITING_USER,
+            response={"assistant_message": assistant_text},
+        )
 
     skill_name = _skill_name_from_message(event.message)
     if skill_name:
@@ -520,6 +568,31 @@ async def run_agent_event_stream(
         provider_model=provider_model,
     )
     current = append_user_message(state, event.message)
+
+    remember = _parse_remember_command(event.message)
+    if remember is not None:
+        from app.schemas.memory import MemorySaveInput
+        name, content = remember
+        save_result = await executor.execute(
+            "memory.save",
+            MemorySaveInput(
+                name=name,
+                description=f"用户手动保存的长期记忆：{name}",
+                type="user",
+                content=content,
+            ),
+            context=ctx,
+        )
+        assistant_text = (
+            "记忆保存失败，请检查内容后重试"
+            if save_result.error is not None
+            else f"已保存到长期记忆：{name}"
+        )
+        current = append_assistant_message(current, assistant_text)
+        cc = ConversationClientState.from_agent_state(current)
+        yield {"type": "delta", "content": assistant_text}
+        yield {"type": "done", "state": cc.model_dump()}
+        return
 
     skill_name = _skill_name_from_message(event.message)
     if skill_name:

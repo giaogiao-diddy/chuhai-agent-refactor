@@ -1,6 +1,6 @@
 import pytest
 
-from app.agent.runner import _build_memory_query, run_agent_event
+from app.agent.runner import _build_memory_query, run_agent_event, run_agent_event_stream
 from app.agent.tools.base import ToolContext, ToolDefinition, ToolResult
 from app.agent.tools.external import register_external_tools
 from app.agent.tools.external.dialogue import DialogueDeepSeekInput
@@ -11,8 +11,7 @@ from app.agent.tools.registry import ToolRegistry
 from app.schemas.agent_protocol import AgentEvent, TerminalState
 from app.schemas.agent_state import AgentState
 from app.schemas.extraction import ExtractionResult
-from app.schemas.extraction import ExtractionResult
-from app.schemas.memory import MemoryEntry, MemoryFrontmatter, MemoryRecallInput
+from app.schemas.memory import MemoryEntry, MemoryFrontmatter, MemoryRecallInput, MemorySaveInput
 
 
 def _full_registry() -> ToolRegistry:
@@ -33,6 +32,97 @@ def test_build_memory_query_includes_slots():
     assert "hello" in query
     assert "机械设备" in query
     assert "数控机床" in query
+
+
+# ── user_message: explicit memory save ──
+
+@pytest.mark.asyncio
+async def test_user_message_remember_command_saves_memory_without_dialogue():
+    captured = {}
+
+    def _save_memory(inp, ctx):
+        captured["input"] = inp
+        from app.schemas.memory import MemorySaveOutput
+        return ToolResult(data=MemorySaveOutput(path=".claude/memory/test.md", index_updated=True))
+
+    r = ToolRegistry()
+    r.register(ToolDefinition(
+        name="memory.save",
+        description="save",
+        input_model=MemorySaveInput,
+        handler=_save_memory,
+    ))
+
+    result = await run_agent_event(
+        AgentState(),
+        AgentEvent(type="user_message", message="/remember 用户偏好: 喜欢简洁中文回复"),
+        r,
+    )
+
+    assert result.terminal == TerminalState.AWAITING_USER
+    assert captured["input"].name == "用户偏好"
+    assert captured["input"].content == "喜欢简洁中文回复"
+    assert "已保存到长期记忆" in result.response["assistant_message"]
+
+
+@pytest.mark.asyncio
+async def test_user_message_remember_command_without_title_uses_content_prefix():
+    captured = {}
+
+    def _save_memory(inp, ctx):
+        captured["input"] = inp
+        from app.schemas.memory import MemorySaveOutput
+        return ToolResult(data=MemorySaveOutput(path=".claude/memory/test.md", index_updated=True))
+
+    r = ToolRegistry()
+    r.register(ToolDefinition(
+        name="memory.save",
+        description="save",
+        input_model=MemorySaveInput,
+        handler=_save_memory,
+    ))
+
+    result = await run_agent_event(
+        AgentState(),
+        AgentEvent(type="user_message", message="/remember 用户希望优先追问关键问题"),
+        r,
+    )
+
+    assert result.terminal == TerminalState.AWAITING_USER
+    assert captured["input"].name == "用户希望优先追问关键问题"
+    assert captured["input"].content == "用户希望优先追问关键问题"
+
+
+@pytest.mark.asyncio
+async def test_stream_remember_command_saves_memory_without_llm():
+    captured = {}
+
+    def _save_memory(inp, ctx):
+        captured["input"] = inp
+        from app.schemas.memory import MemorySaveOutput
+        return ToolResult(data=MemorySaveOutput(path=".claude/memory/test.md", index_updated=True))
+
+    r = ToolRegistry()
+    r.register(ToolDefinition(
+        name="memory.save",
+        description="save",
+        input_model=MemorySaveInput,
+        handler=_save_memory,
+    ))
+
+    events = [
+        e async for e in run_agent_event_stream(
+            AgentState(),
+            AgentEvent(type="user_message", message="/remember 项目目标: 做真实 Agent 产品"),
+            r,
+        )
+    ]
+
+    assert captured["input"].name == "项目目标"
+    assert captured["input"].content == "做真实 Agent 产品"
+    assert events[0]["type"] == "delta"
+    assert "已保存到长期记忆" in events[0]["content"]
+    assert events[-1]["type"] == "done"
 
 
 # ── user_message: memory recall 调用 ──

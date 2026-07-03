@@ -98,6 +98,19 @@ async function run() {
   // 后端失败时不清除 oauth_state（用户可刷新 callback 页重试）
   assert(store.get("oauth_state") === "state-match", "后端失败时保留 oauth_state 用于重试");
 
+  // 9. devLogin 后端返回 detail 时应展示具体配置原因
+  (globalThis as any).fetch = async () => ({
+    ok: false,
+    status: 503,
+    json: async () => ({ detail: "开发登录未启用" }),
+  });
+  try {
+    await mod.devLogin("开发者");
+    assert(false, "devLogin 失败应抛错");
+  } catch (e: any) {
+    assert(e.message === "开发登录未启用", "devLogin 失败展示后端 detail");
+  }
+
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
