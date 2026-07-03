@@ -344,3 +344,91 @@ export type AuthCallbackResponse = {
   token_type: string;
   user: AuthUser;
 };
+
+// ── Model Providers ──
+
+export type ModelProvider = {
+  id: string;
+  name: string;
+  provider_type: string;
+  base_url: string;
+  masked_key: string;
+  default_model: string;
+  enabled: boolean;
+  context_window: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateModelProviderRequest = {
+  name: string;
+  base_url: string;
+  api_key: string;
+  default_model: string;
+  context_window?: number;
+  enabled?: boolean;
+};
+
+export type UpdateModelProviderRequest = {
+  name?: string;
+  base_url?: string;
+  api_key?: string;
+  default_model?: string;
+  context_window?: number;
+  enabled?: boolean;
+};
+
+export type TestProviderResponse = {
+  success: boolean;
+  message: string;
+  model_used?: string | null;
+};
+
+function _providerError(res: Response): Error {
+  if (res.status === 401) return new Error("请先登录");
+  if (res.status === 403) return new Error("无权访问模型设置");
+  return new Error(res.status >= 500 ? "服务器错误" : "操作失败");
+}
+
+export async function listModelProviders(): Promise<ModelProvider[]> {
+  const res = await fetch(`${API_BASE}/model-providers`, { headers: authHeaders() });
+  if (!res.ok) throw _providerError(res);
+  return res.json();
+}
+
+export async function createModelProvider(data: CreateModelProviderRequest): Promise<ModelProvider> {
+  const res = await fetch(`${API_BASE}/model-providers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw _providerError(res);
+  return res.json();
+}
+
+export async function updateModelProvider(id: string, data: UpdateModelProviderRequest): Promise<ModelProvider> {
+  const res = await fetch(`${API_BASE}/model-providers/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw _providerError(res);
+  return res.json();
+}
+
+export async function deleteModelProvider(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/model-providers/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw _providerError(res);
+}
+
+export async function testModelProvider(id: string): Promise<TestProviderResponse> {
+  const res = await fetch(`${API_BASE}/model-providers/${id}/test`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw _providerError(res);
+  return res.json();
+}

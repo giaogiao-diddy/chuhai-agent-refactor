@@ -11,6 +11,7 @@ from app.agent.tools.registry import ToolRegistry
 from app.schemas.agent_protocol import AgentEvent, TerminalState
 from app.schemas.agent_state import AgentState
 from app.schemas.extraction import ExtractionResult
+from app.schemas.extraction import ExtractionResult
 from app.schemas.memory import MemoryEntry, MemoryFrontmatter, MemoryRecallInput
 
 
@@ -164,5 +165,10 @@ async def test_max_steps_zero_returns_exceeded():
 @pytest.mark.asyncio
 async def test_finish_requested_missing_q5_no_registry_needed():
     state = AgentState(answers={}, branch=None)
-    result = await run_agent_event(state, AgentEvent(type="finish_requested"))
+    r = ToolRegistry()
+    register_local_tools(r)
+    from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
+    from app.agent.tools.base import ToolDefinition
+    r.register(ToolDefinition(name="extract_answers.deepseek", description="e", input_model=ExtractAnswersDeepSeekInput, handler=lambda i, c: ToolResult(data=ExtractionResult())))
+    result = await run_agent_event(state, AgentEvent(type="finish_requested"), registry=r)
     assert result.terminal == TerminalState.MISSING_INFO
