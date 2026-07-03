@@ -37,3 +37,18 @@ class AgentRunResult(BaseModel):
     state: AgentState
     terminal: TerminalState
     response: dict[str, Any] | None = None
+
+
+TraceStep = Literal[
+    "extract", "readiness", "memory_recall", "dialogue",
+    "rag_search", "report_generate", "report_audit",
+]
+TraceStatus = Literal["started", "completed", "failed"]
+
+
+class AgentTraceEvent(BaseModel):
+    type: Literal["trace"] = "trace"
+    step: TraceStep
+    status: TraceStatus
+    elapsed_ms: int | None = None
+    summary: str | None = None

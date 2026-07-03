@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { startConversation, finishConversation, FinishMissingInfoError } from "@/lib/api";
 import { streamConversation } from "@/lib/streaming";
+import type { AgentTraceEvent } from "@/lib/streaming";
 import type { AgentMessage, ConversationClientState, PublicReportSummary, MissingItem } from "@/lib/api";
 
 export function useStreaming() {
@@ -22,6 +23,7 @@ export function useStreaming() {
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [lockedProviderId, setLockedProviderId] = useState<string | null>(null);
   const [lockedModelName, setLockedModelName] = useState<string | null>(null);
+  const [traceEvents, setTraceEvents] = useState<AgentTraceEvent[]>([]);
   const startingRef = useRef(false);
   const streamingRef = useRef(false);
   const finishingRef = useRef(false);
@@ -56,6 +58,7 @@ export function useStreaming() {
     setError(null);
     setMissingItems([]);
     setNextQuestions([]);
+    setTraceEvents([]);
     streamingRef.current = true;
     setIsStreaming(true);
     const userMsg: AgentMessage = { role: "user", content: input.trim() };
@@ -71,6 +74,8 @@ export function useStreaming() {
         } else if (event.type === "done") {
           setState(event.state);
           setMessages(event.state.messages);
+        } else if (event.type === "trace") {
+          setTraceEvents(prev => [...prev, event]);
         } else if (event.type === "error") {
           setState(event.state);
           setMessages(event.state.messages);
@@ -130,6 +135,7 @@ export function useStreaming() {
     setIsFinishing(false);
     setLockedProviderId(null);
     setLockedModelName(null);
+    setTraceEvents([]);
     streamingRef.current = false;
     try {
       await start(selectedProviderId);
@@ -143,7 +149,7 @@ export function useStreaming() {
     isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error,
     missingItems, nextQuestions,
-    selectedProviderId, lockedProviderId, lockedModelName,
+    selectedProviderId, lockedProviderId, lockedModelName, traceEvents,
     start, setInput, send, finish, restart, setSelectedProviderId,
   };
 }

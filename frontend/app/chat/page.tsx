@@ -6,6 +6,7 @@ import { getReportDetail, listPublicModelProviders } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
 import AppShell from "@/components/AppShell";
 import DiagnosisProgressPanel from "@/components/DiagnosisProgressPanel";
+import AgentTracePanel from "@/components/AgentTracePanel";
 import UserReportCard from "@/components/UserReportCard";
 import type { UserReport, ModelProviderPublicItem } from "@/lib/api";
 
@@ -13,7 +14,7 @@ export default function ChatPage() {
   const {
     state, messages, input, isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error, missingItems, nextQuestions,
-    selectedProviderId, lockedProviderId, lockedModelName,
+    selectedProviderId, lockedProviderId, lockedModelName, traceEvents,
     start, setInput, send, finish, restart, setSelectedProviderId,
   } = useStreaming();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -195,6 +196,7 @@ export default function ChatPage() {
             missingItems={missingItems}
             nextQuestions={nextQuestions}
           />
+          <AgentTracePanel events={traceEvents} />
         </div>
       </div>{/* /.chat-layout */}
     </AppShell>

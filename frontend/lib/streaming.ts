@@ -2,10 +2,19 @@ import type { ConversationClientState } from "./api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+export type AgentTraceEvent = {
+  type: "trace";
+  step: "extract" | "readiness" | "memory_recall" | "dialogue" | "rag_search" | "report_generate" | "report_audit";
+  status: "started" | "completed" | "failed";
+  elapsed_ms?: number | null;
+  summary?: string | null;
+};
+
 export type StreamEvent =
   | { type: "delta"; content: string }
   | { type: "done"; state: ConversationClientState }
-  | { type: "error"; message: string; state: ConversationClientState };
+  | { type: "error"; message: string; state: ConversationClientState }
+  | AgentTraceEvent;
 
 export function parseSseLines(input: string): { events: StreamEvent[]; rest: string } {
   const lines = input.split("\n");

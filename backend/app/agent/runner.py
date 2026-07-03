@@ -1,4 +1,5 @@
 import logging
+import time as _time
 from collections.abc import AsyncGenerator
 
 from app.agent.nodes import apply_extraction_result
@@ -11,7 +12,7 @@ from app.agent.tools.base import ToolContext, ToolErrorCode
 from app.agent.tools.local import register_local_tools
 from app.agent.tools.local.readiness import ReadinessCheckInput, ReadinessResult
 from app.agent.tools.registry import ToolRegistry
-from app.schemas.agent_protocol import AgentEvent, AgentRunResult, TerminalState
+from app.schemas.agent_protocol import AgentEvent, AgentRunResult, AgentTraceEvent, TerminalState
 from app.schemas.agent_state import AgentState
 from app.schemas.conversation import ConversationClientState
 from app.schemas.extraction import ExtractionResult
@@ -58,6 +59,24 @@ async def _recall_memory_entries(
     if result.error is None and result.data is not None:
         return getattr(result.data, "entries", [])
     return []
+
+
+async def _recall_memory_entries_with_trace_status(
+    executor: ToolExecutor,
+    state: AgentState,
+    user_message: str,
+) -> tuple[list, bool]:
+    """Recall memory entries and return (entries, failed).
+    failed=True when memory.recall returns ToolResult.error.
+    Programming exceptions still propagate.
+    """
+    query = _build_memory_query(state, user_message)
+    from app.schemas.memory import MemoryRecallInput
+    result = await executor.execute("memory.recall", MemoryRecallInput(query=query, limit=3))
+    if result.error is not None:
+        return [], True
+    entries = getattr(result.data, "entries", []) if result.data is not None else []
+    return entries, False
 
 
 async def run_agent_event(
@@ -429,6 +448,12 @@ async def _handle_finish_requested(
         return AgentRunResult(state=current, terminal=TerminalState.FAILED)
 
 
+def _trace_dict(step: str, status: str, elapsed_ms: int | None = None, summary: str | None = None) -> dict:
+    return AgentTraceEvent(
+        step=step, status=status, elapsed_ms=elapsed_ms, summary=summary,
+    ).model_dump()
+
+
 async def run_agent_event_stream(
     state: AgentState,
     event: AgentEvent,
@@ -452,34 +477,58 @@ async def run_agent_event_stream(
     )
     current = append_user_message(state, event.message)
 
-    # extraction
+    # ── extraction ──
+    t0 = _time.monotonic()
+    yield _trace_dict("extract", "started")
     extract_result = await executor.execute(
         "extract_answers.deepseek",
         ExtractAnswersDeepSeekInput(messages=current.messages),
         context=ctx,
     )
+    extract_elapsed = int((_time.monotonic() - t0) * 1000)
     if extract_result.error is None and isinstance(extract_result.data, ExtractionResult):
         current = apply_extraction_result(current, extract_result.data)
+        yield _trace_dict("extract", "completed", elapsed_ms=extract_elapsed, summary="已抽取企业画像")
     else:
         current = current.model_copy(deep=True)
         current.validation_errors.append("extraction: AI 提取失败")
+        yield _trace_dict("extract", "failed", elapsed_ms=extract_elapsed, summary="信息抽取失败")
 
-    # readiness
+    # ── readiness ──
+    t1 = _time.monotonic()
+    yield _trace_dict("readiness", "started")
     readiness_result = await executor.execute(
         "readiness.check",
         ReadinessCheckInput(answers=current.answers, branch=current.branch),
         context=ctx,
     )
+    readiness_elapsed = int((_time.monotonic() - t1) * 1000)
     readiness: ReadinessResult | None = None
     if readiness_result.error is None and isinstance(readiness_result.data, ReadinessResult):
         readiness = readiness_result.data
         current = current.model_copy(deep=True)
         current.readiness_result = readiness
+        missing_count = len(readiness.missing_items)
+        yield _trace_dict("readiness", "completed", elapsed_ms=readiness_elapsed,
+                          summary=f"score_ready={readiness.score_ready}, report_ready={readiness.report_ready}, 缺失 {missing_count} 项")
+    else:
+        yield _trace_dict("readiness", "failed", elapsed_ms=readiness_elapsed, summary="完整度判断失败")
 
-    # memory recall
-    memory_entries = await _recall_memory_entries(executor, current, event.message)
+    # ── memory recall ──
+    t2 = _time.monotonic()
+    yield _trace_dict("memory_recall", "started")
+    memory_entries, mem_failed = await _recall_memory_entries_with_trace_status(
+        executor, current, event.message,
+    )
+    mem_elapsed = int((_time.monotonic() - t2) * 1000)
+    if mem_failed:
+        yield _trace_dict("memory_recall", "failed", elapsed_ms=mem_elapsed, summary="记忆召回失败")
+        memory_entries = []
+    else:
+        yield _trace_dict("memory_recall", "completed", elapsed_ms=mem_elapsed,
+                          summary=f"召回 {len(memory_entries)} 条记忆")
 
-    # streaming dialogue
+    # ── dialogue ──
     missing_items = [m.model_dump() for m in readiness.missing_items] if readiness else []
     report_missing = [m.model_dump() for m in readiness.report_missing_items] if readiness else []
     next_qs = readiness.next_questions if readiness else []
@@ -500,6 +549,8 @@ async def run_agent_event_stream(
     for msg in current.messages[-settings.DIALOGUE_HISTORY_WINDOW:]:
         llm_messages.append(LLMMessage(role=msg.role, content=msg.content))
 
+    t3 = _time.monotonic()
+    yield _trace_dict("dialogue", "started")
     assistant_text = ""
     try:
         client_kwargs: dict = {}
@@ -516,15 +567,21 @@ async def run_agent_event_stream(
             yield {"type": "delta", "content": chunk}
     except Exception as e:
         logger.warning("stream dialogue failed: %s", e)
+        yield _trace_dict("dialogue", "failed", elapsed_ms=int((_time.monotonic() - t3) * 1000), summary="追问生成失败")
         cc = ConversationClientState.from_agent_state(current)
         yield {"type": "error", "message": _safe_error(""), "state": cc.model_dump()}
         return
 
+    dialogue_elapsed = int((_time.monotonic() - t3) * 1000)
+
     if not assistant_text.strip():
         logger.warning("stream dialogue returned empty content")
+        yield _trace_dict("dialogue", "failed", elapsed_ms=dialogue_elapsed, summary="追问生成为空")
         cc = ConversationClientState.from_agent_state(current)
         yield {"type": "error", "message": _safe_error(""), "state": cc.model_dump()}
         return
+
+    yield _trace_dict("dialogue", "completed", elapsed_ms=dialogue_elapsed, summary=f"已生成回复 ({len(assistant_text)} 字)")
 
     current = append_assistant_message(current, assistant_text)
     cc = ConversationClientState.from_agent_state(current)

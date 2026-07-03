@@ -267,6 +267,88 @@ async def test_continue_stream_preserves_full_message_history(monkeypatch):
     assert len(done["state"]["messages"]) == len(messages) + 2
 
 
+# ── Trace 一致性 ──
+
+async def test_continue_stream_memory_recall_error_yields_trace_failed(monkeypatch):
+    """memory.recall 返回 ToolResult.error → trace memory_recall failed，不中断对话。"""
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeSuccessStreamClient())
+
+    from app.agent.tools.base import ToolError, ToolErrorCode, ToolResult
+    async def _fake_recall_error(self, name, input_data, context=None):
+        if name == "memory.recall":
+            return ToolResult(error=ToolError(
+                code=ToolErrorCode.TRANSIENT, message="磁盘不可写: /path (secret_key=sk-abc)", retryable=True,
+            ))
+        return await _real_execute(self, name, input_data, context=context)
+
+    from app.agent.tools.executor import ToolExecutor
+    _real_execute = ToolExecutor.execute
+    monkeypatch.setattr(ToolExecutor, "execute", _fake_recall_error)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1, "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    text = (await resp.aread()).decode()
+    assert '"type": "trace"' in text
+    assert '"step": "memory_recall"' in text
+    assert '"status": "failed"' in text
+    assert "记忆召回失败" in text
+    # summary 不泄露原始 error.message
+    assert "secret_key" not in text
+    assert "磁盘不可写" not in text
+    # 对话未中断：仍有 done
+    assert '"type": "done"' in text
+
+
+async def test_continue_stream_empty_content_yields_dialogue_failed_not_completed(monkeypatch):
+    """空流 → dialogue trace failed（非 completed），后接 error，无 done。"""
+    _patch_no_ai_extraction(monkeypatch)
+    monkeypatch.setattr("app.agent.runner.DeepSeekClient", lambda: _FakeEmptyStreamClient())
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/conversation/continue-stream",
+            json={
+                "state": {
+                    "messages": [{"role": "user", "content": "你好"}, {"role": "assistant", "content": "你好"}],
+                    "conversation_round": 1, "answers": {},
+                },
+                "message": "test",
+            },
+        )
+    assert resp.status_code == 200
+    text = (await resp.aread()).decode()
+    # 解析每条 SSE event
+    events = []
+    for line in text.split("\n"):
+        if line.startswith("data: "):
+            try: events.append(json.loads(line[6:]))
+            except json.JSONDecodeError: pass
+
+    # dialogue trace failed
+    dialogue_traces = [e for e in events if e.get("type") == "trace" and e.get("step") == "dialogue"]
+    assert len(dialogue_traces) >= 1
+    assert any(t.get("status") == "failed" for t in dialogue_traces)
+    assert any("追问生成为空" in (t.get("summary") or "") for t in dialogue_traces)
+    # 不应出现 dialogue completed
+    assert not any(t.get("status") == "completed" for t in dialogue_traces)
+    # 有 error，无 done
+    assert any(e.get("type") == "error" for e in events)
+    assert not any(e.get("type") == "done" for e in events)
+
+
 # ── 真实流式 ──
 
 FORBIDDEN_IN_STREAM = [
