@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStreaming } from "@/hooks/useStreaming";
 import { getReportDetail, listPublicModelProviders } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
+import { listDrafts, deleteDraft, getActiveDraft } from "@/lib/sessionDrafts";
+import type { DiagnosisDraft } from "@/lib/sessionDrafts";
 import AppShell from "@/components/AppShell";
 import DiagnosisProgressPanel from "@/components/DiagnosisProgressPanel";
 import AgentTracePanel from "@/components/AgentTracePanel";
@@ -14,30 +16,52 @@ export default function ChatPage() {
   const {
     state, messages, input, isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error, missingItems, nextQuestions,
-    selectedProviderId, lockedProviderId, lockedModelName, traceEvents,
-    start, setInput, send, finish, restart, setSelectedProviderId,
+    selectedProviderId, lockedProviderId, lockedModelName, traceEvents, draftId,
+    start, setInput, send, finish, restart, setSelectedProviderId, restoreDraft,
   } = useStreaming();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [fullReport, setFullReport] = useState<UserReport | null>(null);
   const [providers, setProviders] = useState<ModelProviderPublicItem[]>([]);
   const [providersLoaded, setProvidersLoaded] = useState(false);
   const [modelLoadError, setModelLoadError] = useState(false);
+  const [drafts, setDrafts] = useState<DiagnosisDraft[]>([]);
+  const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [draftRestoreChecked, setDraftRestoreChecked] = useState(false);
+  const draftWasRestored = useRef(false);
+
+  const loadDrafts = () => { setDrafts(listDrafts()); };
 
   useEffect(() => {
     listPublicModelProviders()
       .then(list => { setProviders(list); setModelLoadError(false); })
       .catch(() => { setProviders([]); setModelLoadError(true); })
       .finally(() => setProvidersLoaded(true));
+    loadDrafts();
+    setDraftsLoaded(true);
   }, []);
 
+  // Step 1: auto-restore active draft on mount (runs first)
+  useEffect(() => {
+    if (!draftsLoaded || state || isStarting) return;
+    const active = getActiveDraft();
+    if (active && active.state) {
+      draftWasRestored.current = true;
+      restoreDraft(active);
+      setSelectedProviderId(active.selectedProviderId);
+    }
+    setDraftRestoreChecked(true);
+  }, [draftsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Step 2: auto-start only if no draft was restored and no conversation exists
   const hasStarted = useRef(false);
   useEffect(() => {
+    if (!draftRestoreChecked || draftWasRestored.current) return;
     if (hasStarted.current || isStarting || state || !providersLoaded || providers.length === 0) return;
     hasStarted.current = true;
     const pid = selectedProviderId || providers[0]?.id || null;
     if (!selectedProviderId && pid) setSelectedProviderId(pid);
     start(pid);
-  }, [providersLoaded, providers, state, isStarting, start, selectedProviderId, setSelectedProviderId]);
+  }, [draftRestoreChecked, providersLoaded, providers, state, isStarting, start, selectedProviderId, setSelectedProviderId]);
 
   const conversationActive = !!(state && !isCompleted);
   const modelLocked = !!(conversationActive && lockedProviderId);
@@ -197,6 +221,53 @@ export default function ChatPage() {
             nextQuestions={nextQuestions}
           />
           <AgentTracePanel events={traceEvents} />
+
+          {/* Draft manager */}
+          <div className="card card-sm" style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: drafts.length > 0 ? 8 : 0 }}>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>诊断草稿</span>
+              <button className="btn btn-secondary btn-sm" onClick={async () => {
+                await restart();
+                loadDrafts();
+              }} disabled={isStreaming || isFinishing} style={{ fontSize: 11 }}>
+                + 新建
+              </button>
+            </div>
+            {drafts.length === 0 && (
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", textAlign: "center", padding: "4px 0" }}>
+                暂无草稿
+              </div>
+            )}
+            {drafts.map(d => (
+              <div key={d.id}
+                style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "5px 0", borderBottom: "1px solid var(--color-border)",
+                  cursor: "pointer", fontSize: 12,
+                  background: d.id === draftId ? "var(--color-primary-light)" : "transparent",
+                  borderRadius: 4, paddingLeft: 6, paddingRight: 6,
+                }}
+                onClick={() => { if (d.id !== draftId && !isStreaming && !isFinishing) { restoreDraft(d); loadDrafts(); } }}
+              >
+                <div style={{ overflow: "hidden", flex: 1 }}>
+                  <div style={{ fontWeight: d.id === draftId ? 600 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {d.title}
+                  </div>
+                  <div style={{ color: "var(--color-text-muted)", fontSize: 10 }}>
+                    {d.last_active_at?.slice(0, 16).replace("T", " ")}
+                  </div>
+                </div>
+                <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: 10, flexShrink: 0, marginLeft: 6 }}
+                  onClick={async e => {
+                    e.stopPropagation();
+                    if (d.id === draftId && !isStreaming && !isFinishing) { await restart(); loadDrafts(); }
+                    else { deleteDraft(d.id); loadDrafts(); }
+                  }}>
+                  删除
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>{/* /.chat-layout */}
     </AppShell>

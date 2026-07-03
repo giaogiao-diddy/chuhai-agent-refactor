@@ -5,6 +5,10 @@ import { startConversation, finishConversation, FinishMissingInfoError } from "@
 import { streamConversation } from "@/lib/streaming";
 import type { AgentTraceEvent } from "@/lib/streaming";
 import type { AgentMessage, ConversationClientState, PublicReportSummary, MissingItem } from "@/lib/api";
+import {
+  createDraftId, makeDraftTitle, saveDraft, deleteDraft,
+  setActiveDraftId, getActiveDraft, type DiagnosisDraft,
+} from "@/lib/sessionDrafts";
 
 export function useStreaming() {
   const [state, setState] = useState<ConversationClientState | null>(null);
@@ -24,11 +28,26 @@ export function useStreaming() {
   const [lockedProviderId, setLockedProviderId] = useState<string | null>(null);
   const [lockedModelName, setLockedModelName] = useState<string | null>(null);
   const [traceEvents, setTraceEvents] = useState<AgentTraceEvent[]>([]);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const startingRef = useRef(false);
   const streamingRef = useRef(false);
   const finishingRef = useRef(false);
   const restartingRef = useRef(false);
   const isCompleted = Boolean(report);
+
+  const _saveDraft = useCallback((st: ConversationClientState, pid: string | null, mid: string | null, selPid: string | null, selMid: string | null, did: string) => {
+    saveDraft({
+      id: did,
+      title: makeDraftTitle(st),
+      state: st,
+      selectedProviderId: selPid,
+      lockedProviderId: pid,
+      lockedModelName: selMid,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_active_at: new Date().toISOString(),
+    });
+  }, []);
 
   const start = useCallback(async (providerId?: string | null, modelName?: string | null) => {
     if (startingRef.current) return;
@@ -44,13 +63,17 @@ export function useStreaming() {
       setMessages(data.state.messages);
       setLockedProviderId(data.provider_id);
       setLockedModelName(data.model_name);
+      const did = createDraftId();
+      setDraftId(did);
+      setActiveDraftId(did);
+      _saveDraft(data.state, data.provider_id, data.model_name, providerId || null, modelName || null, did);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "启动失败");
     } finally {
       startingRef.current = false;
       setIsStarting(false);
     }
-  }, []);
+  }, [_saveDraft]);
 
   const send = useCallback(async () => {
     if (report || !input.trim() || streamingRef.current || !state) return;
@@ -65,6 +88,7 @@ export function useStreaming() {
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     let assistantDraft = "";
+    let latestState = state;
     try {
       const gen = streamConversation({ state, message: input.trim() });
       for await (const event of gen) {
@@ -74,13 +98,18 @@ export function useStreaming() {
         } else if (event.type === "done") {
           setState(event.state);
           setMessages(event.state.messages);
+          latestState = event.state;
         } else if (event.type === "trace") {
           setTraceEvents(prev => [...prev, event]);
         } else if (event.type === "error") {
           setState(event.state);
           setMessages(event.state.messages);
           setError(event.message);
+          latestState = event.state;
         }
+      }
+      if (draftId && latestState) {
+        _saveDraft(latestState, lockedProviderId, lockedModelName, selectedProviderId, lockedModelName, draftId);
       }
     } catch {
       setMessages(nextMessages);
@@ -89,7 +118,7 @@ export function useStreaming() {
       streamingRef.current = false;
       setIsStreaming(false);
     }
-  }, [input, state, messages, report]);
+  }, [input, state, messages, report, draftId, lockedProviderId, lockedModelName, selectedProviderId, _saveDraft]);
 
   const finish = useCallback(async () => {
     if (!state || streamingRef.current || finishingRef.current || report) return;
@@ -104,6 +133,10 @@ export function useStreaming() {
       setAssessmentId(resp.assessment_id);
       setUsedTemplateReport(resp.used_template_report);
       setWechatQrUrl(resp.wechat_qr_url);
+      if (draftId) {
+        deleteDraft(draftId);
+        setDraftId(null);
+      }
     } catch (e: unknown) {
       if (e instanceof FinishMissingInfoError) {
         setMissingItems(e.missingItems);
@@ -116,11 +149,12 @@ export function useStreaming() {
       finishingRef.current = false;
       setIsFinishing(false);
     }
-  }, [state, report]);
+  }, [state, report, draftId]);
 
   const restart = useCallback(async () => {
     if (restartingRef.current) return;
     restartingRef.current = true;
+    if (draftId) { deleteDraft(draftId); }
     setState(null);
     setMessages([]);
     setInput("");
@@ -136,20 +170,40 @@ export function useStreaming() {
     setLockedProviderId(null);
     setLockedModelName(null);
     setTraceEvents([]);
+    setDraftId(null);
     streamingRef.current = false;
     try {
       await start(selectedProviderId);
     } finally {
       restartingRef.current = false;
     }
-  }, [start, selectedProviderId]);
+  }, [start, selectedProviderId, draftId]);
+
+  const restoreDraft = useCallback((draft: DiagnosisDraft) => {
+    setState(draft.state);
+    setMessages(draft.state.messages);
+    setLockedProviderId(draft.lockedProviderId);
+    setLockedModelName(draft.lockedModelName);
+    setSelectedProviderId(draft.selectedProviderId);
+    setDraftId(draft.id);
+    setActiveDraftId(draft.id);
+    setReport(null);
+    setAssessmentId(null);
+    setMissingItems([]);
+    setNextQuestions([]);
+    setTraceEvents([]);
+    setError(null);
+    setInput("");
+    setUsedTemplateReport(false);
+    setWechatQrUrl(null);
+  }, []);
 
   return {
     state, messages, input,
     isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error,
     missingItems, nextQuestions,
-    selectedProviderId, lockedProviderId, lockedModelName, traceEvents,
-    start, setInput, send, finish, restart, setSelectedProviderId,
+    selectedProviderId, lockedProviderId, lockedModelName, traceEvents, draftId,
+    start, setInput, send, finish, restart, setSelectedProviderId, restoreDraft,
   };
 }

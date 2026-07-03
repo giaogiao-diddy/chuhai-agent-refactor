@@ -16,6 +16,9 @@ export default function ReportsPage() {
   const [detailFollowupStatus, setDetailFollowupStatus] = useState<string | null>(null);
   const [wechatQrUrl, setWechatQrUrl] = useState<string | null>(null);
   const [ragMatches, setRagMatches] = useState<RagMatchSafe[] | null>(null);
+  const [detailModelName, setDetailModelName] = useState<string | null>(null);
+  const [detailUsedTemplate, setDetailUsedTemplate] = useState(false);
+  const detailIsFull = detail && "summary_conclusion" in detail;
   const latestDetailRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +34,8 @@ export default function ReportsPage() {
         setDetailFollowupStatus(d.followup_status);
         setWechatQrUrl(d.wechat_qr_url);
         setRagMatches(d.rag_matches);
+        setDetailModelName(d.model_name);
+        setDetailUsedTemplate(d.used_template_report);
         setItems(prev => prev.map(item =>
           item.assessment_id === id ? { ...item, followup_status: d.followup_status } : item
         ));
@@ -51,6 +56,9 @@ export default function ReportsPage() {
         setDetail(display);
         setDetailFollowupStatus(d.followup_status);
         setWechatQrUrl(d.wechat_qr_url);
+        setRagMatches(d.rag_matches);
+        setDetailModelName(d.model_name);
+        setDetailUsedTemplate(d.used_template_report);
       } else {
         setError("报告内容校验失败，请联系管理员");
       }
@@ -95,11 +103,13 @@ export default function ReportsPage() {
             </div>
             <UserReportCard
               report={detail}
+              usedTemplateReport={detailUsedTemplate}
               assessmentId={detailAssessmentId}
+              modelName={detailModelName}
               onUnlocked={() => reloadDetail(detailAssessmentId!)}
               wechatQrUrl={wechatQrUrl}
             />
-            {ragMatches && ragMatches.length > 0 && (
+            {detailIsFull && ragMatches && ragMatches.length > 0 && (
               <div className="card" style={{ marginTop: 16 }}>
                 <h4 style={{ marginTop: 0 }}>参考知识</h4>
                 {ragMatches.map((m, i) => (
