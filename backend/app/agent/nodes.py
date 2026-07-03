@@ -81,7 +81,52 @@ def apply_extraction_result(
             continue
         new_state.answers[ea.question_id] = ea.option_ids
 
+    # 2.5 Q30 意图确定性补丁：高频率出货/订单增长意图 → Q30 选项
+    _apply_q30_intent_patch(new_state, extraction)
+
     # 3. 分支判断
     new_state = decide_branch_from_q5(new_state)
 
     return new_state
+
+
+# ── Q30 intent patch ──
+
+_Q30_INTENT_PATTERNS: dict[str, str] = {
+    "出货": "A",     # 判断行业海外有没有机会 → 提高出货量属于市场机会判断
+    "订单": "A",
+    "客户": "D",     # 给到海外客户画像建议 → 获取客户属于客户画像
+    "销量": "A",
+    "转化": "A",
+}
+
+
+def _apply_q30_intent_patch(state: AgentState, extraction) -> None:
+    """确定性补丁：当用户消息中出现高频率出货/获客意图，且 Q30 尚未被收集时，
+    基于意图关键词自动写入 Q30 答案。仅 experienced 分支生效，不覆盖已有答案。
+    选项映射以 questionnaire.py Q30 为准：
+      A=判断行业海外有没有机会, B=判断哪个国家最适合先做,
+      C=选出最适合出海的主推产品, D=给到海外客户画像建议,
+      E=不确定，希望顾问帮我整体诊断
+    """
+    if "Q30" in state.answers:
+        return
+    branch = state.branch
+    if branch == "inexperienced":
+        return
+    # 从最近消息和抽取文本中收集意图文本
+    text_parts: list[str] = []
+    for msg in state.messages[-4:]:
+        text_parts.append(msg.content)
+    if extraction and getattr(extraction, "reasoning_summary", None):
+        text_parts.append(str(extraction.reasoning_summary))
+    combined = " ".join(text_parts)
+
+    matched_option: str | None = None
+    for keyword, option_id in _Q30_INTENT_PATTERNS.items():
+        if keyword in combined:
+            matched_option = option_id
+            break
+
+    if matched_option:
+        state.answers["Q30"] = [matched_option]

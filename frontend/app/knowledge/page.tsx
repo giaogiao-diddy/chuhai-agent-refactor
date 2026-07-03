@@ -27,7 +27,7 @@ export default function KnowledgePage() {
 
   const load = async () => {
     setLoading(true);
-    try { setItems(await listKnowledge()); } catch { setError("加载失败"); }
+    try { setItems(await listKnowledge()); } catch (e: unknown) { setError(e instanceof Error ? e.message : "加载失败"); }
     setLoading(false);
   };
 
@@ -49,7 +49,7 @@ export default function KnowledgePage() {
       setFormContent(detail.content);
       setFormSource(detail.source || "");
       titleRef.current?.focus();
-    } catch { setError("加载知识详情失败"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "加载知识详情失败"); }
   };
 
   const handleSave = async () => {
@@ -71,25 +71,25 @@ export default function KnowledgePage() {
         setItems([created, ...items]);
       }
       resetForm();
-    } catch { setError("保存失败"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "保存失败"); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("确定删除？")) return;
-    try { await deleteKnowledge(id); setItems(items.filter(x => x.id !== id)); } catch { setError("删除失败"); }
+    try { await deleteKnowledge(id); setItems(items.filter(x => x.id !== id)); } catch (e: unknown) { setError(e instanceof Error ? e.message : "删除失败"); }
   };
 
   const handleReEmbed = async (id: string) => {
     try {
       const updated = await reEmbedKnowledge(id);
       setItems(items.map(x => x.id === updated.id ? updated : x));
-    } catch { setError("重新生成失败"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "重新生成失败"); }
   };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setSearching(true);
-    try { setSearchResults(await searchKnowledge(searchQuery.trim(), searchTopK)); } catch { setError("检索失败"); }
+    try { setSearchResults(await searchKnowledge(searchQuery.trim(), searchTopK)); } catch (e: unknown) { setError(e instanceof Error ? e.message : "检索失败"); }
     setSearching(false);
   };
 

@@ -346,6 +346,18 @@ export type WechatLoginUrlResponse = {
   state: string;
 };
 
+export async function devLogin(name?: string): Promise<AuthCallbackResponse> {
+  const res = await fetch(`${API_BASE}/auth/dev-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name || "开发者", role: "consultant" }),
+  });
+  if (!res.ok) throw new Error("开发登录失败");
+  const data = await res.json();
+  setAuthToken(data.access_token);
+  return data;
+}
+
 export async function getWechatLoginUrl(): Promise<WechatLoginUrlResponse> {
   const res = await fetch(`${API_BASE}/auth/wechat/login-url`);
   if (res.status === 503) throw new Error("微信登录未配置");

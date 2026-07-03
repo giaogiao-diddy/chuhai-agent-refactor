@@ -2,6 +2,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import create_access_token, validate_jwt_secret
@@ -11,6 +12,11 @@ from app.services.user_repository import get_or_create_wechat_user
 from config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class DevLoginRequest(BaseModel):
+    name: str = Field(default="开发者", min_length=1, max_length=64)
+    role: str = Field(default="consultant", pattern="^(user|consultant|admin)$")
 
 
 @router.get("/wechat/login-url")
@@ -99,4 +105,42 @@ async def wechat_callback(
             "nickname": user.nickname,
             "role": user.role,
         },
+    }
+
+
+@router.post("/dev-login")
+async def dev_login(
+    body: DevLoginRequest = DevLoginRequest(),
+    db: AsyncSession = Depends(get_db),
+):
+    """开发模式登录：仅在 DEV_MODE=true 时可用。"""
+    settings = get_settings()
+    if not getattr(settings, "DEV_MODE", False):
+        raise HTTPException(status_code=503, detail="开发模式未启用，请设置 DEV_MODE=true")
+    from app.models import User
+
+    wechat_openid = f"dev:{body.name}"
+    from sqlalchemy import select
+    from sqlalchemy.dialects.postgresql import insert
+
+    stmt = (
+        insert(User)
+        .values(wechat_openid=wechat_openid, nickname=body.name, role=body.role)
+        .on_conflict_do_nothing(index_elements=[User.wechat_openid])
+        .returning(User.id)
+    )
+    result = await db.execute(stmt)
+    created_id = result.scalar_one_or_none()
+    if created_id is not None:
+        user = await db.get(User, created_id)
+    else:
+        user = (await db.execute(select(User).where(User.wechat_openid == wechat_openid))).scalar_one()
+        if user.role != body.role:
+            user.role = body.role
+
+    jwt_token = create_access_token(user_id=str(user.id), role=user.role)
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user": {"id": str(user.id), "nickname": user.nickname, "role": user.role},
     }

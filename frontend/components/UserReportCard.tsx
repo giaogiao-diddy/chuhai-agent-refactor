@@ -80,6 +80,7 @@ export default function UserReportCard({ report, usedTemplateReport, assessmentI
           {usedTemplateReport && <span className="badge badge-warning" style={{ fontSize: 11, marginLeft: 8 }}>模板报告</span>}
           {modelName && <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginLeft: 8 }}>{modelName}</span>}
         </div>
+        <div className="score-line-path" aria-hidden="true" />
       </div>
 
       {!full && (
@@ -205,20 +206,22 @@ export default function UserReportCard({ report, usedTemplateReport, assessmentI
 
 const s: Record<string, React.CSSProperties> = {
   hero: {
-    background: "linear-gradient(135deg, #0D9488 0%, #0F766E 100%)",
-    color: "#fff", borderRadius: "var(--radius-lg)", padding: "24px 28px",
-    marginBottom: 16, display: "flex", alignItems: "center", gap: 24,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(231,243,255,0.92))",
+    color: "var(--color-text)", borderRadius: "var(--radius-lg)", padding: "28px 32px",
+    marginBottom: 20, display: "flex", alignItems: "center", gap: 28,
+    border: "1px solid var(--color-line-strong)",
+    boxShadow: "var(--shadow-md)",
   },
   heroScore: { display: "flex", alignItems: "baseline", gap: 2 },
-  heroNumber: { fontSize: 48, fontWeight: 700, lineHeight: 1 },
-  heroOutOf: { fontSize: 18, opacity: 0.7 },
-  heroTag: { display: "flex", flexDirection: "column", gap: 4 },
-  heroTagText: { fontSize: 20, fontWeight: 600 },
-  dimRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 },
-  dimLabel: { fontSize: 13, minWidth: 130, color: "var(--color-text-secondary)" },
-  dimBar: { flex: 1, height: 8, background: "var(--color-border)", borderRadius: 4, overflow: "hidden" },
-  dimFill: { height: "100%", background: "var(--color-primary)", borderRadius: 4, transition: "width 0.3s" },
-  dimScore: { fontSize: 12, minWidth: 50, textAlign: "right", color: "var(--color-text-secondary)" },
-  checkItem: { display: "flex", alignItems: "flex-start", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--color-border)", fontSize: 14 },
+  heroNumber: { fontSize: 56, fontWeight: 800, lineHeight: 1, letterSpacing: 0, color: "var(--color-primary)" },
+  heroOutOf: { fontSize: 20, color: "var(--color-text-muted)", fontWeight: 500 },
+  heroTag: { display: "flex", flexDirection: "column", gap: 6 },
+  heroTagText: { fontSize: 22, fontWeight: 700, letterSpacing: 0 },
+  dimRow: { display: "flex", alignItems: "center", gap: 12, marginBottom: 8 },
+  dimLabel: { fontSize: 13, minWidth: 140, color: "var(--color-text-secondary)", fontWeight: 500 },
+  dimBar: { flex: 1, height: 8, background: "var(--color-primary-light)", borderRadius: 999, overflow: "hidden" },
+  dimFill: { height: "100%", background: "linear-gradient(90deg, var(--color-primary), var(--color-accent))", borderRadius: 999, transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)" },
+  dimScore: { fontSize: 13, minWidth: 56, textAlign: "right" as const, color: "var(--color-text-secondary)", fontWeight: 600 },
+  checkItem: { display: "flex", alignItems: "flex-start", gap: 12, padding: "8px 0", borderBottom: "1px solid var(--color-border-light)", fontSize: 14, lineHeight: 1.6 },
   checkbox: { fontSize: 18, color: "var(--color-primary)", flexShrink: 0, marginTop: -1 },
 };

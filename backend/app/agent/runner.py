@@ -6,7 +6,7 @@ from app.agent.nodes import apply_extraction_result
 from app.agent.state_machine import append_assistant_message, append_user_message
 from app.agent.tools.executor import ToolExecutor
 from app.agent.tools.external import register_external_tools
-from app.agent.tools.external.dialogue import DialogueDeepSeekInput
+from app.agent.tools.external.dialogue import DialogueDeepSeekInput, _build_dialogue_input, _build_dialogue_prompt
 from app.agent.tools.external.extraction import ExtractAnswersDeepSeekInput
 from app.agent.tools.base import ToolContext, ToolErrorCode
 from app.agent.tools.local import register_local_tools
@@ -157,21 +157,11 @@ async def _handle_user_message(
     # Step 3: memory recall
     memory_entries = await _recall_memory_entries(executor, current, event.message)
 
-    # Step 4: dialogue
-    missing_items = [m.model_dump() for m in readiness.missing_items] if readiness else []
-    report_missing = [m.model_dump() for m in readiness.report_missing_items] if readiness else []
-    next_qs = readiness.next_questions if readiness else []
+    # Step 4: dialogue (unified input builder)
+    dialogue_input = _build_dialogue_input(current, readiness, memory_entries)
     dialogue_result = await executor.execute(
         "dialogue.deepseek",
-        DialogueDeepSeekInput(
-            messages=current.messages,
-            missing_items=missing_items,
-            next_questions=next_qs,
-            memory_entries=memory_entries,
-            score_ready=readiness.score_ready if readiness else False,
-            report_ready=readiness.report_ready if readiness else False,
-            report_missing_items=report_missing if readiness else [],
-        ),
+        dialogue_input,
         context=ctx,
     )
     if dialogue_result.error is not None:
@@ -538,21 +528,8 @@ async def run_agent_event_stream(
                           summary=f"召回 {len(memory_entries)} 条记忆")
 
     # ── dialogue ──
-    missing_items = [m.model_dump() for m in readiness.missing_items] if readiness else []
-    report_missing = [m.model_dump() for m in readiness.report_missing_items] if readiness else []
-    next_qs = readiness.next_questions if readiness else []
-
-    from app.agent.tools.external.dialogue import _build_dialogue_prompt
-
-    system_prompt = _build_dialogue_prompt(DialogueDeepSeekInput(
-        messages=current.messages,
-        missing_items=missing_items,
-        next_questions=next_qs,
-        memory_entries=memory_entries,
-        score_ready=readiness.score_ready if readiness else False,
-        report_ready=readiness.report_ready if readiness else False,
-        report_missing_items=report_missing,
-    ))
+    dialogue_stream_input = _build_dialogue_input(current, readiness, memory_entries)
+    system_prompt = _build_dialogue_prompt(dialogue_stream_input)
     settings = get_settings()
     llm_messages = [LLMMessage(role="system", content=system_prompt)]
     for msg in current.messages[-settings.DIALOGUE_HISTORY_WINDOW:]:

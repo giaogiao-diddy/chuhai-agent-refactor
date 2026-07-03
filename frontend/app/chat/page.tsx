@@ -184,7 +184,9 @@ export default function ChatPage() {
         {/* Input bar */}
         <div style={{
           position: "sticky", bottom: 0, display: "flex", padding: "12px 0",
-          background: "var(--color-bg)", gap: 8, borderTop: "1px solid var(--color-border)", marginTop: 16,
+          background: "linear-gradient(180deg, rgba(244,249,255,0.78), var(--color-bg))",
+          gap: 8, borderTop: "1px solid var(--color-line)", marginTop: 16,
+          backdropFilter: "blur(10px)",
         }}>
           {showFinish && (
             <button className="btn btn-sm" style={{ background: "var(--color-warning)", color: "#fff" }}
@@ -276,13 +278,16 @@ export default function ChatPage() {
 
 const bubble = {
   user: {
-    maxWidth: "80%", padding: "8px 14px", borderRadius: "16px 16px 4px 16px",
-    background: "var(--color-primary)", color: "#fff", fontSize: 15,
-    lineHeight: 1.5, whiteSpace: "pre-wrap" as const,
+    maxWidth: "80%", padding: "10px 16px", borderRadius: "18px 18px 6px 18px",
+    background: "linear-gradient(135deg, var(--color-primary), var(--color-accent))", color: "#fff", fontSize: 15,
+    lineHeight: 1.6, whiteSpace: "pre-wrap" as const,
+    boxShadow: "0 12px 26px rgba(22,119,210,0.18)",
   },
   assistant: {
-    maxWidth: "80%", padding: "8px 14px", borderRadius: "16px 16px 16px 4px",
-    background: "var(--color-surface)", fontSize: 15, lineHeight: 1.5,
-    whiteSpace: "pre-wrap" as const, border: "1px solid var(--color-border)",
+    maxWidth: "80%", padding: "10px 16px", borderRadius: "18px 18px 18px 6px",
+    background: "rgba(255,255,255,0.9)", fontSize: 15, lineHeight: 1.6,
+    whiteSpace: "pre-wrap" as const,
+    border: "1px solid var(--color-line)",
+    boxShadow: "0 8px 22px rgba(41,102,163,0.08)",
   },
 };

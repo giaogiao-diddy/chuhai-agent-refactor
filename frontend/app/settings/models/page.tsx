@@ -26,7 +26,7 @@ export default function ModelSettingsPage() {
 
   const load = async () => {
     setLoading(true);
-    try { const list = await listModelProviders(); setProviders(list); } catch { setError("加载失败"); }
+    try { const list = await listModelProviders(); setProviders(list); } catch (e: unknown) { setError(e instanceof Error ? e.message : "加载失败"); }
     setLoading(false);
   };
 
@@ -69,19 +69,19 @@ export default function ModelSettingsPage() {
         setProviders([...providers, created]);
       }
       resetForm();
-    } catch { setError("保存失败"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "保存失败"); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("确定删除此 Provider？")) return;
-    try { await deleteModelProvider(id); setProviders(providers.filter(p => p.id !== id)); } catch { setError("删除失败"); }
+    try { await deleteModelProvider(id); setProviders(providers.filter(p => p.id !== id)); } catch (e: unknown) { setError(e instanceof Error ? e.message : "删除失败"); }
   };
 
   const handleToggle = async (p: ModelProvider) => {
     try {
       const updated = await updateModelProvider(p.id, { enabled: !p.enabled });
       setProviders(providers.map(x => x.id === updated.id ? updated : x));
-    } catch { setError("操作失败"); }
+    } catch (e: unknown) { setError(e instanceof Error ? e.message : "操作失败"); }
   };
 
   const handleTest = async (id: string) => {

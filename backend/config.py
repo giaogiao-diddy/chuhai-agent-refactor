@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "chuhai-agent"
     APP_VERSION: str = "0.1.0"
     ENV: str = "development"
+    DEV_MODE: bool = False
 
     # ── 数据库 ──
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/chuhai_agent"

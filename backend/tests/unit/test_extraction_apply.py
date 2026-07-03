@@ -1,6 +1,6 @@
 from app.agent.extraction import QUESTION_CATALOG
-from app.agent.nodes import apply_extraction_result
-from app.schemas.agent_state import AgentState
+from app.agent.nodes import _apply_q30_intent_patch, apply_extraction_result
+from app.schemas.agent_state import AgentState, AgentMessage
 from app.schemas.extraction import ExtractedAnswer, ExtractedSlot, ExtractionResult
 from app.schemas.slots import SlotValue
 
@@ -187,4 +187,66 @@ async def test_extract_from_messages_history_window_none_uses_all_messages(monke
     user_text = recorded_texts[0]
     assert "msg0" in user_text
     assert "msg19" in user_text
+
+
+# ── Q30 intent patch ──
+
+def test_q30_intent_patch_maps_increase_shipments():
+    """用户说'希望提高我的出货量' → Q30 被自动写入选项 A。"""
+    state = AgentState(
+        messages=[
+            AgentMessage(role="user", content="希望提高我的出货量"),
+        ],
+        answers={},
+        branch="experienced",
+    )
+    extraction = ExtractionResult(slots={}, answers=[])
+    _apply_q30_intent_patch(state, extraction)
+    assert state.answers.get("Q30") == ["A"]
+
+
+def test_q30_intent_patch_skips_when_q30_already_exists():
+    """已有 Q30 答案时不覆盖。"""
+    state = AgentState(
+        messages=[AgentMessage(role="user", content="希望提高出货量")],
+        answers={"Q30": ["E"]},
+        branch="experienced",
+    )
+    extraction = ExtractionResult(slots={}, answers=[])
+    _apply_q30_intent_patch(state, extraction)
+    assert state.answers["Q30"] == ["E"]
+
+
+def test_q30_intent_patch_skips_inexperienced_branch():
+    """inexperienced 分支不触发 Q30 patch。"""
+    state = AgentState(
+        messages=[AgentMessage(role="user", content="希望提高出货量")],
+        answers={},
+        branch="inexperienced",
+    )
+    extraction = ExtractionResult(slots={}, answers=[])
+    _apply_q30_intent_patch(state, extraction)
+    assert "Q30" not in state.answers
+
+
+def test_readiness_no_missing_q30_after_intent_patch():
+    """构造包含 Q5/Q8/Q17/Q19/Q31 + '希望提高出货量' 的状态，验证 readiness 不再缺 Q30。"""
+    from app.agent.tools.local.readiness import ReadinessCheckInput, readiness_check_handler
+    from app.agent.tools.base import ToolContext
+
+    state = AgentState(
+        messages=[AgentMessage(role="user", content="希望提高出货量")],
+        answers={"Q5": ["C"], "Q8": ["B"], "Q17": ["A"], "Q19": ["B"], "Q31": ["A"]},
+        branch="experienced",
+    )
+    extraction = ExtractionResult(slots={}, answers=[])
+    _apply_q30_intent_patch(state, extraction)
+
+    result = readiness_check_handler(
+        ReadinessCheckInput(answers=state.answers, branch=state.branch),
+        ToolContext(),
+    )
+    rr = result.data
+    q30_missing = [m for m in rr.missing_items if m.question_id == "Q30"]
+    assert len(q30_missing) == 0, f"Q30 should not be missing, got {q30_missing}"
 
