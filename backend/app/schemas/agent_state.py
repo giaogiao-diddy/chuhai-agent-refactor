@@ -52,4 +52,5 @@ class AgentState(BaseModel):
     readiness_result: ReadinessResult | None = None
     provider_id: str | None = None
     model_name: str | None = None
+    rag_matches: list[dict] | None = None
 

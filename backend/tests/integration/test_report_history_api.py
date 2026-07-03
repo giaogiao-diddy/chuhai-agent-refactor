@@ -469,3 +469,48 @@ async def test_report_detail_returns_followup_status_after_submission():
     finally:
         await _delete_assessment_tree(assessment.id)
         await _delete_anon_user(anon_id)
+
+
+# ── rag_matches schema 安全性 ──
+
+@pytest.mark.asyncio
+async def test_rag_matches_filters_forbidden_fields():
+    """rag_matches 即使 DB 中混入敏感字段，响应也不泄露。"""
+    settings = get_settings()
+    if not settings.DATABASE_URL or "postgresql" not in settings.DATABASE_URL:
+        pytest.skip("DATABASE_URL 未配置 PostgreSQL")
+
+    anon_id = f"test-rag-sec-{uuid.uuid4().hex[:12]}"
+    state = _build_state()
+    state.rag_matches = [
+        {
+            "title": "正常知识", "source": "src", "distance": 0.123, "content_preview": "preview...",
+            "lead_report": "should not appear", "sales_followup": "should not appear",
+            "consultant_notes": "should not appear", "raw_report": "should not appear",
+            "embedding": [0.1, 0.2, 0.3], "lead_score": 99,
+        },
+    ]
+    async with async_session() as db:
+        user = await get_or_create_anonymous_user(db, anon_id)
+        assessment = await save_completed_assessment(db, state, user_id=user.id)
+        await db.commit()
+        assessment_id = assessment.id
+
+    try:
+        app_with_db = await _app_with_db()
+        transport = ASGITransport(app=app_with_db)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(f"/reports/{assessment_id}?anonymous_user_id={anon_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("rag_matches") is not None
+        rm = data["rag_matches"][0]
+        assert rm["title"] == "正常知识"
+        assert rm["source"] == "src"
+        assert rm["distance"] == 0.123
+        assert rm["content_preview"] == "preview..."
+        for forbidden in ["lead_report", "sales_followup", "consultant_notes", "raw_report", "embedding", "lead_score"]:
+            assert forbidden not in rm, f"rag_matches 泄露了: {forbidden}"
+    finally:
+        await _delete_assessment_tree(assessment_id)
+        await _delete_anon_user(anon_id)

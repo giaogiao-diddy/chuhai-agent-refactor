@@ -334,8 +334,7 @@ async def test_continue_stream_empty_content_yields_dialogue_failed_not_complete
     events = []
     for line in text.split("\n"):
         if line.startswith("data: "):
-            try: events.append(json.loads(line[6:]))
-            except json.JSONDecodeError: pass
+            events.append(json.loads(line[6:]))
 
     # dialogue trace failed
     dialogue_traces = [e for e in events if e.get("type") == "trace" and e.get("step") == "dialogue"]

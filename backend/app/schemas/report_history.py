@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas.rag import RagMatchSafe
 from app.schemas.report import UserReport
 
 
@@ -47,3 +48,4 @@ class ReportDetailResponse(BaseModel):
     followup_status: str | None = None
     provider_id: str | None = None
     model_name: str | None = None
+    rag_matches: list[RagMatchSafe] | None = None

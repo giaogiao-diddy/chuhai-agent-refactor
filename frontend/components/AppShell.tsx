@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/chat", label: "出海诊断", icon: "💬" },
   { href: "/reports", label: "我的报告", icon: "📋" },
   { href: "/admin/leads", label: "顾问后台", icon: "📊" },
+  { href: "/knowledge", label: "知识库", icon: "📚" },
   { href: "/settings/models", label: "模型设置", icon: "⚙️" },
 ];
 

@@ -287,6 +287,15 @@ async def _handle_finish_requested(
         logger.warning("rag.search failed: %s %s", rag_result.error.code, rag_result.error.message)
     rag_context = rag_result.data.matches if rag_result.error is None else []
 
+    # 保存安全 RAG 引用到 state（供报告详情展示）
+    if rag_result.error is None and rag_result.data is not None:
+        from app.schemas.rag import RagMatchSafe
+        safe_matches = [
+            RagMatchSafe.from_match(m).model_dump() for m in (rag_result.data.matches or [])
+        ]
+        current = current.model_copy(deep=True)
+        current.rag_matches = safe_matches
+
     # 4. report generation loop (max 3 attempts)
     from app.agent.tools.external.report_generation import ReportGenerateInput
     from app.agent.tools.external.report_audit import ReportAuditInput

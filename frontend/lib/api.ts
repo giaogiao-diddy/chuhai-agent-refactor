@@ -212,6 +212,14 @@ export type ReportDetailResponse = {
   followup_status: string | null;
   provider_id: string | null;
   model_name: string | null;
+  rag_matches: RagMatchSafe[] | null;
+};
+
+export type RagMatchSafe = {
+  title: string;
+  source: string | null;
+  distance: number | null;
+  content_preview: string;
 };
 
 export async function listReports(limit = 20): Promise<ReportListItem[]> {
@@ -479,5 +487,82 @@ export async function testModelProvider(id: string): Promise<TestProviderRespons
     headers: authHeaders(),
   });
   if (!res.ok) throw _providerError(res);
+  return res.json();
+}
+
+// ── Knowledge ──
+
+export type KnowledgeItem = {
+  id: string;
+  title: string;
+  source: string | null;
+  content_preview: string;
+  has_embedding: boolean;
+  created_at: string | null;
+};
+
+export type KnowledgeDetail = {
+  id: string;
+  title: string;
+  source: string | null;
+  content: string;
+  has_embedding: boolean;
+  created_at: string | null;
+};
+
+export async function getKnowledgeDetail(id: string): Promise<KnowledgeDetail> {
+  const res = await fetch(`${API_BASE}/knowledge/${id}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(res.status === 404 ? "知识不存在" : "加载失败");
+  return res.json();
+}
+
+export type KnowledgeSearchResult = {
+  title: string;
+  source: string | null;
+  content_preview: string;
+  distance: number;
+};
+
+export async function listKnowledge(): Promise<KnowledgeItem[]> {
+  const res = await fetch(`${API_BASE}/knowledge`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(res.status === 401 ? "请先登录" : res.status === 403 ? "无权访问" : "加载失败");
+  return res.json();
+}
+
+export async function createKnowledge(data: { title: string; content: string; source?: string }): Promise<KnowledgeItem> {
+  const res = await fetch(`${API_BASE}/knowledge`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(res.status === 401 ? "请先登录" : res.status === 403 ? "无权访问" : "创建失败");
+  return res.json();
+}
+
+export async function updateKnowledge(id: string, data: { title?: string; content?: string; source?: string }): Promise<KnowledgeItem> {
+  const res = await fetch(`${API_BASE}/knowledge/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(res.status === 404 ? "知识不存在" : "更新失败");
+  return res.json();
+}
+
+export async function deleteKnowledge(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/knowledge/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) throw new Error("删除失败");
+}
+
+export async function reEmbedKnowledge(id: string): Promise<KnowledgeItem> {
+  const res = await fetch(`${API_BASE}/knowledge/${id}/re-embed`, { method: "POST", headers: authHeaders() });
+  if (!res.ok) throw new Error("重新生成 embedding 失败");
+  return res.json();
+}
+
+export async function searchKnowledge(query: string, topK = 5): Promise<KnowledgeSearchResult[]> {
+  const res = await fetch(`${API_BASE}/knowledge/search`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+  if (!res.ok) throw new Error("检索失败");
   return res.json();
 }

@@ -1,8 +1,10 @@
+import uuid as _uuid
+
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rag_document import RagDocument
-from app.schemas.rag import RagDocumentMatch
+from app.schemas.rag import KnowledgeSearchResult, RagDocumentMatch
 from app.services.deepseek_client import DeepSeekClient
 
 SEED_DOCUMENTS = [
@@ -104,3 +106,98 @@ async def search_rag_context(
             score=round(score, 4),
         ))
     return matches
+
+
+# ── CRUD ──
+
+async def list_knowledge(db: AsyncSession):
+    """返回轻量 rows，不加载 embedding 向量。"""
+    stmt = select(
+        RagDocument.id,
+        RagDocument.title,
+        RagDocument.source,
+        RagDocument.content,
+        RagDocument.created_at,
+        (RagDocument.embedding.isnot(None)).label("has_embedding"),
+    ).order_by(RagDocument.created_at.desc())
+    result = await db.execute(stmt)
+    return result.all()
+
+
+async def get_knowledge(db: AsyncSession, doc_id: _uuid.UUID) -> RagDocument | None:
+    return await db.get(RagDocument, doc_id)
+
+
+async def create_knowledge(db: AsyncSession, title: str, content: str, source: str | None) -> RagDocument:
+    client = DeepSeekClient()
+    embedding = await client.embed_text(content)
+    doc = RagDocument(title=title, content=content, source=source, embedding=embedding)
+    db.add(doc)
+    await db.flush()
+    return doc
+
+
+async def update_knowledge(db: AsyncSession, doc_id: _uuid.UUID, title: str | None, content: str | None, source: str | None) -> RagDocument | None:
+    doc = await db.get(RagDocument, doc_id)
+    if doc is None:
+        return None
+    if title is not None:
+        doc.title = title
+    if source is not None:
+        doc.source = source
+    content_changed = False
+    if content is not None and content != doc.content:
+        doc.content = content
+        content_changed = True
+    if content_changed:
+        client = DeepSeekClient()
+        doc.embedding = await client.embed_text(doc.content)
+    await db.flush()
+    return doc
+
+
+async def delete_knowledge(db: AsyncSession, doc_id: _uuid.UUID) -> bool:
+    doc = await db.get(RagDocument, doc_id)
+    if doc is None:
+        return False
+    await db.delete(doc)
+    await db.flush()
+    return True
+
+
+async def re_embed_knowledge(db: AsyncSession, doc_id: _uuid.UUID) -> RagDocument | None:
+    doc = await db.get(RagDocument, doc_id)
+    if doc is None:
+        return None
+    client = DeepSeekClient()
+    doc.embedding = await client.embed_text(doc.content)
+    await db.flush()
+    return doc
+
+
+async def search_knowledge(db: AsyncSession, query: str, top_k: int = 5) -> list[KnowledgeSearchResult]:
+    client = DeepSeekClient()
+    query_embedding = await client.embed_text(query)
+    stmt = (
+        select(
+            RagDocument.title,
+            RagDocument.content,
+            RagDocument.source,
+            RagDocument.embedding.cosine_distance(query_embedding).label("distance"),
+        )
+        .where(RagDocument.embedding.isnot(None))
+        .order_by(text("distance"))
+        .limit(top_k)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    results: list[KnowledgeSearchResult] = []
+    for row in rows:
+        preview = row.content[:200] + "..." if len(row.content) > 200 else row.content
+        results.append(KnowledgeSearchResult(
+            title=row.title,
+            source=row.source,
+            content_preview=preview,
+            distance=round(float(row.distance), 4),
+        ))
+    return results

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Assessment, LeadSubmission, User
 from app.models.report import UserReport as UserReportModel
 from app.schemas.report import UserReport as UserReportSchema
+from app.schemas.rag import RagMatchSafe
 from app.schemas.report_history import PublicReportSummary, ReportDetailResponse, ReportListItem
 
 
@@ -25,6 +26,12 @@ def _build_summary(validated: UserReportSchema) -> PublicReportSummary:
         risks=validated.risks,
         unlock_hint=validated.unlock_hint,
     )
+
+
+def _safe_rag_matches(value: list | None) -> list[RagMatchSafe] | None:
+    if not value:
+        return None
+    return [RagMatchSafe.model_validate(item) for item in value]
 
 
 def _build_item(assessment: Assessment, validated: UserReportSchema, followup_status: str | None = None) -> ReportListItem:
@@ -111,6 +118,7 @@ async def get_user_report_detail(
         followup_status=followup_status,
         provider_id=assessment.provider_id,
         model_name=assessment.model_name,
+        rag_matches=_safe_rag_matches(assessment.rag_matches),
     )
 
 
@@ -173,4 +181,5 @@ async def get_user_report_detail_by_user_id(
         followup_status=followup_status,
         provider_id=assessment.provider_id,
         model_name=assessment.model_name,
+        rag_matches=_safe_rag_matches(assessment.rag_matches),
     )

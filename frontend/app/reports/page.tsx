@@ -5,7 +5,7 @@ import { listReports, getReportDetail } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
 import AppShell from "@/components/AppShell";
 import UserReportCard from "@/components/UserReportCard";
-import type { PublicReportSummary, ReportListItem, UserReport } from "@/lib/api";
+import type { PublicReportSummary, RagMatchSafe, ReportListItem, UserReport } from "@/lib/api";
 
 export default function ReportsPage() {
   const [items, setItems] = useState<ReportListItem[]>([]);
@@ -15,6 +15,7 @@ export default function ReportsPage() {
   const [detailAssessmentId, setDetailAssessmentId] = useState<string | null>(null);
   const [detailFollowupStatus, setDetailFollowupStatus] = useState<string | null>(null);
   const [wechatQrUrl, setWechatQrUrl] = useState<string | null>(null);
+  const [ragMatches, setRagMatches] = useState<RagMatchSafe[] | null>(null);
   const latestDetailRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function ReportsPage() {
         setDetail(display);
         setDetailFollowupStatus(d.followup_status);
         setWechatQrUrl(d.wechat_qr_url);
+        setRagMatches(d.rag_matches);
         setItems(prev => prev.map(item =>
           item.assessment_id === id ? { ...item, followup_status: d.followup_status } : item
         ));
@@ -97,6 +99,25 @@ export default function ReportsPage() {
               onUnlocked={() => reloadDetail(detailAssessmentId!)}
               wechatQrUrl={wechatQrUrl}
             />
+            {ragMatches && ragMatches.length > 0 && (
+              <div className="card" style={{ marginTop: 16 }}>
+                <h4 style={{ marginTop: 0 }}>参考知识</h4>
+                {ragMatches.map((m, i) => (
+                  <div key={i} className="card card-sm" style={{ marginBottom: 8, background: "var(--color-bg)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <b style={{ fontSize: 13 }}>{m.title}</b>
+                      {m.distance != null && (
+                        <span className="badge badge-neutral" style={{ fontSize: 11 }}>
+                          score: {(1 - m.distance).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    {m.source && <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>{m.source}</div>}
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{m.content_preview}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
