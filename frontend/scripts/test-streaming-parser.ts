@@ -57,4 +57,47 @@ import { parseSseLines, type StreamEvent } from "../lib/streaming";
   assert.strictEqual(rest, "");
 }
 
+// ── trace event ──
+{
+  const input = 'data: {"type":"trace","step":"extract","status":"started"}\n\n';
+  const { events } = parseSseLines(input);
+  assert.strictEqual(events.length, 1);
+  assert.strictEqual(events[0].type, "trace");
+  assert.strictEqual((events[0] as any).step, "extract");
+  assert.strictEqual((events[0] as any).status, "started");
+}
+
+// trace event with elapsed_ms and summary
+{
+  const input = 'data: {"type":"trace","step":"dialogue","status":"completed","elapsed_ms":1234,"summary":"已生成回复 (156 字)"}\n\n';
+  const { events } = parseSseLines(input);
+  assert.strictEqual(events.length, 1);
+  const t = events[0] as any;
+  assert.strictEqual(t.type, "trace");
+  assert.strictEqual(t.elapsed_ms, 1234);
+  assert.strictEqual(t.summary, "已生成回复 (156 字)");
+}
+
+// error event with state
+{
+  const input = 'data: {"type":"error","message":"AI 暂时不可用","state":{"messages":[],"conversation_round":1}}\n\n';
+  const { events } = parseSseLines(input);
+  assert.strictEqual(events.length, 1);
+  const e = events[0] as any;
+  assert.strictEqual(e.type, "error");
+  assert.strictEqual(e.message, "AI 暂时不可用");
+  assert.ok(e.state && e.state.conversation_round === 1, "error 携带 state");
+}
+
+// multi-event order preserved
+{
+  const input = 'data: {"type":"trace","step":"extract","status":"started"}\n\ndata: {"type":"delta","content":"你好"}\n\ndata: {"type":"trace","step":"extract","status":"completed"}\n\ndata: {"type":"done","state":{"messages":[]}}\n\n';
+  const { events } = parseSseLines(input);
+  assert.strictEqual(events.length, 4, "4 events");
+  assert.strictEqual(events[0].type, "trace");
+  assert.strictEqual(events[1].type, "delta");
+  assert.strictEqual(events[2].type, "trace");
+  assert.strictEqual(events[3].type, "done");
+}
+
 console.log("All parser tests passed.");
