@@ -23,6 +23,7 @@ export type ConversationClientState = {
   public_error: string | null;
   provider_id: string | null;
   model_name: string | null;
+  readiness: ReadinessClientState | null;
 };
 
 export type StartConversationRequest = {
@@ -140,6 +141,15 @@ export type MissingItem = {
   label: string;
   reason: string;
   ask?: string | null;
+};
+
+export type ReadinessClientState = {
+  score_ready: boolean;
+  report_ready: boolean;
+  missing_items: MissingItem[];
+  report_missing_items: MissingItem[];
+  next_questions: string[];
+  answered_count: number;
 };
 
 export class FinishMissingInfoError extends Error {

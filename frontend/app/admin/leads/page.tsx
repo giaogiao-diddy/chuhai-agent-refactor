@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { listAdminLeads, getAdminLeadDetail, updateAdminLeadFollowup } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
-import AuthBar from "@/components/AuthBar";
+import AppShell from "@/components/AppShell";
 import type { AdminLeadListItem, AdminLeadDetail, FollowupStatus } from "@/lib/api";
 
 const FOLLOWUP_OPTIONS: FollowupStatus[] = ["未联系", "已联系", "已预约", "已成交"];
@@ -81,47 +81,58 @@ export default function AdminLeadsPage() {
   }
 
   return (
-    <div style={s.page}>
-      <AuthBar />
-      <header style={s.header}><span style={s.title}>线索管理</span></header>
-      <div style={s.body}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          <button style={s.btn} onClick={load} disabled={loading}>
+    <AppShell title="顾问后台">
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {/* Toolbar */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <button className="btn btn-primary btn-sm" onClick={load} disabled={loading}>
             {loading ? "加载中..." : "加载线索"}
           </button>
-          <select style={s.filterSelect} value={filterStatus}
+          <select className="select" style={{ width: "auto" }} value={filterStatus}
             onChange={e => setFilterStatus(e.target.value as FollowupStatus | "全部")}>
             <option value="全部">全部</option>
             {FOLLOWUP_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        {error && <div style={s.error}>{error}</div>}
-        {items.map((r) => (
-          <div key={r.submission_id} style={s.card} onClick={() => viewDetail(r.submission_id)}>
+
+        {error && <div className="error-msg">{error}</div>}
+
+        {/* Lead list */}
+        {items.map(r => (
+          <div key={r.submission_id} className="card card-sm"
+            style={{ marginBottom: 8, cursor: "pointer" }}
+            onClick={() => viewDetail(r.submission_id)}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <b>{r.contact_name}</b>
-              <span style={{ color: r.lead_priority === "P0" ? "#d32f2f" : "#666" }}>
-                {r.lead_priority || ""} · {r.followup_status}
+              <span style={{ fontSize: 13, color: r.lead_priority === "P0" ? "var(--color-danger)" : "var(--color-text-secondary)" }}>
+                <span className={`badge ${r.lead_priority === "P0" ? "badge-warning" : "badge-neutral"}`}>
+                  {r.lead_priority || ""}
+                </span>
+                {" "}{r.followup_status}
               </span>
             </div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 4 }}>
               {[r.phone, r.wechat_id, r.company_name].filter(Boolean).join(" · ")}
             </div>
-            <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>
               {r.tag}{r.feasibility_score != null ? ` · ${r.feasibility_score}分` : ""}
               {r.used_template_report ? " · 模板" : ""}
             </div>
           </div>
         ))}
-        {detail && (
-          <div style={s.detailCard}>
-            <h3>{detail.contact_name}</h3>
-            <p>{detail.phone}{detail.wechat_id ? ` · 微信: ${detail.wechat_id}` : ""}</p>
-            {detail.company_name && <p>{detail.company_name}</p>}
-            {detail.note && <p style={{ color: "#666" }}>{detail.note}</p>}
 
-            {/* 顾问版报告 */}
-            <div style={s.consultantSection}>
+        {/* Detail panel */}
+        {detail && (
+          <div className="card" style={{ marginTop: 16 }}>
+            <h3 style={{ marginTop: 0 }}>{detail.contact_name}</h3>
+            <p style={{ color: "var(--color-text-secondary)" }}>
+              {detail.phone}{detail.wechat_id ? ` · 微信: ${detail.wechat_id}` : ""}
+            </p>
+            {detail.company_name && <p>{detail.company_name}</p>}
+            {detail.note && <p style={{ color: "var(--color-text-secondary)" }}>{detail.note}</p>}
+
+            {/* Consultant report */}
+            <div className="card" style={{ background: "var(--color-warning-bg)", marginBottom: 16 }}>
               <h4>顾问报告</h4>
               <p><b>线索分数：</b>{detail.lead_report.lead_score}</p>
               <p><b>优先级：</b>{detail.lead_report.lead_priority}</p>
@@ -129,49 +140,34 @@ export default function AdminLeadsPage() {
               <h4>顾问备注</h4><p>{detail.lead_report.consultant_notes}</p>
             </div>
 
-            {/* 用户版报告 */}
+            {/* User report */}
             <h4>{detail.user_report.tag}（{detail.user_report.feasibility_score}分）</h4>
-            <p style={{ color: "#666" }}>{detail.user_report.tag_explanation}</p>
+            <p style={{ color: "var(--color-text-secondary)" }}>{detail.user_report.tag_explanation}</p>
             <p>{detail.user_report.preliminary_judgment}</p>
-            <h4>优势</h4><ul>{detail.user_report.strengths.map((t,i) => <li key={i}>{t}</li>)}</ul>
-            <h4>风险</h4><ul>{detail.user_report.risks.map((t,i) => <li key={i}>{t}</li>)}</ul>
+            <h4>优势</h4><ul>{detail.user_report.strengths.map((t, i) => <li key={i}>{t}</li>)}</ul>
+            <h4>风险</h4><ul>{detail.user_report.risks.map((t, i) => <li key={i}>{t}</li>)}</ul>
             <h4>推荐路径</h4><p>{detail.user_report.recommended_path}</p>
             <h4>30天行动计划</h4>
-            <ol>{detail.user_report.action_plan_30days.map((a,i) => <li key={i}>{a}</li>)}</ol>
+            <ol>{detail.user_report.action_plan_30days.map((a, i) => <li key={i}>{a}</li>)}</ol>
 
-            {/* 跟进表单 */}
-            <div style={s.followupSection}>
+            {/* Followup form */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
               <h4>跟进</h4>
-              <select style={s.select} value={followupStatus}
+              <select className="select" style={{ marginBottom: 8 }} value={followupStatus}
                 onChange={e => setFollowupStatus(e.target.value as FollowupStatus)} disabled={saving}>
                 {FOLLOWUP_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              <textarea style={s.textarea} placeholder="跟进备注（可选）" value={followupNote}
-                onChange={e => setFollowupNote(e.target.value)} disabled={saving} rows={3} />
-              <button style={s.saveBtn} onClick={saveFollowup} disabled={saving}>
+              <textarea className="textarea" placeholder="跟进备注（可选）" value={followupNote}
+                onChange={e => setFollowupNote(e.target.value)} disabled={saving} rows={3}
+                style={{ marginBottom: 8 }}
+              />
+              <button className="btn btn-primary" onClick={saveFollowup} disabled={saving}>
                 {saving ? "保存中..." : "保存跟进"}
               </button>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 800, margin: "0 auto", minHeight: "100dvh", background: "#f5f5f5" },
-  header: { padding: "12px 16px", background: "#1a1a2e", color: "#fff" },
-  title: { fontWeight: 600, fontSize: 16 },
-  body: { padding: "12px 16px" },
-  btn: { padding: "8px 16px", borderRadius: 8, border: "none", background: "#0D9488", color: "#fff", fontSize: 14, cursor: "pointer" },
-  filterSelect: { padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc", fontSize: 14, outline: "none", background: "#fff" },
-  card: { background: "#fff", borderRadius: 10, padding: "12px 14px", marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer" },
-  error: { textAlign: "center", color: "#d32f2f", padding: 8 },
-  detailCard: { background: "#fff", borderRadius: 12, padding: 16, marginTop: 12, marginBottom: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" },
-  consultantSection: { padding: "10px 14px", marginBottom: 16, borderRadius: 8, background: "#fff8e1" },
-  followupSection: { marginTop: 16, paddingTop: 16, borderTop: "1px solid #eee" },
-  select: { display: "block", width: "100%", padding: "8px 12px", marginBottom: 8, borderRadius: 8, border: "1px solid #ccc", fontSize: 14, outline: "none" },
-  textarea: { display: "block", width: "100%", padding: "8px 12px", marginBottom: 8, borderRadius: 8, border: "1px solid #ccc", fontSize: 14, outline: "none", resize: "vertical", boxSizing: "border-box" },
-  saveBtn: { padding: "8px 20px", borderRadius: 8, border: "none", background: "#0D9488", color: "#fff", fontSize: 14, cursor: "pointer" },
-};

@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.agent_state import AgentBranch, AgentMessage, AgentState, AgentStatus
 from app.schemas.anonymous import validate_anonymous_user_id
+from app.schemas.readiness import ReadinessClientState
 from app.schemas.report import UserReport
 from app.schemas.report_history import PublicReportSummary
 from app.schemas.slots import CompanySlots
@@ -21,6 +22,7 @@ class ConversationClientState(BaseModel):
     public_error: str | None = None
     provider_id: str | None = None
     model_name: str | None = None
+    readiness: ReadinessClientState | None = None
 
     def to_agent_state(self) -> AgentState:
         return AgentState(
@@ -65,6 +67,13 @@ class ConversationClientState(BaseModel):
                 safe_errors.append("部分内部验证信息已过滤")
         # 去重
         safe_errors = list(dict.fromkeys(safe_errors))
+
+        # 构建前端安全 readiness DTO
+        readiness: ReadinessClientState | None = None
+        if state.readiness_result is not None:
+            answered_count = sum(1 for v in state.answers.values() if isinstance(v, list) and len(v) > 0)
+            readiness = ReadinessClientState.from_readiness_result(state.readiness_result, answered_count)
+
         return cls(
             messages=state.messages,
             slots=state.slots,
@@ -78,6 +87,7 @@ class ConversationClientState(BaseModel):
             public_error=public_error,
             provider_id=state.provider_id,
             model_name=state.model_name,
+            readiness=readiness,
         )
 
 

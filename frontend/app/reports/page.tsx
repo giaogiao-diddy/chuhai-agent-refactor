@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listReports, getReportDetail } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
-import AuthBar from "@/components/AuthBar";
+import AppShell from "@/components/AppShell";
 import UserReportCard from "@/components/UserReportCard";
 import type { PublicReportSummary, ReportListItem, UserReport } from "@/lib/api";
 
@@ -30,14 +30,10 @@ export default function ReportsPage() {
         setDetailFollowupStatus(d.followup_status);
         setWechatQrUrl(d.wechat_qr_url);
         setItems(prev => prev.map(item =>
-          item.assessment_id === id
-            ? { ...item, followup_status: d.followup_status }
-            : item
+          item.assessment_id === id ? { ...item, followup_status: d.followup_status } : item
         ));
       }
-    } catch {
-      setError("加载失败");
-    }
+    } catch { setError("加载失败"); }
   }, []);
 
   async function viewDetail(id: string) {
@@ -63,19 +59,27 @@ export default function ReportsPage() {
   }
 
   return (
-    <div style={s.page}>
-      <AuthBar />
-      <header style={s.header}><span style={s.title}>我的报告</span></header>
-      <div style={s.body}>
-        {loading && <div style={s.status}>加载中...</div>}
-        {error && <div style={s.error}>{error}</div>}
-        {items.map((r) => (
-          <div key={r.assessment_id} style={s.card} onClick={() => viewDetail(r.assessment_id)}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+    <AppShell title="我的报告">
+      <div style={{ maxWidth: 700, margin: "0 auto" }}>
+        {loading && <div className="status-msg">加载中...</div>}
+        {error && <div className="error-msg">{error}</div>}
+        {!loading && !error && items.length === 0 && (
+          <div className="card" style={{ textAlign: "center", padding: 32 }}>
+            <div className="status-msg">暂无诊断报告</div>
+            <a href="/chat" className="btn btn-primary" style={{ marginTop: 12 }}>开始诊断</a>
+          </div>
+        )}
+        {items.map(r => (
+          <div key={r.assessment_id} className="card card-sm"
+            style={{ marginBottom: 8, cursor: "pointer" }}
+            onClick={() => viewDetail(r.assessment_id)}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <b>{r.tag || "未标签"}</b>
-              <span>{r.feasibility_score != null ? `${r.feasibility_score}分` : ""}</span>
+              <span style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
+                {r.feasibility_score != null ? `${r.feasibility_score}分` : ""}
+              </span>
             </div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 4 }}>
               {r.created_at?.slice(0, 10)} · 跟进：{r.followup_status || "待留资"}
               {r.used_template_report ? " · 模板" : ""}
               {r.model_name ? ` · ${r.model_name}` : ""}
@@ -84,29 +88,18 @@ export default function ReportsPage() {
         ))}
         {detail && (
           <>
-            <div style={s.followupRow}>
+            <div className="card card-sm" style={{ marginBottom: 12, fontSize: 13, color: "var(--color-text-secondary)" }}>
               跟进状态：{detailFollowupStatus || "待留资"}
             </div>
             <UserReportCard
-            report={detail}
-            assessmentId={detailAssessmentId}
-            onUnlocked={() => reloadDetail(detailAssessmentId!)}
-            wechatQrUrl={wechatQrUrl}
-          />
-          </>)
-        }
+              report={detail}
+              assessmentId={detailAssessmentId}
+              onUnlocked={() => reloadDetail(detailAssessmentId!)}
+              wechatQrUrl={wechatQrUrl}
+            />
+          </>
+        )}
       </div>
-    </div>
+    </AppShell>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 700, margin: "0 auto", minHeight: "100dvh", background: "#f5f5f5" },
-  header: { padding: "12px 16px", background: "#0D9488", color: "#fff" },
-  title: { fontWeight: 600, fontSize: 16 },
-  body: { padding: "12px 16px" },
-  card: { background: "#fff", borderRadius: 10, padding: "12px 14px", marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", cursor: "pointer" },
-  status: { textAlign: "center", color: "#999", padding: 16 },
-  error: { textAlign: "center", color: "#d32f2f", padding: 8 },
-  followupRow: { background: "#fff", borderRadius: 10, padding: "8px 14px", marginBottom: 10, fontSize: 13, color: "#666", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
-};

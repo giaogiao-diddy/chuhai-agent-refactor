@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStreaming } from "@/hooks/useStreaming";
 import { getReportDetail, listPublicModelProviders } from "@/lib/api";
 import { validateRenderedReport } from "@/lib/reportSafety";
-import AuthBar from "@/components/AuthBar";
+import AppShell from "@/components/AppShell";
+import DiagnosisProgressPanel from "@/components/DiagnosisProgressPanel";
 import UserReportCard from "@/components/UserReportCard";
 import type { UserReport, ModelProviderPublicItem } from "@/lib/api";
 
@@ -28,7 +29,6 @@ export default function ChatPage() {
       .finally(() => setProvidersLoaded(true));
   }, []);
 
-  // Auto-start when a provider is selected (and not already started)
   const hasStarted = useRef(false);
   useEffect(() => {
     if (hasStarted.current || isStarting || state || !providersLoaded || providers.length === 0) return;
@@ -67,19 +67,44 @@ export default function ChatPage() {
     : lockedModelName || "";
 
   const noModelAvailable = providersLoaded && providers.length === 0 && !modelLoadError;
+  const modelUnavailable = !providersLoaded || noModelAvailable || modelLoadError || !state;
+  const modelStatus = modelLocked ? modelLabel : undefined;
+  const readiness = state?.readiness ?? null;
+
+  function inputPlaceholder(): string {
+    if (isCompleted) return "本次诊断已完成，可重新开始";
+    if (!providersLoaded || isStarting) return "正在连接模型...";
+    if (modelLoadError) return "模型列表加载失败，请刷新重试";
+    if (noModelAvailable) return "请先配置 AI 模型";
+    if (!state) return "正在启动诊断...";
+    return "输入你的企业信息...";
+  }
 
   return (
-    <div style={s.page}>
-      <AuthBar />
-      <header style={s.header}>
-        <span style={s.title}>出海诊断顾问</span>
-        <div style={s.headerRight}>
-          {modelLocked && (
-            <span style={s.modelLocked} title={modelLabel}>{modelLabel}</span>
-          )}
-          {!modelLocked && !noModelAvailable && (
+    <AppShell title="出海诊断" modelStatus={modelStatus}>
+      <div className="chat-layout">
+        {/* Left: chat column */}
+        <div className="chat-main">
+        {modelLoadError && (
+          <div className="card" style={{ textAlign: "center", padding: "24px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>模型列表加载失败</div>
+            <div className="status-msg">请检查网络连接或稍后刷新页面重试。</div>
+          </div>
+        )}
+        {noModelAvailable && (
+          <div className="card" style={{ textAlign: "center", padding: "24px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>暂无可用的 AI 模型</div>
+            <div className="status-msg">请先到模型设置配置可用的模型提供商，然后开始诊断。</div>
+            <a href="/settings/models" className="btn btn-primary" style={{ marginTop: 12 }}>前往模型设置 →</a>
+          </div>
+        )}
+
+        {!modelLocked && !modelLoadError && providers.length > 0 && (
+          <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>选择模型：</span>
             <select
-              style={s.modelSelect}
+              className="select"
+              style={{ width: "auto", flex: 1, maxWidth: 300 }}
               value={selectedProviderId || ""}
               onChange={e => {
                 const pid = e.target.value || null;
@@ -89,53 +114,35 @@ export default function ChatPage() {
               disabled={busy || conversationActive}
             >
               {providers.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name} / {p.default_model}
-                </option>
+                <option key={p.id} value={p.id}>{p.name} / {p.default_model}</option>
               ))}
             </select>
-          )}
-          <span style={s.round}>
-            {state ? `${state.conversation_round} 轮` : ""}
-            {isCompleted ? " · " : ""}
-          </span>
-        </div>
-      </header>
-      <div style={s.chat}>
-        {modelLoadError && (
-          <div style={s.noModelBox}>
-            <div style={s.noModelTitle}>模型列表加载失败</div>
-            <div style={s.noModelDesc}>请检查网络连接或稍后刷新页面重试。</div>
           </div>
         )}
-        {noModelAvailable && (
-          <div style={s.noModelBox}>
-            <div style={s.noModelTitle}>暂无可用的 AI 模型</div>
-            <div style={s.noModelDesc}>请先到模型设置配置可用的模型提供商，然后开始诊断。</div>
-            <a href="/settings/models" style={s.noModelLink}>前往模型设置 →</a>
-          </div>
-        )}
+
         {messages.map((m, i) => (
-          <div key={i} style={m.role === "user" ? s.userRow : s.assistantRow}>
-            <div style={m.role === "user" ? s.userBubble : s.assistantBubble}>{m.content}</div>
+          <div key={i} style={{
+            display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10,
+          }}>
+            <div style={m.role === "user" ? bubble.user : bubble.assistant}>{m.content}</div>
           </div>
         ))}
-        {isStarting && <div style={s.status}>正在连接...</div>}
-        {error && <div style={s.error}>{error}</div>}
+        {isStarting && <div className="status-msg">正在连接...</div>}
+        {error && <div className="error-msg">{error}</div>}
         {missingItems.length > 0 && (
-          <div style={s.missingBox}>
-            <div style={s.missingTitle}>生成报告还缺少：</div>
+          <div className="card" style={{ background: "var(--color-warning-bg)", marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, color: "var(--color-warning)" }}>生成报告还缺少：</div>
             {missingItems.map((m, i) => (
-              <div key={i} style={s.missingItem}>
-                <span style={s.missingLabel}>{m.label}</span>
-                {m.ask && <div style={s.missingAsk}>{m.ask}</div>}
+              <div key={i} style={{ marginBottom: 6, fontSize: 14 }}>
+                <span style={{ fontWeight: 600 }}>{m.label}</span>
+                {m.ask && <div style={{ color: "var(--color-text-secondary)", marginTop: 2 }}>{m.ask}</div>}
               </div>
             ))}
           </div>
         )}
         {reportSafe && (
           <>
-            <h3 style={s.reportTitle}>诊断报告</h3>
+            <h3 style={{ fontSize: 18, marginBottom: 8 }}>诊断报告</h3>
             <UserReportCard
               report={displayReport}
               usedTemplateReport={usedTemplateReport}
@@ -146,58 +153,63 @@ export default function ChatPage() {
             />
           </>
         )}
-        {displayReport && !reportSafe && <div style={s.error}>报告内容校验失败，请联系管理员</div>}
+        {displayReport && !reportSafe && <div className="error-msg">报告内容校验失败，请联系管理员</div>}
         <div ref={bottomRef} />
-      </div>
-      <div style={s.inputRow}>
-        {showFinish && (
-          <button style={s.finishBtn} onClick={finish} disabled={busy}>
-            {isFinishing ? "生成中..." : "生成报告"}
+
+        {/* Input bar */}
+        <div style={{
+          position: "sticky", bottom: 0, display: "flex", padding: "12px 0",
+          background: "var(--color-bg)", gap: 8, borderTop: "1px solid var(--color-border)", marginTop: 16,
+        }}>
+          {showFinish && (
+            <button className="btn btn-sm" style={{ background: "var(--color-warning)", color: "#fff" }}
+              onClick={finish} disabled={busy}>
+              {isFinishing ? "生成中..." : "生成报告"}
+            </button>
+          )}
+          {isCompleted && (
+            <button className="btn btn-secondary btn-sm" onClick={restart} disabled={busy}>重新开始</button>
+          )}
+          {readiness?.report_ready && !isCompleted && (
+            <span style={{ fontSize: 12, color: "var(--color-success)", alignSelf: "center" }}>信息已齐备</span>
+          )}
+          <textarea
+            className="input"
+            style={{ flex: 1, resize: "none", fontFamily: "inherit" }}
+            value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={inputPlaceholder()}
+            disabled={busy || isCompleted || modelUnavailable}
+            rows={2}
+          />
+          <button className="btn btn-primary" onClick={send} disabled={busy || isCompleted || !input.trim() || modelUnavailable}>
+            {isStreaming ? "..." : "发送"}
           </button>
-        )}
-        {isCompleted && (
-          <button style={s.restartBtn} onClick={restart} disabled={busy}>重新开始</button>
-        )}
-        <textarea style={s.input} value={input} onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={isCompleted ? "本次诊断已完成，可重新开始" : noModelAvailable ? "请先配置 AI 模型" : "输入你的企业信息..."}
-          disabled={busy || isCompleted || noModelAvailable} rows={2} />
-        <button style={s.btn} onClick={send} disabled={busy || isCompleted || !input.trim() || noModelAvailable}>
-          {isStreaming ? "..." : "发送"}
-        </button>
-      </div>
-    </div>
+        </div>
+        </div>{/* /.chat-main */}
+
+        {/* Right: diagnosis progress panel */}
+        <div className="diagnosis-panel-col">
+          <DiagnosisProgressPanel
+            state={state}
+            missingItems={missingItems}
+            nextQuestions={nextQuestions}
+          />
+        </div>
+      </div>{/* /.chat-layout */}
+    </AppShell>
   );
 }
 
-const s: Record<string, React.CSSProperties> = {
-  page: { maxWidth: 700, margin: "0 auto", height: "100dvh", display: "flex", flexDirection: "column" },
-  header: { padding: "12px 16px", background: "#0D9488", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  title: { fontWeight: 600, fontSize: 16 },
-  headerRight: { display: "flex", alignItems: "center", gap: 10 },
-  modelSelect: { padding: "4px 8px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 13, outline: "none", maxWidth: 220 },
-  modelLocked: { fontSize: 12, opacity: 0.85, background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: 4, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  round: { fontSize: 13, opacity: 0.85, marginLeft: 4 },
-  chat: { flex: 1, overflowY: "auto", padding: "12px 16px" },
-  userRow: { display: "flex", justifyContent: "flex-end", marginBottom: 10 },
-  assistantRow: { display: "flex", justifyContent: "flex-start", marginBottom: 10 },
-  userBubble: { maxWidth: "80%", padding: "8px 14px", borderRadius: 16, borderBottomRightRadius: 4, background: "#0D9488", color: "#fff", fontSize: 15, lineHeight: 1.5, whiteSpace: "pre-wrap" },
-  assistantBubble: { maxWidth: "80%", padding: "8px 14px", borderRadius: 16, borderBottomLeftRadius: 4, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", fontSize: 15, lineHeight: 1.5, whiteSpace: "pre-wrap" },
-  status: { textAlign: "center", color: "#999", padding: 8 },
-  error: { textAlign: "center", color: "#d32f2f", padding: 8 },
-  reportTitle: { fontSize: 18, marginBottom: 8 },
-  inputRow: { display: "flex", padding: "8px 12px", borderTop: "1px solid #e0e0e0", background: "#fff", gap: 8 },
-  input: { flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc", fontSize: 15, outline: "none", resize: "none" as const, fontFamily: "inherit" },
-  btn: { padding: "8px 20px", borderRadius: 8, border: "none", background: "#0D9488", color: "#fff", fontSize: 15, cursor: "pointer" },
-  finishBtn: { padding: "8px 16px", borderRadius: 8, border: "none", background: "#e65100", color: "#fff", fontSize: 14, cursor: "pointer" },
-  restartBtn: { padding: "8px 16px", borderRadius: 8, border: "1px solid #0D9488", background: "#fff", color: "#0D9488", fontSize: 14, cursor: "pointer" },
-  missingBox: { background: "#fff3e0", padding: "10px 14px", borderRadius: 8, marginBottom: 10 },
-  missingTitle: { fontWeight: 600, fontSize: 14, marginBottom: 6, color: "#e65100" },
-  missingItem: { marginBottom: 6, fontSize: 14 },
-  missingLabel: { fontWeight: 600, color: "#333" },
-  missingAsk: { color: "#666", marginTop: 2 },
-  noModelBox: { textAlign: "center" as const, padding: "40px 16px", background: "#fff", borderRadius: 12, margin: "20px 0", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" },
-  noModelTitle: { fontSize: 18, fontWeight: 600, color: "#333", marginBottom: 8 },
-  noModelDesc: { fontSize: 14, color: "#666", marginBottom: 16 },
-  noModelLink: { color: "#0D9488", fontSize: 14, fontWeight: 600, textDecoration: "none" },
+const bubble = {
+  user: {
+    maxWidth: "80%", padding: "8px 14px", borderRadius: "16px 16px 4px 16px",
+    background: "var(--color-primary)", color: "#fff", fontSize: 15,
+    lineHeight: 1.5, whiteSpace: "pre-wrap" as const,
+  },
+  assistant: {
+    maxWidth: "80%", padding: "8px 14px", borderRadius: "16px 16px 16px 4px",
+    background: "var(--color-surface)", fontSize: 15, lineHeight: 1.5,
+    whiteSpace: "pre-wrap" as const, border: "1px solid var(--color-border)",
+  },
 };
