@@ -132,10 +132,15 @@ const s: Record<string, React.CSSProperties> = {
   panel: {
     display: "flex", flexDirection: "column", gap: 12,
     fontSize: 13,
+    background: "rgba(255,255,255,0.86)",
+    borderRadius: "var(--radius-lg)",
+    padding: "14px 16px",
+    border: "1px solid var(--color-border)",
+    boxShadow: "var(--shadow-sm)",
   },
   section: {
-    background: "var(--color-surface)", borderRadius: "var(--radius-md)",
-    padding: "12px 14px", border: "1px solid var(--color-border)",
+    padding: "0 0 12px 0",
+    borderBottom: "1px solid var(--color-border-light)",
   },
   sectionTitle: {
     fontSize: 13, fontWeight: 600, color: "var(--color-text)",

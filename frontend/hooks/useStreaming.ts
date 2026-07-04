@@ -179,6 +179,33 @@ export function useStreaming() {
     }
   }, [start, selectedProviderId, draftId]);
 
+  const newConversation = useCallback(async () => {
+    if (restartingRef.current) return;
+    restartingRef.current = true;
+    setState(null);
+    setMessages([]);
+    setInput("");
+    setError(null);
+    setMissingItems([]);
+    setNextQuestions([]);
+    setReport(null);
+    setAssessmentId(null);
+    setUsedTemplateReport(false);
+    setWechatQrUrl(null);
+    setIsStreaming(false);
+    setIsFinishing(false);
+    setLockedProviderId(null);
+    setLockedModelName(null);
+    setTraceEvents([]);
+    setDraftId(null);
+    streamingRef.current = false;
+    try {
+      await start(selectedProviderId);
+    } finally {
+      restartingRef.current = false;
+    }
+  }, [start, selectedProviderId]);
+
   const restoreDraft = useCallback((draft: DiagnosisDraft) => {
     setState(draft.state);
     setMessages(draft.state.messages);
@@ -204,6 +231,6 @@ export function useStreaming() {
     report, assessmentId, usedTemplateReport, wechatQrUrl, error,
     missingItems, nextQuestions,
     selectedProviderId, lockedProviderId, lockedModelName, traceEvents, draftId,
-    start, setInput, send, finish, restart, setSelectedProviderId, restoreDraft,
+    start, setInput, send, finish, restart, newConversation, setSelectedProviderId, restoreDraft,
   };
 }

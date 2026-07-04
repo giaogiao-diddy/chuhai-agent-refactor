@@ -17,7 +17,7 @@ export default function ChatPage() {
     state, messages, input, isStarting, isStreaming, isFinishing, isCompleted,
     report, assessmentId, usedTemplateReport, wechatQrUrl, error, missingItems, nextQuestions,
     selectedProviderId, lockedProviderId, lockedModelName, traceEvents, draftId,
-    start, setInput, send, finish, restart, setSelectedProviderId, restoreDraft,
+    start, setInput, send, finish, restart, newConversation, setSelectedProviderId, restoreDraft,
   } = useStreaming();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [fullReport, setFullReport] = useState<UserReport | null>(null);
@@ -105,8 +105,88 @@ export default function ChatPage() {
     return "输入你的企业信息...";
   }
 
+  function formatDraftTime(value?: string): string {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${d} ${hh}:${mm}`;
+  }
+
+  async function handleDeleteSession(id: string) {
+    if (isStreaming || isFinishing) return;
+    deleteDraft(id);
+    const remaining = listDrafts();
+    if (id === draftId) {
+      if (remaining.length > 0) {
+        restoreDraft(remaining[0]);
+      } else {
+        await newConversation();
+      }
+    }
+    loadDrafts();
+  }
+
+  const sessionPanel = (
+    <div className="chat-session-col">
+          <div className="chat-session-header">
+            <div>
+              <div className="chat-session-title">会话</div>
+              <div className="chat-session-count">{drafts.length} 个草稿</div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={async () => {
+              await newConversation();
+              loadDrafts();
+            }} disabled={isStreaming || isFinishing}>
+              新建
+            </button>
+          </div>
+          <div className="chat-session-list">
+            {drafts.length === 0 && (
+              <div className="chat-session-empty">
+                暂无草稿
+              </div>
+            )}
+            {drafts.map(d => (
+              <div
+                key={d.id}
+                className={`chat-session-item${d.id === draftId ? " active" : ""}`}
+              >
+                <button
+                  className="chat-session-select"
+                  onClick={() => {
+                    if (d.id !== draftId && !isStreaming && !isFinishing) {
+                      restoreDraft(d);
+                      loadDrafts();
+                    }
+                  }}
+                  type="button"
+                >
+                  <span className="chat-session-name">{d.title}</span>
+                  <span className="chat-session-time">{formatDraftTime(d.created_at)}</span>
+                </button>
+                <button
+                  className="chat-session-delete"
+                  onClick={e => {
+                    e.stopPropagation();
+                    void handleDeleteSession(d.id);
+                  }}
+                  type="button"
+                >
+                  删除
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+  );
+
   return (
-    <AppShell title="出海诊断" modelStatus={modelStatus}>
+    <AppShell title="出海诊断" modelStatus={modelStatus} sidePanel={sessionPanel}>
       <div className="chat-layout">
         {/* Left: chat column */}
         <div className="chat-main">
@@ -226,53 +306,6 @@ export default function ChatPage() {
             nextQuestions={nextQuestions}
           />
           <AgentTracePanel events={traceEvents} />
-
-          {/* Draft manager */}
-          <div className="card card-sm" style={{ marginTop: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: drafts.length > 0 ? 8 : 0 }}>
-              <span style={{ fontWeight: 600, fontSize: 13 }}>诊断草稿</span>
-              <button className="btn btn-secondary btn-sm" onClick={async () => {
-                await restart();
-                loadDrafts();
-              }} disabled={isStreaming || isFinishing} style={{ fontSize: 11 }}>
-                + 新建
-              </button>
-            </div>
-            {drafts.length === 0 && (
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)", textAlign: "center", padding: "4px 0" }}>
-                暂无草稿
-              </div>
-            )}
-            {drafts.map(d => (
-              <div key={d.id}
-                style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "5px 0", borderBottom: "1px solid var(--color-border)",
-                  cursor: "pointer", fontSize: 12,
-                  background: d.id === draftId ? "var(--color-primary-light)" : "transparent",
-                  borderRadius: 4, paddingLeft: 6, paddingRight: 6,
-                }}
-                onClick={() => { if (d.id !== draftId && !isStreaming && !isFinishing) { restoreDraft(d); loadDrafts(); } }}
-              >
-                <div style={{ overflow: "hidden", flex: 1 }}>
-                  <div style={{ fontWeight: d.id === draftId ? 600 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {d.title}
-                  </div>
-                  <div style={{ color: "var(--color-text-muted)", fontSize: 10 }}>
-                    {d.last_active_at?.slice(0, 16).replace("T", " ")}
-                  </div>
-                </div>
-                <button className="btn btn-danger btn-sm" style={{ padding: "2px 6px", fontSize: 10, flexShrink: 0, marginLeft: 6 }}
-                  onClick={async e => {
-                    e.stopPropagation();
-                    if (d.id === draftId && !isStreaming && !isFinishing) { await restart(); loadDrafts(); }
-                    else { deleteDraft(d.id); loadDrafts(); }
-                  }}>
-                  删除
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
       </div>{/* /.chat-layout */}
     </AppShell>

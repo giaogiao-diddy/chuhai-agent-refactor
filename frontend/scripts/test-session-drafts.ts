@@ -153,6 +153,15 @@ setActiveDraftId(draftActive.id);
 deleteDraft(draftInactive.id);
 assert(getActiveDraftId() === draftActive.id, "active draft not cleared when deleting non-active");
 
+// 14. saveDraft preserves original created_at
+_clear();
+const createdAt = "2026-01-01T00:00:00.000Z";
+const draftWithCreatedAt = _makeDraft({ created_at: createdAt, title: "before" });
+saveDraft(draftWithCreatedAt);
+saveDraft({ ...draftWithCreatedAt, title: "after", created_at: "2026-02-01T00:00:00.000Z" });
+const preserved = getDraft(draftWithCreatedAt.id);
+assert(preserved?.created_at === createdAt, "saveDraft: preserves created_at on update");
+
 // Cleanup
 _clear();
 

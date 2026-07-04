@@ -44,8 +44,13 @@ export function getDraft(id: string): DiagnosisDraft | null {
 }
 
 export function saveDraft(draft: DiagnosisDraft): void {
-  const drafts = _all().filter(d => d.id !== draft.id);
-  draft.updated_at = _now();
+  const allDrafts = _all();
+  const existing = allDrafts.find(d => d.id === draft.id);
+  const drafts = allDrafts.filter(d => d.id !== draft.id);
+  const now = _now();
+  draft.created_at = existing?.created_at || draft.created_at || now;
+  draft.last_active_at = draft.last_active_at || now;
+  draft.updated_at = now;
   // 只保留安全的 state 字段，不保存 report/lead 等对象
   const safeDraft = { ...draft };
   if (safeDraft.state) {

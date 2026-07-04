@@ -22,16 +22,31 @@ const NAV_ITEMS: NavItem[] = [
 type Props = {
   title: string;
   modelStatus?: string | null;
+  sidePanel?: React.ReactNode;
   children: React.ReactNode;
 };
 
-export default function AppShell({ title, modelStatus, children }: Props) {
+export default function AppShell({ title, modelStatus, sidePanel, children }: Props) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
 
-  useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
+  useEffect(() => {
+    setLoggedIn(isLoggedIn());
+    try {
+      setNavCollapsed(localStorage.getItem("shell_nav_collapsed") === "1");
+    } catch {}
+  }, []);
+
+  const toggleNavCollapsed = useCallback(() => {
+    setNavCollapsed(v => {
+      const next = !v;
+      try { localStorage.setItem("shell_nav_collapsed", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }, []);
 
   const handleLogin = useCallback(async () => {
     setAuthError(null);
@@ -59,7 +74,7 @@ export default function AppShell({ title, modelStatus, children }: Props) {
   }, []);
 
   return (
-    <div className="shell">
+    <div className={`shell${navCollapsed ? " nav-collapsed" : ""}`}>
       {/* Mobile overlay */}
       {navOpen && (
         <div
@@ -74,10 +89,19 @@ export default function AppShell({ title, modelStatus, children }: Props) {
       <nav className={`shell-nav${navOpen ? " open" : ""}`}>
         <div className="shell-nav-brand">
           <span className="shell-brand-mark" aria-hidden="true" />
-          <span>
+          <span className="shell-brand-copy">
             <span className="shell-brand-title">深度未来</span>
             <span className="shell-brand-subtitle">Export Agent Console</span>
           </span>
+          <button
+            className="shell-nav-collapse"
+            onClick={toggleNavCollapsed}
+            aria-label={navCollapsed ? "展开导航" : "收起导航"}
+            title={navCollapsed ? "展开导航" : "收起导航"}
+            type="button"
+          >
+            {navCollapsed ? "›" : "‹"}
+          </button>
         </div>
         <div className="shell-nav-items">
           {NAV_ITEMS.map(item => (
@@ -86,16 +110,24 @@ export default function AppShell({ title, modelStatus, children }: Props) {
               href={item.href}
               className={`shell-nav-item${pathname === item.href || pathname?.startsWith(item.href + "/") ? " active" : ""}`}
               onClick={() => setNavOpen(false)}
+              aria-label={item.label}
+              title={item.label}
             >
               <span className="shell-line-icon" data-kind={item.icon} aria-hidden="true" />
-              {item.label}
+              <span className="shell-nav-label">{item.label}</span>
             </a>
           ))}
         </div>
       </nav>
 
+      {sidePanel && (
+        <aside className="shell-context-rail">
+          {sidePanel}
+        </aside>
+      )}
+
       {/* Main */}
-      <div className="shell-main">
+      <div className={`shell-main${sidePanel ? " with-context" : ""}`}>
         {/* Top Bar */}
         <header className="shell-topbar">
           <div className="shell-topbar-left">
