@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { startConversation, finishConversation, FinishMissingInfoError } from "@/lib/api";
 import { streamConversation } from "@/lib/streaming";
 import type { AgentTraceEvent } from "@/lib/streaming";
@@ -94,7 +95,13 @@ export function useStreaming() {
       for await (const event of gen) {
         if (event.type === "delta") {
           assistantDraft += event.content;
-          setMessages([...nextMessages, { role: "assistant", content: assistantDraft }]);
+          flushSync(() => {
+            setMessages([...nextMessages, { role: "assistant", content: assistantDraft }]);
+          });
+          // 微延迟让浏览器有时间绘制，实现逐字效果
+          if (assistantDraft.length % 3 === 0) {
+            await new Promise(r => setTimeout(r, 0));
+          }
         } else if (event.type === "done") {
           setState(event.state);
           setMessages(event.state.messages);

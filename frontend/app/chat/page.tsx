@@ -305,7 +305,7 @@ export default function ChatPage() {
             missingItems={missingItems}
             nextQuestions={nextQuestions}
           />
-          <AgentTracePanel events={traceEvents} />
+          <AgentTracePanel events={traceEvents} isStreaming={isStreaming} />
         </div>
       </div>{/* /.chat-layout */}
     </AppShell>
