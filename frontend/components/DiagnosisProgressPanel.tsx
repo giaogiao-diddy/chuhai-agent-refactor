@@ -43,11 +43,23 @@ export default function DiagnosisProgressPanel({ state, missingItems, nextQuesti
     ? nextQuestions
     : readiness?.next_questions ?? [];
 
+  const round = state?.conversation_round ?? 0;
+
   return (
-    <div style={s.panel}>
+    <div className="card card-sm" style={{ marginBottom: 12 }}>
       {/* Status */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>诊断进度</div>
+      <div style={{ marginBottom: readiness ? 10 : 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>诊断进度</span>
+            {round > 0 && (
+              <span className="badge badge-neutral" style={{ fontSize: 10 }}>第 {round} 轮</span>
+            )}
+          </div>
+          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+            已答 {readiness?.answered_count ?? Object.keys(state?.answers || {}).length} 题
+          </span>
+        </div>
         <div style={s.statRow}>
           <span style={s.statLabel}>已识别答案</span>
           <span style={s.statValue}>{readiness?.answered_count ?? Object.keys(state?.answers || {}).length}</span>

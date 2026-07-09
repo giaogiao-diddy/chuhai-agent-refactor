@@ -298,13 +298,16 @@ export default function ChatPage() {
         </div>
         </div>{/* /.chat-main */}
 
-        {/* Right: diagnosis progress panel */}
+        {/* Right: context panel — 分层折叠卡片 */}
         <div className="diagnosis-panel-col">
+          {/* Layer 1: 诊断进度 */}
           <DiagnosisProgressPanel
             state={state}
             missingItems={missingItems}
             nextQuestions={nextQuestions}
           />
+
+          {/* Layer 2: Agent 运行日志 */}
           <AgentTracePanel events={traceEvents} isStreaming={isStreaming} />
         </div>
       </div>{/* /.chat-layout */}

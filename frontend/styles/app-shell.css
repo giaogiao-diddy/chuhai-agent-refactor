@@ -30,6 +30,7 @@
 
   --nav-width: 232px;
   --nav-collapsed-width: 72px;
+  --context-width: 220px;
   --context-width: 268px;
   --topbar-height: 58px;
 
@@ -359,6 +360,132 @@ a { color: var(--color-primary); }
 
 .shell.nav-collapsed .shell-context-rail {
   left: var(--nav-collapsed-width);
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Session panel (side rail) ── */
+.chat-session-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-session-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-line);
+  margin-bottom: 10px;
+}
+
+.chat-session-title {
+  font-size: var(--text-md);
+  font-weight: 680;
+  color: var(--color-text);
+}
+
+.chat-session-count {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.chat-session-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-session-empty {
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.chat-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
+  transition: border-color var(--transition-fast, 0.15s ease),
+              background var(--transition-fast, 0.15s ease);
+}
+
+.chat-session-item:hover {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: var(--color-line, #C8DDF5);
+}
+
+.chat-session-item.active {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: var(--color-line-strong, #7EB6EF);
+}
+
+.chat-session-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.chat-session-name {
+  font-size: 12px;
+  font-weight: 540;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-session-item.active .chat-session-name {
+  font-weight: 640;
+}
+
+.chat-session-time {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.chat-session-delete {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.chat-session-item:hover .chat-session-delete {
+  opacity: 1;
+}
+
+.chat-session-delete:hover {
+  color: var(--color-danger);
+  border-color: rgba(199, 70, 92, 0.3);
 }
 
 .shell-topbar {
