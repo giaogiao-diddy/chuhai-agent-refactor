@@ -46,6 +46,55 @@ async def api_create_knowledge(
     return KnowledgeItem.from_orm_model(doc)
 
 
+@router.get("/eval")
+async def api_eval_rag(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_consultant_required),
+):
+    """RAG 离线评估：recall@3, precision@3, MRR, Hit@3"""
+    import asyncio
+    from app.services.rag_eval import EVAL_QUERIES
+    from app.services.rag_repository import search_rag_context
+
+    sem = asyncio.Semaphore(5)
+    async def search_one(query: str, top_k: int = 3):
+        async with sem:
+            return await search_rag_context(db, query, top_k)
+
+    K = 3; total = len(EVAL_QUERIES)
+    recall_sum = precision_sum = mrr_sum = hit_count = 0.0
+    per_query: list[dict] = []
+
+    for item in EVAL_QUERIES:
+        query = item["query"]; relevant = set(item["relevant_titles"])
+        matches = await search_one(query, K)
+        titles = [m.title for m in matches]
+        rel_retrieved = [t for t in titles if t in relevant]
+        recall = len(rel_retrieved) / len(relevant) if relevant else 0.0
+        precision = len(rel_retrieved) / K if K > 0 else 0.0
+        rr = 0.0
+        for rank, t in enumerate(titles, 1):
+            if t in relevant: rr = 1.0 / rank; break
+        recall_sum += recall; precision_sum += precision; mrr_sum += rr
+        hit_count += 1 if rel_retrieved else 0
+        per_query.append({
+            "query": query, "expected": sorted(relevant),
+            "retrieved": [(t, round(m.score, 4)) for t, m in zip(titles, matches)],
+            "recall": round(recall, 4), "precision": round(precision, 4),
+            "reciprocal_rank": round(rr, 4),
+        })
+
+    return {
+        "summary": {
+            "total_queries": total, "top_k": K,
+            "recall_at_k": round(recall_sum / total, 4),
+            "precision_at_k": round(precision_sum / total, 4),
+            "mrr": round(mrr_sum / total, 4),
+            "hit_rate_at_k": round(hit_count / total, 4),
+        }, "details": per_query,
+    }
+
+
 @router.get("/{doc_id}", response_model=KnowledgeDetail)
 async def api_get_knowledge(
     doc_id: _uuid.UUID,
@@ -106,3 +155,4 @@ async def api_search_knowledge(
     current_user: User = Depends(get_current_consultant_required),
 ):
     return await search_knowledge(db, query=body.query, top_k=body.top_k)
+
